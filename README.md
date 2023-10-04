@@ -1,11 +1,6 @@
-## My Project
+## AWS S3 AccessGrants Caching for AWS SDK Java 2.0
 
-TODO: Fill this README out!
-
-Be sure to:
-
-* Change the title in this README
-* Edit your repository description on GitHub
+The **AWS S3 AccessGrants Caching Java 2.0** is a library that provides client side caching capability on temporary data access credentials.
 
 ## Security
 
