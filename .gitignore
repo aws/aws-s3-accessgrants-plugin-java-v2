@@ -1,0 +1,15 @@
+# Intellij
+.idea/*
+*.iml
+*.ipr
+*.iws
+# IntelliJ un-ignore
+!.idea/codeStyles/
+!.idea/copyright/
+!.idea/inspectionProfiles/
+
+# Mac
+.DS_Store
+
+# Maven
+target/
