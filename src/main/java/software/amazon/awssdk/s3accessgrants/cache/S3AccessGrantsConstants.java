@@ -15,14 +15,9 @@
 
 package software.amazon.awssdk.s3accessgrants.cache;
 
-import software.amazon.awssdk.services.s3control.model.S3ControlException;
-
-public interface S3AccessGrantsAccountIdResolver {
-    /**
-     *
-     * @param s3Prefix e.g., s3://bucket-name/path/to/helloworld.txt
-     * @return AWS AccountId of the S3 Access Grants Instance that owns the location scope of the s3Prefix
-     * @throws S3ControlException propagate S3ControlException from service call
-     */
-    String resolve(String s3Prefix) throws S3ControlException;
+public class S3AccessGrantsConstants {
+    public static final int DEFAULT_MAX_CACHE_SIZE = 1_000;
+    public static final int MAX_LIMIT_MAX_CACHE_SIZE = 1_000_000;
+    public static final int DEFAULT_EXPIRE_CACHE_AFTER_WRITE_SECONDS = 86_400; // one day
+    public static final int MAX_LIMIT_EXPIRE_CACHE_AFTER_WRITE_SECONDS = 2_592_000; // 30 days
 }

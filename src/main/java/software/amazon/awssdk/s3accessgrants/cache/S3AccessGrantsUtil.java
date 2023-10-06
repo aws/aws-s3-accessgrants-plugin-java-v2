@@ -15,14 +15,11 @@
 
 package software.amazon.awssdk.s3accessgrants.cache;
 
-import software.amazon.awssdk.services.s3control.model.S3ControlException;
+import java.net.URI;
 
-public interface S3AccessGrantsAccountIdResolver {
-    /**
-     *
-     * @param s3Prefix e.g., s3://bucket-name/path/to/helloworld.txt
-     * @return AWS AccountId of the S3 Access Grants Instance that owns the location scope of the s3Prefix
-     * @throws S3ControlException propagate S3ControlException from service call
-     */
-    String resolve(String s3Prefix) throws S3ControlException;
+public class S3AccessGrantsUtil {
+
+    public static String getBucketName(String s3Prefix) {
+        return URI.create(s3Prefix).getHost();
+    }
 }
