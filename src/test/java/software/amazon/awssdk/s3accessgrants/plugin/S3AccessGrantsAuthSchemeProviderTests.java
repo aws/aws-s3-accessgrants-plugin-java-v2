@@ -4,8 +4,14 @@ import org.junit.Test;
 import org.assertj.core.api.Assertions;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeParams;
+import java.util.List;
+import java.util.ArrayList;
+import software.amazon.awssdk.http.auth.spi.scheme.AuthSchemeOption;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.mock;
 
 
 public class S3AccessGrantsAuthSchemeProviderTests{
@@ -42,4 +48,27 @@ public class S3AccessGrantsAuthSchemeProviderTests{
         Assertions.assertThatNoException().isThrownBy(()->accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams));
     }
 
+    @Test
+    public void call_authSchemeProvider_with_valid_params_invokes_default_authSchemeProvider() {
+        S3AuthSchemeProvider authSchemeProvider = mock(S3AuthSchemeProvider.class);
+        S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider);
+        S3AuthSchemeParams authSchemeParams = mock(S3AuthSchemeParams.class);
+
+        Assertions.assertThatNoException().isThrownBy(()->accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams));
+        verify(authSchemeProvider, times(1)).resolveAuthScheme(authSchemeParams);
+    }
+
+    @Test
+    public void call_authSchemeProvider_with_valid_params_invokes_default_authSchemeProvider_returning_valid_result() {
+        S3AuthSchemeProvider authSchemeProvider = mock(S3AuthSchemeProvider.class);
+        S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider);
+        S3AuthSchemeParams authSchemeParams = mock(S3AuthSchemeParams.class);
+        List<AuthSchemeOption> authSchemeResolverResult = new ArrayList<>();
+        authSchemeResolverResult.add(AuthSchemeOption.builder().schemeId("aws.auth#sigv4").build());
+
+        when(authSchemeProvider.resolveAuthScheme(authSchemeParams)).thenReturn(authSchemeResolverResult);
+
+        Assertions.assertThat(accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams).get(0).schemeId()).isEqualTo("aws.auth#sigv4");
+        verify(authSchemeProvider, times(1)).resolveAuthScheme(authSchemeParams);
+    }
 }

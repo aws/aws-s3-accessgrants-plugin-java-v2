@@ -27,6 +27,7 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
     public List<AuthSchemeOption> resolveAuthScheme(@NotNull S3AuthSchemeParams authSchemeParams) {
        Validate.notNull(authSchemeParams,
                 "An internal exception has occurred. Valid auth scheme params were not passed to the Auth Scheme Provider. Please contact SDK team!");
-        return null;
+       List<AuthSchemeOption> availableAuthSchemes = authSchemeProvider.resolveAuthScheme(authSchemeParams);
+       return availableAuthSchemes;
     }
 }
