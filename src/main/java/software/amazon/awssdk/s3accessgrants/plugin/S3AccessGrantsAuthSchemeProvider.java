@@ -8,6 +8,9 @@ import software.amazon.awssdk.utils.Validate;
 
 import java.util.List;
 
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.OPERATION_PROPERTY;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PREFIX_PROPERTY;
+
 /**
  * This is an Auth Scheme Provider for S3 access grants.
  * It uses a default auth scheme configured on S3 Clients and appends parameters required by access grants to resolve a request
@@ -27,7 +30,21 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
     public List<AuthSchemeOption> resolveAuthScheme(@NotNull S3AuthSchemeParams authSchemeParams) {
        Validate.notNull(authSchemeParams,
                 "An internal exception has occurred. Valid auth scheme params were not passed to the Auth Scheme Provider. Please contact SDK team!");
+       Validate.notNull(authSchemeParams.bucket(), "An internal exception has occurred. expecting bucket name to be specified for the request. Please contact SDK team!");
        List<AuthSchemeOption> availableAuthSchemes = authSchemeProvider.resolveAuthScheme(authSchemeParams);
-       return availableAuthSchemes;
+       String S3Prefix = "s3://"+authSchemeParams.bucket()+"/"+GetKeyIfExists(authSchemeParams);
+
+        return availableAuthSchemes.stream()
+                .map(authScheme -> authScheme.toBuilder().putIdentityProperty(OPERATION_PROPERTY,
+                                authSchemeParams.operation())
+                        .putIdentityProperty(PREFIX_PROPERTY,
+                                S3Prefix)
+                        .build()
+                )
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    private String GetKeyIfExists(S3AuthSchemeParams authSchemeParams) {
+        return authSchemeParams.key() == null || authSchemeParams.key().isEmpty() ? "" : authSchemeParams.key();
     }
 }
