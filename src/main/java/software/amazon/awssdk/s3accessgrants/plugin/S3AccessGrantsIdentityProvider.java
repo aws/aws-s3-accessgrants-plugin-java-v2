@@ -3,11 +3,15 @@ package software.amazon.awssdk.s3accessgrants.plugin;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import software.amazon.awssdk.annotations.NotNull;
-import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.identity.spi.IdentityProvider;
 import software.amazon.awssdk.identity.spi.ResolveIdentityRequest;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
+import software.amazon.awssdk.services.s3control.model.Permission;
+import software.amazon.awssdk.services.s3control.model.Privilege;
+import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
+import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsStaticOperationToPermissionMapper;
 import software.amazon.awssdk.utils.Validate;
 
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.OPERATION_PROPERTY;
@@ -20,6 +24,10 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     private String accountId;
 
+    private S3ControlAsyncClient s3control;
+
+    private S3AccessGrantsStaticOperationToPermissionMapper permissionMapper;
+
     S3AccessGrantsIdentityProvider(@NotNull IdentityProvider<? extends AwsCredentialsIdentity> credentialsProvider,
                                    @NotNull Region region,
                                    @NotNull String accountId) {
@@ -28,6 +36,10 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
         this.credentialsProvider = credentialsProvider;
         this.region = region;
         this.accountId = accountId;
+        this.s3control = S3ControlAsyncClient.builder()
+                .credentialsProvider(credentialsProvider)
+                .region(region).build();
+        this.permissionMapper = new S3AccessGrantsStaticOperationToPermissionMapper();
     }
 
 
@@ -46,9 +58,26 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
         String S3Prefix = resolveIdentityRequest.property(PREFIX_PROPERTY).toString();
         String operation = resolveIdentityRequest.property(OPERATION_PROPERTY).toString();
+        Permission permission = permissionMapper.getPermission(operation);
+        Privilege privilege = null;
+
+        createDataAccessRequest(accountId, S3Prefix, permission, privilege);
 
 
         return null;
+    }
+
+    private GetDataAccessRequest createDataAccessRequest(String accountId, String S3Prefix,
+                                                           Permission permission,
+                                                           Privilege privilege) {
+        GetDataAccessRequest dataAccessRequest = GetDataAccessRequest.builder()
+                .accountId(accountId)
+                .target(S3Prefix)
+                .permission(permission)
+                .privilege(privilege)
+                .build();
+
+        return dataAccessRequest;
     }
 
     private void validateRequestParameters(ResolveIdentityRequest resolveIdentityRequest) {
