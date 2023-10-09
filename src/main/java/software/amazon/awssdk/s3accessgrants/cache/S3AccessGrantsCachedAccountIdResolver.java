@@ -15,10 +15,10 @@
 
 package software.amazon.awssdk.s3accessgrants.cache;
 
-import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.DEFAULT_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
-import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.DEFAULT_MAX_CACHE_SIZE;
-import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.MAX_LIMIT_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
-import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.MAX_LIMIT_MAX_CACHE_SIZE;
+import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.DEFAULT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
+import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.DEFAULT_ACCOUNT_ID_MAX_CACHE_SIZE;
+import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.MAX_LIMIT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
+import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.MAX_LIMIT_ACCOUNT_ID_MAX_CACHE_SIZE;
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsUtil.getBucketName;
 
 import com.github.benmanes.caffeine.cache.Cache;
@@ -62,8 +62,8 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
             throw new IllegalArgumentException("s3ControlClient is required");
         }
         this.s3ControlClient = s3ControlClient;
-        this.maxCacheSize = DEFAULT_MAX_CACHE_SIZE;
-        this.expireCacheAfterWriteSeconds = DEFAULT_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
+        this.maxCacheSize = DEFAULT_ACCOUNT_ID_MAX_CACHE_SIZE;
+        this.expireCacheAfterWriteSeconds = DEFAULT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
     }
 
 
@@ -121,8 +121,8 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
     static final class BuilderImpl implements Builder {
         private String accountId;
         private S3ControlClient s3ControlClient;
-        private int maxCacheSize = DEFAULT_MAX_CACHE_SIZE;
-        private int expireCacheAfterWriteSeconds = DEFAULT_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
+        private int maxCacheSize = DEFAULT_ACCOUNT_ID_MAX_CACHE_SIZE;
+        private int expireCacheAfterWriteSeconds = DEFAULT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
 
         private BuilderImpl() {
         }
@@ -145,9 +145,9 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
 
         @Override
         public Builder maxCacheSize(int maxCacheSize) {
-            if (maxCacheSize <= 0 || maxCacheSize > MAX_LIMIT_MAX_CACHE_SIZE) {
+            if (maxCacheSize <= 0 || maxCacheSize > MAX_LIMIT_ACCOUNT_ID_MAX_CACHE_SIZE) {
                 throw new IllegalArgumentException(String.format("maxCacheSize needs to be in range (0, %d]",
-                                                                 MAX_LIMIT_MAX_CACHE_SIZE));
+                                                                 MAX_LIMIT_ACCOUNT_ID_MAX_CACHE_SIZE));
             }
             this.maxCacheSize = maxCacheSize;
             return this;
@@ -159,9 +159,9 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
 
         @Override
         public Builder expireCacheAfterWriteSeconds(int expireCacheAfterWriteSeconds) {
-            if (expireCacheAfterWriteSeconds <= 0 || expireCacheAfterWriteSeconds > MAX_LIMIT_EXPIRE_CACHE_AFTER_WRITE_SECONDS) {
+            if (expireCacheAfterWriteSeconds <= 0 || expireCacheAfterWriteSeconds > MAX_LIMIT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS) {
                 throw new IllegalArgumentException(String.format("expireCacheAfterWriteSeconds needs to be in range (0, %d]",
-                                                                 MAX_LIMIT_EXPIRE_CACHE_AFTER_WRITE_SECONDS));
+                                                                 MAX_LIMIT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS));
             }
             this.expireCacheAfterWriteSeconds = expireCacheAfterWriteSeconds;
             return this;
