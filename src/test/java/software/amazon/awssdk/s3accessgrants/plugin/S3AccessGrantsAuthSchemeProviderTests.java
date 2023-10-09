@@ -40,7 +40,7 @@ public class S3AccessGrantsAuthSchemeProviderTests{
     }
 
     @Test
-    public void call_authSchemeProvider_with_null_params_() {
+    public void call_authSchemeProvider_with_null_params() {
         S3AuthSchemeProvider authSchemeProvider = mock(S3AuthSchemeProvider.class);
         S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider);
         S3AuthSchemeParams authSchemeParams = null;
