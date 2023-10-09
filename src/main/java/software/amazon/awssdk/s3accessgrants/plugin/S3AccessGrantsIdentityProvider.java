@@ -30,15 +30,14 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     S3AccessGrantsIdentityProvider(@NotNull IdentityProvider<? extends AwsCredentialsIdentity> credentialsProvider,
                                    @NotNull Region region,
-                                   @NotNull String accountId) {
+                                   @NotNull String accountId,
+                                   @NotNull S3ControlAsyncClient s3ControlAsyncClient) {
         Validate.notNull(credentialsProvider, "Expecting an Identity Provider to be specified while configuring S3Clients!");
         Validate.notNull(region, "Expecting a region to be configured on the S3Clients!");
         this.credentialsProvider = credentialsProvider;
         this.region = region;
         this.accountId = accountId;
-        this.s3control = S3ControlAsyncClient.builder()
-                .credentialsProvider(credentialsProvider)
-                .region(region).build();
+        this.s3control = s3ControlAsyncClient;
         this.permissionMapper = new S3AccessGrantsStaticOperationToPermissionMapper();
     }
 
@@ -59,17 +58,15 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
         String S3Prefix = resolveIdentityRequest.property(PREFIX_PROPERTY).toString();
         String operation = resolveIdentityRequest.property(OPERATION_PROPERTY).toString();
         Permission permission = permissionMapper.getPermission(operation);
-        Privilege privilege = null;
+        Privilege privilege = software.amazon.awssdk.services.s3control.model.Privilege.DEFAULT;
 
-        createDataAccessRequest(accountId, S3Prefix, permission, privilege);
+        return getCredentialsFromAccessGrants(createDataAccessRequest(accountId, S3Prefix, permission, privilege));
 
-
-        return null;
     }
 
-    private GetDataAccessRequest createDataAccessRequest(String accountId, String S3Prefix,
-                                                           Permission permission,
-                                                           Privilege privilege) {
+    private GetDataAccessRequest createDataAccessRequest(@NotNull String accountId, @NotNull String S3Prefix,
+                                                         @NotNull Permission permission,
+                                                         @NotNull Privilege privilege) {
         GetDataAccessRequest dataAccessRequest = GetDataAccessRequest.builder()
                 .accountId(accountId)
                 .target(S3Prefix)
@@ -78,6 +75,18 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
                 .build();
 
         return dataAccessRequest;
+    }
+
+    private CompletableFuture<? extends AwsCredentialsIdentity> getCredentialsFromAccessGrants(@NotNull GetDataAccessRequest getDataAccessRequest) {
+
+            Validate.notNull(getDataAccessRequest, "An internal exception has occurred. Valid request was not passed to the call access grants. Please contact SDK team!");
+
+            return s3control.getDataAccess(getDataAccessRequest).thenApply(getDataAccessResponse -> {
+                software.amazon.awssdk.services.s3control.model.Credentials credentials = getDataAccessResponse.credentials();
+                return software.amazon.awssdk.auth.credentials.AwsSessionCredentials.builder().accessKeyId(credentials.accessKeyId())
+                        .secretAccessKey(credentials.secretAccessKey())
+                        .sessionToken(credentials.sessionToken()).build();
+            });
     }
 
     private void validateRequestParameters(ResolveIdentityRequest resolveIdentityRequest) {
