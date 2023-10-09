@@ -13,3 +13,6 @@
 
 # Maven
 target/
+
+# Unpublished Dependencies
+lib/
