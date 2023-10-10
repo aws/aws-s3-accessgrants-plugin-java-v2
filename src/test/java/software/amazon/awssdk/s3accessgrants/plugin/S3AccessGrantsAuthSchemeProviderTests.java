@@ -17,7 +17,7 @@ import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGran
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PREFIX_PROPERTY;
 
 
-public class S3AccessGrantsAuthSchemeProviderTests{
+public class S3AccessGrantsAuthSchemeProviderTests {
 
     private final String BUCKET_NAME = "test-bucket";
     private final String KEY = "test-key";
@@ -26,7 +26,7 @@ public class S3AccessGrantsAuthSchemeProviderTests{
     private final String SIGNING_SCHEME = "aws.auth#sigv4";
 
     @Test
-    public void create_authSchemeProvider_with_invalid_DefaultAuthProvider() {
+    public void create_authSchemeProvider_with_no_DefaultAuthProvider() {
 
        Assertions.assertThatThrownBy(() -> new S3AccessGrantsAuthSchemeProvider(null)).isInstanceOf(NullPointerException.class);
 
@@ -40,12 +40,13 @@ public class S3AccessGrantsAuthSchemeProviderTests{
     }
 
     @Test
-    public void call_authSchemeProvider_with_null_params_() {
+    public void call_authSchemeProvider_with_null_params() {
         S3AuthSchemeProvider authSchemeProvider = mock(S3AuthSchemeProvider.class);
         S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider);
         S3AuthSchemeParams authSchemeParams = null;
 
         Assertions.assertThatThrownBy(()->accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams)).isInstanceOf(NullPointerException.class);
+        verify(authSchemeProvider,never()).resolveAuthScheme(authSchemeParams);
     }
 
     @Test
@@ -64,13 +65,14 @@ public class S3AccessGrantsAuthSchemeProviderTests{
     }
 
     @Test
-    public void call_authSchemeProvider_with_valid_params() {
+    public void call_authSchemeProvider_with_valid_params_valid_bucket() {
         S3AuthSchemeProvider authSchemeProvider = mock(S3AuthSchemeProvider.class);
         S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider);
         S3AuthSchemeParams authSchemeParams = mock(S3AuthSchemeParams.class);
 
         when(authSchemeParams.bucket()).thenReturn(BUCKET_NAME);
         Assertions.assertThatNoException().isThrownBy(()->accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams));
+        verify(authSchemeProvider, times(1)).resolveAuthScheme(authSchemeParams);
     }
 
     @Test
@@ -117,7 +119,7 @@ public class S3AccessGrantsAuthSchemeProviderTests{
     }
 
     @Test
-    public void call_authSchemeProvider_with_valid_params_adds_params_specific_for_accessGrants() {
+    public void call_authSchemeProvider_with_valid_params_captures_all_params_on_auth_scheme() {
         S3AuthSchemeProvider authSchemeProvider = mock(S3AuthSchemeProvider.class);
         S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider);
         S3AuthSchemeParams authSchemeParams = S3AuthSchemeParams.builder().bucket(BUCKET_NAME).key(KEY).operation(OPERATION).build();

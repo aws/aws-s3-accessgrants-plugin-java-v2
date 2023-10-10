@@ -1,11 +1,23 @@
-## My Project
+## AWS S3 ACCESS GRANTS PLUGIN FOR AWS JAVA SDK 2.0
 
-TODO: Fill this README out!
+AWS S3 ACCESS GRANTS PLUGIN provides the functionality to enable S3 customers to configure S3 ACCESS GRANTS as a permission layer on top of the S3 Clients.
 
-Be sure to:
+S3 ACCESS GRANTS is a feature from S3 that allows its customers to configure permission for the data in their buckets at an unlimited scale.
 
-* Change the title in this README
-* Edit your repository description on GitHub
+### USING THE PLUGIN
+
+---
+
+The recommended way to use the S3 ACCESS GRANTS PLUGIN or Java in your project is to consume it from Maven Central
+
+
+```
+ <dependency>
+    <groupId>software.amazon.awssdk</groupId>
+    <artifactId>s3accessgrants</artifactId>
+    <version>latest version</version>
+  </dependency>
+```
 
 ## Security
 
