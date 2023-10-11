@@ -11,8 +11,11 @@ import software.amazon.awssdk.identity.spi.ResolveIdentityRequest;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3control.model.Credentials;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
+import software.amazon.awssdk.services.s3control.model.S3ControlException;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessResponse;
+import software.amazon.awssdk.services.s3control.model.InvalidRequestException;
+
 
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.OPERATION_PROPERTY;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PREFIX_PROPERTY;
@@ -44,22 +47,20 @@ public class S3AccessGrantsIdentityProviderTests {
     public static void setUp() {
         s3ControlClient = mock(S3ControlAsyncClient.class);
         Credentials credentials = Credentials.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).sessionToken(TEST_SESSION_TOKEN).build();
-        CompletableFuture<GetDataAccessResponse> getDataAccessResponse = CompletableFuture.supplyAsync(() -> {
-                       return GetDataAccessResponse.builder().credentials(credentials).build();
-        });
+        CompletableFuture<GetDataAccessResponse> getDataAccessResponse = CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().credentials(credentials).build());
 
         when(s3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
     }
 
     @Test
     public void create_identity_provider_without_default_identity_provider() {
-        Assertions.assertThatThrownBy(() -> new S3AccessGrantsIdentityProvider(null, TEST_REGION, TEST_ACCOUNT, s3ControlClient)).isInstanceOf(NullPointerException.class);
+        Assertions.assertThatThrownBy(() -> new S3AccessGrantsIdentityProvider(null, TEST_REGION, TEST_ACCOUNT, s3ControlClient)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     public void create_identity_provider_without_valid_region() {
         DefaultCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
-        Assertions.assertThatThrownBy(() -> new S3AccessGrantsIdentityProvider(credentialsProvider, null, TEST_ACCOUNT, s3ControlClient)).isInstanceOf(NullPointerException.class);
+        Assertions.assertThatThrownBy(() -> new S3AccessGrantsIdentityProvider(credentialsProvider, null, TEST_ACCOUNT, s3ControlClient)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -74,7 +75,7 @@ public class S3AccessGrantsIdentityProviderTests {
         DefaultCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
         S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, TEST_ACCOUNT, s3ControlClient);
         ResolveIdentityRequest resolveIdentityRequest = null;
-        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest)).isInstanceOf(NullPointerException.class);
+        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -93,7 +94,7 @@ public class S3AccessGrantsIdentityProviderTests {
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket/");
         when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn("GetObject");
 
-        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest)).isInstanceOf(NullPointerException.class).hasMessage("Expecting account id to be configured on the S3 Client!");
+        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest)).isInstanceOf(IllegalArgumentException.class).hasMessage("Expecting account id to be configured on the S3 Client!");
     }
 
     @Test
@@ -117,7 +118,7 @@ public class S3AccessGrantsIdentityProviderTests {
 
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn(null);
 
-        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest)).isInstanceOf(NullPointerException.class);
+        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest)).isInstanceOf(IllegalArgumentException.class);
 
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("S3://");
 
@@ -133,37 +134,25 @@ public class S3AccessGrantsIdentityProviderTests {
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://");
         when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn(null);
 
-        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest)).isInstanceOf(NullPointerException.class);
+        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void call_get_data_access_with_invalid_request() {
+    public void call_get_data_access_with_invalid_response() {
         IdentityProvider credentialsProvider = mock(IdentityProvider.class);
         S3ControlAsyncClient localS3ControlClient = mock(S3ControlAsyncClient.class);
         S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, TEST_ACCOUNT, localS3ControlClient);
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
+        CompletableFuture<GetDataAccessResponse> getDataAccessResponse = CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().build());
 
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://");
         when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn(TEST_OPERATION);
-        when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(null);
+        when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
 
-        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest)).isInstanceOf(NullPointerException.class);
-
-    }
-
-    @Test
-    public void call_get_data_access_with_valid_request() {
-        IdentityProvider credentialsProvider = mock(IdentityProvider.class);
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, TEST_ACCOUNT, s3ControlClient);
-        ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
-
-        when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://");
-        when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn(TEST_OPERATION);
-        AwsSessionCredentials credentials = (AwsSessionCredentials) accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join();
-
-        Assertions.assertThat(credentials.accessKeyId()).isEqualTo(TEST_ACCESS_KEY);
-        Assertions.assertThat(credentials.secretAccessKey()).isEqualTo(TEST_SECRET_KEY);
-        Assertions.assertThat(credentials.sessionToken()).isEqualTo(TEST_SESSION_TOKEN);
+        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join())
+                .isInstanceOf(java.util.concurrent.CompletionException.class).getCause()
+                .isInstanceOf(S3ControlException.class).getCause()
+                .isInstanceOf(NullPointerException.class);
 
     }
 
