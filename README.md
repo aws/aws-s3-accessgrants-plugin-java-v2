@@ -2,7 +2,7 @@
 
 AWS S3 ACCESS GRANTS PLUGIN provides the functionality to enable S3 customers to configure S3 ACCESS GRANTS as a permission layer on top of the S3 Clients.
 
-S3 ACCESS GRANTS is a feature from S3 that allows its customers to configure permission for the data in their buckets at an unlimited scale.
+S3 ACCESS GRANTS is a feature from S3 that allows its customers to configure fine-grained access permissions for the data in their buckets.
 
 ### USING THE PLUGIN
 

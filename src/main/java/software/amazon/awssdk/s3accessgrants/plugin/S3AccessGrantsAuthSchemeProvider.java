@@ -3,14 +3,14 @@ package software.amazon.awssdk.s3accessgrants.plugin;
 import software.amazon.awssdk.http.auth.spi.scheme.AuthSchemeOption;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeParams;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
+import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils;
 import software.amazon.awssdk.annotations.NotNull;
-import software.amazon.awssdk.services.s3control.model.InternalServiceException;
-import software.amazon.awssdk.utils.Validate;
 
 import java.util.List;
 
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.OPERATION_PROPERTY;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PREFIX_PROPERTY;
+
 
 /**
  * This is an Auth Scheme Provider for S3 access grants.
@@ -22,7 +22,7 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
 
     private S3AuthSchemeProvider authSchemeProvider;
     S3AccessGrantsAuthSchemeProvider(@NotNull S3AuthSchemeProvider authSchemeProvider) {
-        Validate.notNull(authSchemeProvider,
+        S3AccessGrantsUtils.argumentNotNull(authSchemeProvider,
                 "Expecting an Auth Scheme Provider to be specified while configuring S3Clients!");
         this.authSchemeProvider = authSchemeProvider;
     }
@@ -34,11 +34,11 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
      */
     @Override
     public List<AuthSchemeOption> resolveAuthScheme(@NotNull S3AuthSchemeParams authSchemeParams) {
-       Validate.notNull(authSchemeParams,
-                "An internal exception has occurred. Valid auth scheme params were not passed to the Auth Scheme Provider. Please contact the SDK team!");
-       Validate.notNull(authSchemeParams.bucket(), "An internal exception has occurred. expecting bucket name to be specified for the request. Please contact SDK team!");
-       List<AuthSchemeOption> availableAuthSchemes = authSchemeProvider.resolveAuthScheme(authSchemeParams);
-       String S3Prefix = "s3://"+authSchemeParams.bucket()+"/"+getKeyIfExists(authSchemeParams);
+        S3AccessGrantsUtils.argumentNotNull(authSchemeParams,
+                "An internal exception has occurred. Valid auth scheme params were not passed to the Auth Scheme Provider. Please contact the S3 Access Grants plugin team!");
+        S3AccessGrantsUtils.argumentNotNull(authSchemeParams.bucket(), "An internal exception has occurred. expecting bucket name to be specified for the request. Please contact the S3 Access Grants plugin team!");
+        List<AuthSchemeOption> availableAuthSchemes = authSchemeProvider.resolveAuthScheme(authSchemeParams);
+        String S3Prefix = "s3://"+authSchemeParams.bucket()+"/"+getKeyIfExists(authSchemeParams);
 
         return availableAuthSchemes.stream()
                 .map(authScheme -> authScheme.toBuilder().putIdentityProperty(OPERATION_PROPERTY,

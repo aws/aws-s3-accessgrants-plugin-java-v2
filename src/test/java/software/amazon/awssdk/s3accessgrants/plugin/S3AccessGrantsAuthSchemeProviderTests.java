@@ -28,7 +28,7 @@ public class S3AccessGrantsAuthSchemeProviderTests {
     @Test
     public void create_authSchemeProvider_with_no_DefaultAuthProvider() {
 
-       Assertions.assertThatThrownBy(() -> new S3AccessGrantsAuthSchemeProvider(null)).isInstanceOf(NullPointerException.class);
+       Assertions.assertThatThrownBy(() -> new S3AccessGrantsAuthSchemeProvider(null)).isInstanceOf(IllegalArgumentException.class);
 
     }
 
@@ -45,7 +45,7 @@ public class S3AccessGrantsAuthSchemeProviderTests {
         S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider);
         S3AuthSchemeParams authSchemeParams = null;
 
-        Assertions.assertThatThrownBy(()->accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams)).isInstanceOf(NullPointerException.class);
+        Assertions.assertThatThrownBy(()->accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams)).isInstanceOf(IllegalArgumentException.class);
         verify(authSchemeProvider,never()).resolveAuthScheme(authSchemeParams);
     }
 
@@ -59,8 +59,8 @@ public class S3AccessGrantsAuthSchemeProviderTests {
 
         when(authSchemeProvider.resolveAuthScheme(authSchemeParams)).thenReturn(authSchemeResolverResult);
 
-        Assertions.assertThatThrownBy(()->accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams)).isInstanceOf(NullPointerException.class)
-                .hasMessage("An internal exception has occurred. expecting bucket name to be specified for the request. Please contact SDK team!");
+        Assertions.assertThatThrownBy(()->accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("An internal exception has occurred. expecting bucket name to be specified for the request. Please contact the S3 Access Grants team!");
         verify(authSchemeProvider, never()).resolveAuthScheme(authSchemeParams);
     }
 
