@@ -3,6 +3,7 @@ package software.amazon.awssdk.s3accessgrants.plugin;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.regex.Pattern;
+import java.util.Optional;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
@@ -34,6 +35,10 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     private String accountId;
 
+    private Optional<Privilege> privilege;
+
+    private Optional<Boolean> isCacheEnabled;
+
     private S3ControlAsyncClient s3control;
 
     private S3AccessGrantsStaticOperationToPermissionMapper permissionMapper;
@@ -41,12 +46,14 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
     S3AccessGrantsIdentityProvider(@NotNull IdentityProvider<? extends AwsCredentialsIdentity> credentialsProvider,
                                    @NotNull Region region,
                                    @NotNull String accountId,
+                                   @NotNull Optional<Privilege> privilege,
                                    @NotNull S3ControlAsyncClient s3ControlAsyncClient) {
         S3AccessGrantsUtils.argumentNotNull(credentialsProvider, "Expecting an Identity Provider to be specified while configuring S3Clients!");
         S3AccessGrantsUtils.argumentNotNull(region, "Expecting a region to be configured on the S3Clients!");
         this.credentialsProvider = credentialsProvider;
         this.region = region;
         this.accountId = accountId;
+        this.privilege = privilege;
         this.s3control = s3ControlAsyncClient;
         this.permissionMapper = new S3AccessGrantsStaticOperationToPermissionMapper();
     }
@@ -77,18 +84,18 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
      */
     @Override
     public CompletableFuture<? extends AwsCredentialsIdentity> resolveIdentity(ResolveIdentityRequest resolveIdentityRequest) {
-        validateRequestParameters(resolveIdentityRequest);
 
-        accountId = getAccountId();
+        String configuredAccountId = getAccountId();
+        Privilege configuredPrivilege = getPrivilege();
+        validateRequestParameters(resolveIdentityRequest, configuredAccountId, configuredPrivilege);
+
+        CompletableFuture<? extends AwsCredentialsIdentity> defaultCredentials = credentialsProvider.resolveIdentity(resolveIdentityRequest);
 
         String S3Prefix = resolveIdentityRequest.property(PREFIX_PROPERTY).toString();
         String operation = resolveIdentityRequest.property(OPERATION_PROPERTY).toString();
         Permission permission = permissionMapper.getPermission(operation);
-        Privilege privilege = software.amazon.awssdk.services.s3control.model.Privilege.DEFAULT;
 
-        CompletableFuture<? extends AwsCredentialsIdentity> defaultCredentials = credentialsProvider.resolveIdentity(resolveIdentityRequest);
-
-        return getCredentialsFromAccessGrants(createDataAccessRequest(accountId, S3Prefix, permission, privilege));
+        return getCredentialsFromAccessGrants(createDataAccessRequest(configuredAccountId, S3Prefix, permission, configuredPrivilege));
 
     }
 
@@ -135,16 +142,24 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
             });
     }
 
-    private void validateRequestParameters(ResolveIdentityRequest resolveIdentityRequest) {
-        S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest, "An internal exception has occurred. Valid request was not passed to the identity Provider. Please contact SDK team!");
+    private void validateRequestParameters(ResolveIdentityRequest resolveIdentityRequest, String accountId, Privilege privilege) {
+        S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest, "An internal exception has occurred. Valid request was not passed to the identity Provider. Please contact S3 access grants plugin team!");
         S3AccessGrantsUtils.argumentNotNull(accountId, "Expecting account id to be configured on the S3 Client!");
+        S3AccessGrantsUtils.argumentNotNull(privilege, "An internal exception has occurred.  Valid privilege was not passed to the identity Provider. Please contact S3 access grants plugin team!");
         Pattern pattern = Pattern.compile("s3://[a-z0-9.-]*");
-        S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest.property(PREFIX_PROPERTY),"An internal exception has occurred. Valid S3Prefix was not passed to the identity Provider. Please contact SDK team!");
-        Validate.validState(pattern.matcher(resolveIdentityRequest.property(PREFIX_PROPERTY).toString()).find(), "An internal exception has occurred. Valid S3Prefix was not passed to identity providers. Please contact SDK team!");
-        S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest.property(OPERATION_PROPERTY),"An internal exception has occurred. Valid operation was not passed to identity providers. Please contact SDK team!");
+        S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest.property(PREFIX_PROPERTY),"An internal exception has occurred. Valid S3Prefix was not passed to the identity Provider. Please contact S3 access grants plugin team!");
+        Validate.validState(pattern.matcher(resolveIdentityRequest.property(PREFIX_PROPERTY).toString()).find(), "An internal exception has occurred. Valid S3Prefix was not passed to identity providers. Please contact S3 access grants plugin team!");
+        S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest.property(OPERATION_PROPERTY),"An internal exception has occurred. Valid operation was not passed to identity providers. Please contact S3 access grants plugin team!");
     }
 
     protected String getAccountId() {
-        return accountId != null ? accountId : "";
+        // TODO : Integrate with GetAccessGrantsInstanceForS3Prefix
+        return accountId != null ? accountId : null;
     }
+
+    Privilege getPrivilege() {
+        return privilege.isPresent() ? privilege.get() : Privilege.DEFAULT;
+    }
+
+
 }
