@@ -25,25 +25,19 @@ public class CacheKey {
     final Permission permission;
     final String s3Prefix;
 
-    public CacheKey(AwsCredentialsIdentity credentials, Permission permission, String s3Prefix) {
+    private CacheKey(AwsCredentialsIdentity credentials, Permission permission, String s3Prefix) {
 
         this.credentials = credentials;
         this.permission = permission;
         this.s3Prefix = s3Prefix;
     }
 
-    public CacheKey(CacheKey cacheKey, String s3Prefix) {
-
-        this.credentials = cacheKey.getAWSCredentials();
-        this.permission = cacheKey.getPermission();
-        this.s3Prefix = s3Prefix;
+    public CacheKey.Builder toBuilder() {
+        return new CacheKey.BuilderImpl(this);
     }
 
-    public CacheKey(CacheKey cacheKey, Permission permission) {
-
-        this.credentials = cacheKey.getAWSCredentials();
-        this.permission = permission;
-        this.s3Prefix = cacheKey.getS3Prefix();
+    public static CacheKey.Builder builder() {
+        return new CacheKey.BuilderImpl();
     }
 
     @Override
@@ -67,18 +61,54 @@ public class CacheKey {
         return Objects.hash(credentials, permission, s3Prefix);
     }
 
-    public String getS3Prefix() {
+    public interface Builder {
+        CacheKey build();
 
-        return s3Prefix;
+        CacheKey.Builder credentials(AwsCredentialsIdentity credentials);
+
+        CacheKey.Builder permission(Permission permission);
+
+        CacheKey.Builder s3Prefix(String s3Prefix);
+
     }
 
-    public AwsCredentialsIdentity getAWSCredentials() {
+    static final class BuilderImpl implements CacheKey.Builder {
+        private AwsCredentialsIdentity credentials;
+        private Permission permission;
+        private String s3Prefix;
 
-        return credentials;
+        private BuilderImpl() {
+        }
+
+        public BuilderImpl(CacheKey CacheKey) {
+            credentials(CacheKey.credentials);
+            permission(CacheKey.permission);
+            s3Prefix(CacheKey.s3Prefix);
+        }
+
+        @Override
+        public CacheKey build() {
+            return new CacheKey(credentials, permission, s3Prefix);
+        }
+
+        @Override
+        public Builder credentials(AwsCredentialsIdentity credentials) {
+            this.credentials = credentials;
+            return this;
+        }
+
+        @Override
+        public Builder permission(Permission permission) {
+            this.permission = permission;
+            return this;
+        }
+
+        @Override
+        public Builder s3Prefix(String s3Prefix) {
+            this.s3Prefix = s3Prefix;
+            return this;
+        }
     }
 
-    public Permission getPermission() {
 
-        return permission;
-    }
 }

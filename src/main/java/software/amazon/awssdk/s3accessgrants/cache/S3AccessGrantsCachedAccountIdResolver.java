@@ -153,7 +153,7 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
             return this;
         }
 
-        public int expireCAcheAfterWriteSeconds() {
+        public int expireCacheAfterWriteSeconds() {
             return expireCacheAfterWriteSeconds;
         }
 
@@ -184,7 +184,7 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
         public S3AccessGrantsCachedAccountIdResolver build() {
             S3AccessGrantsCachedAccountIdResolver resolver = new S3AccessGrantsCachedAccountIdResolver(s3ControlClient);
             resolver.maxCacheSize = maxCacheSize();
-            resolver.expireCacheAfterWriteSeconds = expireCAcheAfterWriteSeconds();
+            resolver.expireCacheAfterWriteSeconds = expireCacheAfterWriteSeconds();
             resolver.cache = Caffeine.newBuilder()
                                      .maximumSize(maxCacheSize)
                                      .expireAfterWrite(Duration.ofSeconds(expireCacheAfterWriteSeconds))

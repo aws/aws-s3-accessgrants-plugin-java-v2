@@ -15,7 +15,6 @@
 
 package software.amazon.awssdk.s3accessgrants.cache;
 
-import java.time.Instant;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
@@ -29,29 +28,7 @@ public interface S3AccessGrantsCachedCredentialsProvider {
      * @return Credentials from Access Grants.
      * @throws S3ControlException in-case exception is cached.
      */
-    AwsCredentialsIdentity getValueFromCache (AwsCredentialsIdentity credentials, Permission permission, String s3Prefix) throws S3ControlException;
-
-    /**
-     * @param credentials Credentials used for calling Access Grants.
-     * @param permission Permission requested by the user. Can be Read, Write, or ReadWrite.
-     * @param s3Prefix S3Prefix requested by the user. e.g., s3://bucket-name/path/to/helloworld.txt
-     * @param exception Exception to be stored in cache.
-     */
-    void putValueInCache (AwsCredentialsIdentity credentials, Permission permission, String s3Prefix, S3ControlException exception);
-
-    /**
-     * @param credentials Credentials used for calling Access Grants.
-     * @param permission Permission requested by the user. Can be Read, Write, or ReadWrite.
-     * @param s3Prefix S3Prefix requested by the user. e.g., s3://bucket-name/path/to/helloworld.txt
-     * @param sessionCredentials credentials returned by Access Grants.
-     * @param expiration expiration time of the credentials returned by Access Grants.
-     */
-    void putValueInCache (AwsCredentialsIdentity credentials, Permission permission, String s3Prefix, AwsCredentialsIdentity sessionCredentials, Instant expiration);
-
-    /**
-     * Invalidates the cache.
-     */
-    void invalidateCache ();
+    AwsCredentialsIdentity getDataAccess (AwsCredentialsIdentity credentials, Permission permission, String s3Prefix) throws S3ControlException;
 
 }
 
