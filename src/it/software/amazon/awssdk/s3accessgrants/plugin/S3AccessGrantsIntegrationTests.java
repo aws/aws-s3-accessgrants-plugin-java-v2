@@ -73,13 +73,6 @@ import static org.mockito.Mockito.verify;
  *                 "iam:DeleteRole",
  *                 "iam:CreatePolicy"
  *
- * *** Internal only (will be removed once we decide to merge changes to github) ***
- * To run the tests assume the integ test role using - ada credentials update --account=527802564711
- * --role=aws-s3-access-grants-sdk-plugin-integration-role  --profile=aws-test-account --once --provider=isengard
- * You are good to go ahead and run the tests.
- *
- * WIP - Discover account through properties instead of hard-coded account in the {@link S3AccessGrantsIntegrationTestsUtils}
- * or else we can just push an empty test_account and let the users add their own account if they want to run the tests.
  */
 
 
