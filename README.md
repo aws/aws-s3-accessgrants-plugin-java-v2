@@ -14,7 +14,7 @@ The recommended way to use the S3 ACCESS GRANTS PLUGIN or Java in your project i
 ```
  <dependency>
     <groupId>software.amazon.awssdk</groupId>
-    <artifactId>s3accessgrants</artifactId>
+    <artifactId>aws-s3-accessgrants-java-plugin</artifactId>
     <version>latest version</version>
   </dependency>
 ```
