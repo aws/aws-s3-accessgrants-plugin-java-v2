@@ -51,31 +51,16 @@ public class S3AccessGrantsCachedCredentialsProviderImplTest {
     @Before
     public void setup() {
         cache = S3AccessGrantsCachedCredentialsProviderImpl.builder()
-            .maxCacheSize(10).S3ControlAsyncClient(S3ControlAsyncClient)
-                                                       .build();
+                                                           .S3ControlAsyncClient(S3ControlAsyncClient).build();
         cacheWithMockedAccountIdResolver = S3AccessGrantsCachedCredentialsProviderImpl.builder()
                                                                                       .S3ControlAsyncClient(S3ControlAsyncClient)
                                                                                       .s3AccessGrantsCachedAccountIdResolver(mockResolver)
-                                                                                      .maxCacheSize(10)
-                                                                                      // .cacheExpirationTimePercentage(70)
                                                                                       .buildWithAccountIdResolver();
     }
 
     @Before
     public void clearCache(){
         cache.invalidateCache();
-    }
-
-    public GetDataAccessResponse getDataAccessResponseSetUp1(String s3Prefix) {
-        Instant ttl  = Instant.now().plus(Duration.ofMinutes(1));
-        credentials = Credentials.builder()
-                                       .accessKeyId(ACCESS_KEY_ID)
-                                       .secretAccessKey(SECRET_ACCESS_KEY)
-                                       .sessionToken(SESSION_TOKEN)
-                                       .expiration(ttl).build();
-        return GetDataAccessResponse.builder()
-                                    .credentials(credentials)
-                                    .matchedGrantTarget(s3Prefix).build();
     }
 
     public CompletableFuture<GetDataAccessResponse> getDataAccessResponseSetUp(String s3Prefix) {
@@ -92,7 +77,7 @@ public class S3AccessGrantsCachedCredentialsProviderImplTest {
     }
 
     @Test
-    public void cacheImpl_cacheHit() throws Exception {
+    public void cacheImpl_cacheHit() {
         // Given
         CompletableFuture<GetDataAccessResponse> getDataAccessResponse = getDataAccessResponseSetUp("s3://bucket2/foo/bar");
         when(mockResolver.resolve(any(String.class), any(String.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
@@ -111,7 +96,7 @@ public class S3AccessGrantsCachedCredentialsProviderImplTest {
     }
 
     @Test
-    public void cacheImpl_cacheMiss() throws Exception {
+    public void cacheImpl_cacheMiss() {
         // Given
         CompletableFuture<GetDataAccessResponse> getDataAccessResponse = getDataAccessResponseSetUp("s3://bucket2/foo/bar");
         when(mockResolver.resolve(any(String.class), any(String.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);

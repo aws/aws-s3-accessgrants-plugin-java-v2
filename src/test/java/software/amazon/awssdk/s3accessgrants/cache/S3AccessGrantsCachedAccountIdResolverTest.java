@@ -117,9 +117,7 @@ public class S3AccessGrantsCachedAccountIdResolverTest {
 
     @Test
     public void resolver_Rethrow_S3ControlException_On_ServiceError() {
-        // Given
-        ArgumentCaptor<GetAccessGrantsInstanceForPrefixRequest> requestArgumentCaptor =
-            ArgumentCaptor.forClass(GetAccessGrantsInstanceForPrefixRequest.class);
+        // When
         when(S3ControlAsyncClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class)))
             .thenThrow(S3ControlException.builder().build());
         // Then

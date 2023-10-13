@@ -128,10 +128,10 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
                                     .credentials(credentials)
                                     .permission(permission)
                                     .s3Prefix(s3Prefix).build();
-        try {
-            s3AccessGrantsAccessDeniedCache.getValueFromCache(cacheKey);
-        } catch (S3ControlException e) {
-            throw S3ControlException.builder().cause(e.getCause()).message(e.getMessage()).build();
+
+        S3ControlException s3ControlException = s3AccessGrantsAccessDeniedCache.getValueFromCache(cacheKey);
+        if (s3ControlException != null) {
+            throw s3ControlException;
         }
         return accessGrantsCache.getCredentials(cacheKey, accountId, s3AccessGrantsAccessDeniedCache);
     }

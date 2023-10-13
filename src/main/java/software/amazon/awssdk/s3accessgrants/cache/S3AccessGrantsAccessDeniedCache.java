@@ -80,8 +80,7 @@ public class S3AccessGrantsAccessDeniedCache {
      * @return null
      * @throws S3ControlException when it's a cache hit.
      */
-    public S3ControlException getValueFromCache (CacheKey cacheKey) throws S3ControlException{
-
+    public S3ControlException getValueFromCache (CacheKey cacheKey) {
         return cache.getIfPresent(cacheKey);
     }
 
