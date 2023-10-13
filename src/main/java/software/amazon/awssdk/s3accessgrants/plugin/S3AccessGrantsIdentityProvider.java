@@ -102,7 +102,6 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
         String operation = resolveIdentityRequest.property(OPERATION_PROPERTY).toString();
         Permission permission = permissionMapper.getPermission(operation);
 
-        // TODO: Should we wait here or let the cache handle this?
         return isCacheEnabled ? getCredentialsFromCache(defaultCredentials.join(), permission, S3Prefix, accountId) : getCredentialsFromAccessGrants(createDataAccessRequest(configuredAccountId, S3Prefix, permission, privilege));
 
     }
@@ -158,8 +157,6 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
      * The class will try to communicate with the cache to fetch the credentials.
      */
     CompletableFuture<? extends AwsCredentialsIdentity> getCredentialsFromCache(AwsCredentialsIdentity credentials, Permission permission, String S3Prefix, String accountId) {
-
-            // TODO: Remove the supplysync after cache starts supporting this.
 
             return CompletableFuture.supplyAsync(() ->  {
                 try {
