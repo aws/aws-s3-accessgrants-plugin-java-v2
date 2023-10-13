@@ -28,7 +28,8 @@ public interface S3AccessGrantsCachedCredentialsProvider {
      * @return Credentials from Access Grants.
      * @throws S3ControlException in-case exception is cached.
      */
-    AwsCredentialsIdentity getDataAccess (AwsCredentialsIdentity credentials, Permission permission, String s3Prefix) throws S3ControlException;
+    AwsCredentialsIdentity getDataAccess (AwsCredentialsIdentity credentials, Permission permission, String s3Prefix,
+                                          String accountId) throws Exception;
 
 }
 
