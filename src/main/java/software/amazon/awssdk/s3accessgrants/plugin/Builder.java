@@ -22,8 +22,4 @@ public interface Builder extends CopyableBuilder<Builder, S3AccessGrantsPlugin> 
 
     Builder accountId(String accountId);
 
-    Builder privilege(Privilege privilege);
-
-    Builder cacheEnabled(Boolean isCacheEnabled);
-
 }

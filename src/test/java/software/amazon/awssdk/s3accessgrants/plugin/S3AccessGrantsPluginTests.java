@@ -12,24 +12,22 @@ import software.amazon.awssdk.regions.Region;
 public class S3AccessGrantsPluginTests {
 
     private final String TEST_ACCOUNT = "123450013912";
-    private final Privilege TEST_PRIVILEGE = Privilege.DEFAULT;
-    private final Boolean IS_CACHE_ENABLED = true;
 
     @Test
     public void create_access_grants_plugin() {
-       Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder().accountId(TEST_ACCOUNT).privilege(TEST_PRIVILEGE).cacheEnabled(IS_CACHE_ENABLED).build());
+       Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder().accountId(TEST_ACCOUNT).build());
     }
 
     @Test
     public void create_access_grants_plugin_from_existing_plugin() {
-        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().accountId(TEST_ACCOUNT).privilege(TEST_PRIVILEGE).cacheEnabled(IS_CACHE_ENABLED).build();
+        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().accountId(TEST_ACCOUNT).build();
         Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder(accessGrantsPlugin));
     }
 
     @Test
     public void create_access_grants_rebuild_plugin_from_existing_plugin() {
-        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().accountId(TEST_ACCOUNT).privilege(TEST_PRIVILEGE).cacheEnabled(IS_CACHE_ENABLED).build();
-        Assertions.assertThatNoException().isThrownBy(() -> accessGrantsPlugin.toBuilder().cacheEnabled(!IS_CACHE_ENABLED).build());
+        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().accountId(TEST_ACCOUNT).build();
+        Assertions.assertThatNoException().isThrownBy(() -> accessGrantsPlugin.toBuilder().build());
     }
 
     @Test

@@ -28,14 +28,12 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
     private String accountId;
 
-    private Optional<Privilege> privilege;
+    private Privilege privilege;
 
-    private Optional<Boolean> isCacheEnabled;
+    private Boolean isCacheEnabled;
 
     S3AccessGrantsPlugin(BuilderImpl builder) {
         this.accountId = builder.accountId;
-        this.privilege = builder.privilege;
-        this.isCacheEnabled = builder.isCacheEnabled;
     }
 
     public static Builder builder() {
@@ -65,13 +63,13 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         serviceClientConfiguration.authSchemeProvider(new S3AccessGrantsAuthSchemeProvider(serviceClientConfiguration.authSchemeProvider()));
 
-        S3AccessGrantsCachedCredentialsProvider cache = isCacheEnabled.isPresent() ? isCacheEnabled.get() ? createAccessGrantsCache(s3ControlAsyncClient) : null : createAccessGrantsCache(s3ControlAsyncClient);
+        S3AccessGrantsCachedCredentialsProvider cache = createAccessGrantsCache(s3ControlAsyncClient);
 
         serviceClientConfiguration.credentialsProvider(new S3AccessGrantsIdentityProvider(serviceClientConfiguration.credentialsProvider(),
                 serviceClientConfiguration.region(),
                 this.accountId,
-                this.privilege,
-                this.isCacheEnabled,
+                DEFAULT_PRIVILEGE_FOR_PLUGIN,
+                DEFAULT_CACHE_SETTING,
                 s3ControlAsyncClient,
                 cache
                 ));
@@ -79,7 +77,6 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
     }
 
     private S3AccessGrantsCachedCredentialsProvider createAccessGrantsCache(S3ControlAsyncClient s3ControlAsyncClient) {
-        // TODO: remove after the cache starts supporting async clients
 
         return S3AccessGrantsCachedCredentialsProviderImpl.builder()
                 .S3ControlAsyncClient(s3ControlAsyncClient)
@@ -93,43 +90,22 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
     }
 
     public static final class BuilderImpl implements Builder{
-
         private String accountId;
-
-        private Optional<Privilege> privilege;
-
-        private Optional<Boolean> isCacheEnabled;
 
         /** Initializing access grants plugin instance. By default, customers do not need to specify any of the optional
          * customizations, default values will be used instead for these missing customizations.
          * Default values - {@link S3AccessGrantsUtils}}*/
         BuilderImpl() {
             this.accountId = null;
-            this.privilege = Optional.of(DEFAULT_PRIVILEGE_FOR_PLUGIN);
-            this.isCacheEnabled = Optional.of(DEFAULT_CACHE_SETTING);
         }
 
         BuilderImpl(S3AccessGrantsPlugin plugin) {
             this.accountId = plugin.accountId;
-            this.privilege = plugin.privilege;
-            this.isCacheEnabled = plugin.isCacheEnabled;
         }
 
         @Override
         public Builder accountId(@NotNull String accountId) {
             this.accountId = accountId;
-            return this;
-        }
-
-        @Override
-        public Builder privilege(@NotNull Privilege privilege) {
-            this.privilege = Optional.ofNullable(privilege);
-            return this;
-        }
-
-        @Override
-        public Builder cacheEnabled(@NotNull Boolean isCacheEnabled) {
-            this.isCacheEnabled = Optional.ofNullable(isCacheEnabled);
             return this;
         }
 
