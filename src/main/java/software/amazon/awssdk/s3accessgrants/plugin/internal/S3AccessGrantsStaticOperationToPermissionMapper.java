@@ -8,7 +8,7 @@ import software.amazon.awssdk.utils.Validate;
 
 public class S3AccessGrantsStaticOperationToPermissionMapper implements S3AccessGrantsOperationToPermissionMapper{
 
-    public static HashMap<String, Permission> supportedAccessGrantsOperations =  new HashMap<>();
+    private static final HashMap<String, Permission> supportedAccessGrantsOperations =  new HashMap<>();
 
     static {
         supportedAccessGrantsOperations.put("GETOBJECT", Permission.READ);
@@ -26,9 +26,9 @@ public class S3AccessGrantsStaticOperationToPermissionMapper implements S3Access
 
     }
     @Override
-    public Permission getPermission(@NotNull  String operation) throws S3ControlException {
+    public Permission getPermission(@NotNull String operation) throws S3ControlException {
 
-        Validate.notNull(operation, "An internal exception has occurred. expecting operation to be specified for the request. Please contact SDK team!");
+        S3AccessGrantsUtils.argumentNotNull(operation, "An internal exception has occurred. expecting operation to be specified for the request. Please contact S3 access grants plugin team!");
         if (supportedAccessGrantsOperations.containsKey(operation.toUpperCase())) {
             return supportedAccessGrantsOperations.get(operation.toUpperCase());
         }
