@@ -1,11 +1,12 @@
 package software.amazon.awssdk.s3accessgrants.plugin;
 
-import org.junit.Test;
 import org.assertj.core.api.Assertions;
-import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
-import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeParams;
+import org.junit.BeforeClass;
+import org.junit.Test;
 import java.util.List;
 import java.util.ArrayList;
+import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
+import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeParams;
 import software.amazon.awssdk.http.auth.spi.scheme.AuthSchemeOption;
 
 import static org.mockito.Mockito.times;
@@ -23,7 +24,14 @@ public class S3AccessGrantsAuthSchemeProviderTests {
     private final String KEY = "test-key";
     private final String OPERATION = "GetObject";
 
-    private final String SIGNING_SCHEME = "aws.auth#sigv4";
+    private static List<AuthSchemeOption> authSchemeResolverResult;
+    private static final String SIGNING_SCHEME = "aws.auth#sigv4";
+
+    @BeforeClass
+    public static void setUp() {
+        authSchemeResolverResult = new ArrayList<>();
+        authSchemeResolverResult.add(AuthSchemeOption.builder().schemeId(SIGNING_SCHEME).build());
+    }
 
     @Test
     public void create_authSchemeProvider_with_no_DefaultAuthProvider() {
@@ -54,8 +62,6 @@ public class S3AccessGrantsAuthSchemeProviderTests {
         S3AuthSchemeProvider authSchemeProvider = mock(S3AuthSchemeProvider.class);
         S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider);
         S3AuthSchemeParams authSchemeParams = S3AuthSchemeParams.builder().bucket(null).key(KEY).operation(OPERATION).build();
-        List<AuthSchemeOption> authSchemeResolverResult = new ArrayList<>();
-        authSchemeResolverResult.add(AuthSchemeOption.builder().schemeId(SIGNING_SCHEME).build());
 
         when(authSchemeProvider.resolveAuthScheme(authSchemeParams)).thenReturn(authSchemeResolverResult);
 
@@ -80,8 +86,6 @@ public class S3AccessGrantsAuthSchemeProviderTests {
         S3AuthSchemeProvider authSchemeProvider = mock(S3AuthSchemeProvider.class);
         S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider);
         S3AuthSchemeParams authSchemeParams = S3AuthSchemeParams.builder().bucket(BUCKET_NAME).key(null).operation(OPERATION).build();
-        List<AuthSchemeOption> authSchemeResolverResult = new ArrayList<>();
-        authSchemeResolverResult.add(AuthSchemeOption.builder().schemeId(SIGNING_SCHEME).build());
 
         when(authSchemeProvider.resolveAuthScheme(authSchemeParams)).thenReturn(authSchemeResolverResult);
 
@@ -108,8 +112,6 @@ public class S3AccessGrantsAuthSchemeProviderTests {
         S3AuthSchemeProvider authSchemeProvider = mock(S3AuthSchemeProvider.class);
         S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider);
         S3AuthSchemeParams authSchemeParams = mock(S3AuthSchemeParams.class);
-        List<AuthSchemeOption> authSchemeResolverResult = new ArrayList<>();
-        authSchemeResolverResult.add(AuthSchemeOption.builder().schemeId(SIGNING_SCHEME).build());
 
         when(authSchemeParams.bucket()).thenReturn(BUCKET_NAME);
         when(authSchemeProvider.resolveAuthScheme(authSchemeParams)).thenReturn(authSchemeResolverResult);
@@ -123,8 +125,6 @@ public class S3AccessGrantsAuthSchemeProviderTests {
         S3AuthSchemeProvider authSchemeProvider = mock(S3AuthSchemeProvider.class);
         S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider);
         S3AuthSchemeParams authSchemeParams = S3AuthSchemeParams.builder().bucket(BUCKET_NAME).key(KEY).operation(OPERATION).build();
-        List<AuthSchemeOption> authSchemeResolverResult = new ArrayList<>();
-        authSchemeResolverResult.add(AuthSchemeOption.builder().schemeId(SIGNING_SCHEME).build());
 
         when(authSchemeProvider.resolveAuthScheme(authSchemeParams)).thenReturn(authSchemeResolverResult);
 

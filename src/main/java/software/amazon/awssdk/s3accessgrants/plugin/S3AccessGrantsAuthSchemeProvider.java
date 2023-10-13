@@ -1,12 +1,12 @@
 package software.amazon.awssdk.s3accessgrants.plugin;
 
+import java.util.List;
+import java.util.stream.Collectors;
+import software.amazon.awssdk.annotations.NotNull;
+import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils;
 import software.amazon.awssdk.http.auth.spi.scheme.AuthSchemeOption;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeParams;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
-import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils;
-import software.amazon.awssdk.annotations.NotNull;
-
-import java.util.List;
 
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.OPERATION_PROPERTY;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PREFIX_PROPERTY;
@@ -14,13 +14,13 @@ import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGran
 
 /**
  * This is an Auth Scheme Provider for S3 access grants.
- * It uses a default auth scheme configured on S3 Clients and appends parameters required by access grants to resolve a request.
+ * It uses a default auth scheme configured on S3 Clients and appends parameters specifically required for access grants to resolve a request.
  * The auth scheme provider takes a set of parameters using.
  * {@link S3AuthSchemeParams}, and resolves to a list of {@link AuthSchemeOption} based on the given parameters.
  */
 public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
 
-    private S3AuthSchemeProvider authSchemeProvider;
+    private final S3AuthSchemeProvider authSchemeProvider;
     S3AccessGrantsAuthSchemeProvider(@NotNull S3AuthSchemeProvider authSchemeProvider) {
         S3AccessGrantsUtils.argumentNotNull(authSchemeProvider,
                 "Expecting an Auth Scheme Provider to be specified while configuring S3Clients!");
@@ -47,7 +47,7 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
                                 S3Prefix)
                         .build()
                 )
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
     }
 
     private String getKeyIfExists(S3AuthSchemeParams authSchemeParams) {
