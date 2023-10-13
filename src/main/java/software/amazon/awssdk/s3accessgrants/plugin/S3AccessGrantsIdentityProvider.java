@@ -165,7 +165,9 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
                     throw new RuntimeException(e);
                 }
             }).exceptionally(e -> {
-                /* below code wraps any exceptions arising from the cache in S3ControlExceptions along with the corresponding statusCode */
+                /* Majority of exceptions thrown here would be S3ControlException from the control client.
+                * These exceptions will be wrapped in CompletionExceptions, which are being unwrapped to get the actual exceptions.
+                *  */
                 if (e.getCause() instanceof S3ControlException) {
                     S3ControlException exc = (S3ControlException) e.getCause();
                     throw S3ControlException.builder().statusCode(exc.statusCode()).cause(exc.getCause()).message(exc.getMessage()).build();
@@ -192,10 +194,10 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
     }
 
     Privilege getPrivilege(Optional<Privilege> privilege) {
-        return privilege.isPresent() ? privilege.get() : Privilege.DEFAULT;
+        return privilege.isPresent() ? privilege.get() : S3AccessGrantsUtils.DEFAULT_PRIVILEGE_FOR_PLUGIN;
     }
 
     Boolean getIsCacheEnabled(Optional<Boolean> isCacheEnabled) {
-        return isCacheEnabled.isPresent() ? isCacheEnabled.get() : true;
+        return isCacheEnabled.isPresent() ? isCacheEnabled.get() : S3AccessGrantsUtils.DEFAULT_CACHE_SETTING;
     }
 }
