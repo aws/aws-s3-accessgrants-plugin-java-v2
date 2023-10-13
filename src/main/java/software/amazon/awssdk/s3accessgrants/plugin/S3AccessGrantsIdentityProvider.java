@@ -95,7 +95,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
         String configuredAccountId = getAccountId();
         validateRequestParameters(resolveIdentityRequest, configuredAccountId, privilege);
 
-        defaultCredentials = credentialsProvider.resolveIdentity(resolveIdentityRequest);
+        CompletableFuture<? extends AwsCredentialsIdentity> defaultCredentials = credentialsProvider.resolveIdentity(resolveIdentityRequest);
 
         String S3Prefix = resolveIdentityRequest.property(PREFIX_PROPERTY).toString();
         String operation = resolveIdentityRequest.property(OPERATION_PROPERTY).toString();
