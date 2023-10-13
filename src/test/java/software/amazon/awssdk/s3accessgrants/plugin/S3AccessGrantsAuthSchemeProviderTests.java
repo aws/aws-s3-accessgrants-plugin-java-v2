@@ -60,7 +60,7 @@ public class S3AccessGrantsAuthSchemeProviderTests {
         when(authSchemeProvider.resolveAuthScheme(authSchemeParams)).thenReturn(authSchemeResolverResult);
 
         Assertions.assertThatThrownBy(()->accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams)).isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("An internal exception has occurred. expecting bucket name to be specified for the request. Please contact the S3 Access Grants team!");
+                .hasMessage("An internal exception has occurred. expecting bucket name to be specified for the request. Please contact the S3 Access Grants plugin team!");
         verify(authSchemeProvider, never()).resolveAuthScheme(authSchemeParams);
     }
 
