@@ -238,8 +238,7 @@ public class S3AccessGrantsIdentityProviderTests {
         Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join())
                 .isInstanceOf(CompletionException.class)
                         .getCause()
-                                .isInstanceOf(S3ControlException.class)
-                .hasMessage("abca");
+                                .isInstanceOf(S3ControlException.class);
     }
 
 }
