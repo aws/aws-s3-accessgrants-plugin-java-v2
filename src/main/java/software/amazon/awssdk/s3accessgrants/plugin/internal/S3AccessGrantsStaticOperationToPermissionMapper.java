@@ -4,7 +4,6 @@ import java.util.HashMap;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
-import software.amazon.awssdk.utils.Validate;
 
 public class S3AccessGrantsStaticOperationToPermissionMapper implements S3AccessGrantsOperationToPermissionMapper{
 
@@ -33,6 +32,6 @@ public class S3AccessGrantsStaticOperationToPermissionMapper implements S3Access
             return supportedAccessGrantsOperations.get(operation.toUpperCase());
         }
 
-        throw S3ControlException.builder().message("Access Grants does not support the requested operation!").build();
+        throw S3ControlException.builder().message("Access Grants does not support the requested operation!").statusCode(404).build();
     }
 }

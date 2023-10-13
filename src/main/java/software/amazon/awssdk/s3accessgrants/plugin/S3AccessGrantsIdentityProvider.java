@@ -3,15 +3,12 @@ package software.amazon.awssdk.s3accessgrants.plugin;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.regex.Pattern;
-import java.util.Optional;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.identity.spi.IdentityProvider;
 import software.amazon.awssdk.identity.spi.ResolveIdentityRequest;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.s3accessgrants.cache.CacheKey;
-import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCache;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
 import software.amazon.awssdk.services.s3control.model.Credentials;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
@@ -28,6 +25,7 @@ import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGran
 
 /**
  * A {@link IdentityProvider} implementation for S3 access grants
+ * The class provides functionality to get the credentials from S3 access grants
  * @author Shiva Kumar Mukkapati
  */
 public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCredentialsIdentity>{
@@ -47,11 +45,13 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     private final S3AccessGrantsCachedCredentialsProvider cache;
 
+    private String CONTACT_TEAM_MESSAGE_TEMPLATE = "An internal exception has occurred. Valid %s was not passed to the %s. Please contact S3 access grants plugin team!";
+
     public S3AccessGrantsIdentityProvider(@NotNull IdentityProvider<? extends AwsCredentialsIdentity> credentialsProvider,
                                           @NotNull Region region,
                                           @NotNull String accountId,
-                                          @NotNull Optional<Privilege> privilege,
-                                          @NotNull Optional<Boolean> isCacheEnabled,
+                                          @NotNull Privilege privilege,
+                                          @NotNull Boolean isCacheEnabled,
                                           @NotNull S3ControlAsyncClient s3ControlAsyncClient,
                                           @NotNull S3AccessGrantsCachedCredentialsProvider cache) {
         S3AccessGrantsUtils.argumentNotNull(credentialsProvider, "Expecting an Identity Provider to be specified while configuring S3Clients!");
@@ -59,8 +59,8 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
         this.credentialsProvider = credentialsProvider;
         this.region = region;
         this.accountId = accountId;
-        this.privilege = getPrivilege(privilege);
-        this.isCacheEnabled = getIsCacheEnabled(isCacheEnabled);
+        this.privilege = privilege;
+        this.isCacheEnabled = isCacheEnabled;
         this.s3control = s3ControlAsyncClient;
         this.permissionMapper = new S3AccessGrantsStaticOperationToPermissionMapper();
         this.cache = cache;
@@ -79,37 +79,36 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     /**
      * <p> This is a method that will talk to access grants to process the request.
-     * This method Will return the credentials for the role that is present in the grant allowing requester's access to the
+     * This method Will return the credentials for the role that is present in the grant allowing requesters access to the
      * specific resource.
      * This method uses cache to store credentials to reduce requests sent to S3 access grant APIs
      * This method Will throw an exception if the necessary grant is not available to the requester.
      * </p>
      * @param resolveIdentityRequest The request to resolve an Identity.
      * @return a completable future that will resolve to the credentials registered within a grant.
-     * @throws {@link NullPointerException} in case that the credentials to talk to access grants are not available.
-     * @throws {@link S3ControlException} in case that the requester is not authorized to access the resource.
-     * @throws {@link CompletionException} in case that the credentials cannot be fetched from access grants.
+     * @throws {@link NullPointerException}
+     * @throws {@link S3ControlException}
+     * @throws {@link CompletionException}
      */
     @Override
     public CompletableFuture<? extends AwsCredentialsIdentity> resolveIdentity(ResolveIdentityRequest resolveIdentityRequest) {
 
-        String configuredAccountId = getAccountId();
-        validateRequestParameters(resolveIdentityRequest, configuredAccountId, privilege);
+        validateRequestParameters(resolveIdentityRequest, accountId, privilege, isCacheEnabled);
 
-        CompletableFuture<? extends AwsCredentialsIdentity> defaultCredentials = credentialsProvider.resolveIdentity(resolveIdentityRequest);
+        CompletableFuture<? extends AwsCredentialsIdentity> userCredentials = credentialsProvider.resolveIdentity(resolveIdentityRequest);
 
         String S3Prefix = resolveIdentityRequest.property(PREFIX_PROPERTY).toString();
         String operation = resolveIdentityRequest.property(OPERATION_PROPERTY).toString();
         Permission permission = permissionMapper.getPermission(operation);
 
-        return isCacheEnabled ? getCredentialsFromCache(defaultCredentials.join(), permission, S3Prefix, accountId) : getCredentialsFromAccessGrants(createDataAccessRequest(configuredAccountId, S3Prefix, permission, privilege));
+        return isCacheEnabled ? getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId) : getCredentialsFromAccessGrants(createDataAccessRequest(accountId, S3Prefix, permission, privilege));
 
     }
 
     /**
      * This method will create a request to talk to access grants.
      * @param accountId the accountId that contains the access grant instance with the desired bucket location registered.
-     * @param S3Prefix the S3Prefix location that the requester is accessing.
+     * @param S3Prefix the resource that the requester is accessing.
      * @param permission the permission level to access the resource. Permission is generated dynamically based on the
      *                   operation. See {@link S3AccessGrantsStaticOperationToPermissionMapper} for operation to permission mappings.
      * @param privilege specifies what privilege level does access grants need to use to determine if the request can be
@@ -131,30 +130,27 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
     }
 
     /**
+     * Maintenance Purpose - In case we want to make cache as a optional opt-out in the future.
      * Sends a request to access grants to authorize if the requester has permissions to access the desired resource (S3Prefix).
-     * @param getDataAccessRequest the request that contains all the inputs required to talk to access grants
+     * @param getDataAccessRequest the request to talk to access grants
      * @return a completableFuture that resolves to credentials returned by access grants
+     * @throws S3ControlException for any request failures
      * */
     private CompletableFuture<? extends AwsCredentialsIdentity> getCredentialsFromAccessGrants(GetDataAccessRequest getDataAccessRequest) {
 
-            S3AccessGrantsUtils.argumentNotNull(getDataAccessRequest, "An internal exception has occurred. Valid request was not passed to call access grants. Please contact S3 access grants plugin team!");
+            S3AccessGrantsUtils.argumentNotNull(getDataAccessRequest, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "request", "for calling access grants"));
 
             return s3control.getDataAccess(getDataAccessRequest).thenApply(getDataAccessResponse -> {
                 Credentials credentials = getDataAccessResponse.credentials();
                 return AwsSessionCredentials.builder().accessKeyId(credentials.accessKeyId())
-                        .secretAccessKey(credentials.secretAccessKey())
-                        .sessionToken(credentials.sessionToken()).build();
-            }).exceptionally(e -> {
-                if (e.getCause() instanceof S3ControlException) {
-                    S3ControlException exc = (S3ControlException) e.getCause();
-                    throw S3ControlException.builder().statusCode(exc.statusCode()).cause(exc.getCause()).message(exc.getMessage()).build();
-                }
-                throw S3ControlException.builder().cause(e.getCause()).message(e.getMessage()).build();
+                            .secretAccessKey(credentials.secretAccessKey())
+                            .sessionToken(credentials.sessionToken()).build();
             });
     }
 
     /**
-     * The class will try to communicate with the cache to fetch the credentials.
+     * The class will communicate with the cache to fetch the credentials.
+     * By default, requests are routed directly to the cache to handle the credentials fetching.
      */
     CompletableFuture<? extends AwsCredentialsIdentity> getCredentialsFromCache(AwsCredentialsIdentity credentials, Permission permission, String S3Prefix, String accountId) {
 
@@ -166,38 +162,29 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
                 }
             }).exceptionally(e -> {
                 /* Majority of exceptions thrown here would be S3ControlException from the control client.
-                * These exceptions will be wrapped in CompletionExceptions, which are being unwrapped to get the actual exceptions.
-                *  */
-                if (e.getCause() instanceof S3ControlException) {
-                    S3ControlException exc = (S3ControlException) e.getCause();
-                    throw S3ControlException.builder().statusCode(exc.statusCode()).cause(exc.getCause()).message(exc.getMessage()).build();
-                } else if (e.getCause() instanceof RuntimeException) {
-                    throw S3ControlException.builder().cause(e.getCause().getCause()).message(e.getCause().getMessage()).build();
+                * These exceptions will be wrapped in RunTimeException, which will be unwrapped to get the actual exceptions.
+                */
+                if (e.getCause() instanceof RuntimeException) {
+                    if (e.getCause().getCause() != null) {
+                        if(e.getCause().getCause() instanceof S3ControlException){
+                            S3ControlException exc = (S3ControlException) e.getCause().getCause();
+                            throw S3ControlException.builder().statusCode(exc.statusCode()).cause(exc.getCause()).message(exc.getMessage()).build();
+                        }
+                        throw S3ControlException.builder().cause(e.getCause().getCause()).message(e.getCause().getMessage()).build();
+                    }
                 }
                 throw S3ControlException.builder().cause(e.getCause()).message(e.getMessage()).build();
             });
     }
 
-    private void validateRequestParameters(ResolveIdentityRequest resolveIdentityRequest, String accountId, Privilege privilege) {
-        S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest, "An internal exception has occurred. Valid request was not passed to the identity Provider. Please contact S3 access grants plugin team!");
-        S3AccessGrantsUtils.argumentNotNull(accountId, "Expecting account id to be configured on the S3 Client!");
-        S3AccessGrantsUtils.argumentNotNull(privilege, "An internal exception has occurred.  Valid privilege was not passed to the identity Provider. Please contact S3 access grants plugin team!");
+    private void validateRequestParameters(ResolveIdentityRequest resolveIdentityRequest, String accountId, Privilege privilege, Boolean isCacheEnabled) {
+        S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "request", "identity provider"));
+        S3AccessGrantsUtils.argumentNotNull(accountId, "Expecting account id to be configured on the plugin!");
+        S3AccessGrantsUtils.argumentNotNull(privilege, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "privilege", "identity provider"));
+        S3AccessGrantsUtils.argumentNotNull(isCacheEnabled, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "cache setting", "identity provider"));
         Pattern pattern = Pattern.compile("s3://[a-z0-9.-]*");
-        S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest.property(PREFIX_PROPERTY),"An internal exception has occurred. Valid S3Prefix was not passed to the identity Provider. Please contact S3 access grants plugin team!");
-        Validate.validState(pattern.matcher(resolveIdentityRequest.property(PREFIX_PROPERTY).toString()).find(), "An internal exception has occurred. Valid S3Prefix was not passed to identity providers. Please contact S3 access grants plugin team!");
-        S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest.property(OPERATION_PROPERTY),"An internal exception has occurred. Valid operation was not passed to identity providers. Please contact S3 access grants plugin team!");
-    }
-
-    String getAccountId() {
-        // TODO : Integrate with GetAccessGrantsInstanceForS3Prefix
-        return accountId != null ? accountId : null;
-    }
-
-    Privilege getPrivilege(Optional<Privilege> privilege) {
-        return privilege.isPresent() ? privilege.get() : S3AccessGrantsUtils.DEFAULT_PRIVILEGE_FOR_PLUGIN;
-    }
-
-    Boolean getIsCacheEnabled(Optional<Boolean> isCacheEnabled) {
-        return isCacheEnabled.isPresent() ? isCacheEnabled.get() : S3AccessGrantsUtils.DEFAULT_CACHE_SETTING;
+        S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest.property(PREFIX_PROPERTY), String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "S3Prefix", "identity provider"));
+        Validate.isTrue(pattern.matcher(resolveIdentityRequest.property(PREFIX_PROPERTY).toString()).find(), String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "S3Prefix", "identity provider"));
+        S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest.property(OPERATION_PROPERTY), String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "operation", "identity provider"));
     }
 }
