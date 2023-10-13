@@ -177,7 +177,9 @@ public class S3AccessGrantsCache {
             duration = (long)(now.getEpochSecond() - ttl.getEpochSecond() * (cacheExpirationTimePercentage / 100.0f));
         }
         catch (S3ControlException s3ControlException) {
-            s3AccessGrantsAccessDeniedCache.putValueInCache(cacheKey, s3ControlException);
+            if (s3ControlException.statusCode() == 403) {
+                s3AccessGrantsAccessDeniedCache.putValueInCache(cacheKey, s3ControlException);
+            }
             throw s3ControlException;
         }
         putValueInCache(cacheKey, sessionCredentials, duration);
