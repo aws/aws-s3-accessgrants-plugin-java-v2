@@ -7,6 +7,8 @@ import software.amazon.awssdk.core.SdkServiceClientConfiguration;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.identity.spi.IdentityProvider;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCache;
+import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
+import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProviderImpl;
 import software.amazon.awssdk.services.s3control.S3ControlClient;
 import software.amazon.awssdk.services.s3control.model.Privilege;
 import software.amazon.awssdk.services.s3.S3ServiceClientConfiguration;
@@ -63,7 +65,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         serviceClientConfiguration.authSchemeProvider(new S3AccessGrantsAuthSchemeProvider(serviceClientConfiguration.authSchemeProvider()));
 
-        S3AccessGrantsCache cache = isCacheEnabled.isPresent() ? isCacheEnabled.get() ? createAccessGrantsCache(s3ControlAsyncClient, serviceClientConfiguration.credentialsProvider()) : null : createAccessGrantsCache(s3ControlAsyncClient, serviceClientConfiguration.credentialsProvider());
+        S3AccessGrantsCachedCredentialsProvider cache = isCacheEnabled.isPresent() ? isCacheEnabled.get() ? createAccessGrantsCache(s3ControlAsyncClient) : null : createAccessGrantsCache(s3ControlAsyncClient);
 
         serviceClientConfiguration.credentialsProvider(new S3AccessGrantsIdentityProvider(serviceClientConfiguration.credentialsProvider(),
                 serviceClientConfiguration.region(),
@@ -76,12 +78,12 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
     }
 
-    private S3AccessGrantsCache createAccessGrantsCache(S3ControlAsyncClient s3ControlAsyncClient, IdentityProvider<? extends AwsCredentialsIdentity> credentialsProvider) {
+    private S3AccessGrantsCachedCredentialsProvider createAccessGrantsCache(S3ControlAsyncClient s3ControlAsyncClient) {
         // TODO: remove after the cache starts supporting async clients
 
-        S3ControlClient s3ControlClient = S3ControlClient.builder().credentialsProvider(credentialsProvider).build();
-
-        return S3AccessGrantsCache.builder().s3ControlClient(s3ControlClient).build();
+        return S3AccessGrantsCachedCredentialsProviderImpl.builder()
+                .S3ControlAsyncClient(s3ControlAsyncClient)
+                .build();
 
     }
 
