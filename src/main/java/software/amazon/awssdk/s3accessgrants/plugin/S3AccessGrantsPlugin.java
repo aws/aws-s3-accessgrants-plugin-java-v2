@@ -4,6 +4,10 @@ import java.util.Optional;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.core.SdkPlugin;
 import software.amazon.awssdk.core.SdkServiceClientConfiguration;
+import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
+import software.amazon.awssdk.identity.spi.IdentityProvider;
+import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCache;
+import software.amazon.awssdk.services.s3control.S3ControlClient;
 import software.amazon.awssdk.services.s3control.model.Privilege;
 import software.amazon.awssdk.services.s3.S3ServiceClientConfiguration;
 import software.amazon.awssdk.utils.builder.ToCopyableBuilder;
@@ -59,13 +63,25 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         serviceClientConfiguration.authSchemeProvider(new S3AccessGrantsAuthSchemeProvider(serviceClientConfiguration.authSchemeProvider()));
 
+        S3AccessGrantsCache cache = isCacheEnabled.isPresent() ? isCacheEnabled.get() ? createAccessGrantsCache(s3ControlAsyncClient, serviceClientConfiguration.credentialsProvider()) : null : createAccessGrantsCache(s3ControlAsyncClient, serviceClientConfiguration.credentialsProvider());
+
         serviceClientConfiguration.credentialsProvider(new S3AccessGrantsIdentityProvider(serviceClientConfiguration.credentialsProvider(),
                 serviceClientConfiguration.region(),
                 this.accountId,
                 this.privilege,
                 this.isCacheEnabled,
-                s3ControlAsyncClient
+                s3ControlAsyncClient,
+                cache
                 ));
+
+    }
+
+    private S3AccessGrantsCache createAccessGrantsCache(S3ControlAsyncClient s3ControlAsyncClient, IdentityProvider<? extends AwsCredentialsIdentity> credentialsProvider) {
+        // TODO: remove after the cache starts supporting async clients
+
+        S3ControlClient s3ControlClient = S3ControlClient.builder().credentialsProvider(credentialsProvider).build();
+
+        return S3AccessGrantsCache.builder().s3ControlClient(s3ControlClient).build();
 
     }
 
