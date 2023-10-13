@@ -12,6 +12,7 @@ import software.amazon.awssdk.identity.spi.ResolveIdentityRequest;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.s3accessgrants.cache.CacheKey;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCache;
+import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
 import software.amazon.awssdk.services.s3control.model.Credentials;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
 import software.amazon.awssdk.services.s3control.model.Permission;
@@ -44,7 +45,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     private final S3AccessGrantsStaticOperationToPermissionMapper permissionMapper;
 
-    private final S3AccessGrantsCache cache;
+    private final S3AccessGrantsCachedCredentialsProvider cache;
 
     public S3AccessGrantsIdentityProvider(@NotNull IdentityProvider<? extends AwsCredentialsIdentity> credentialsProvider,
                                           @NotNull Region region,
@@ -52,7 +53,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
                                           @NotNull Optional<Privilege> privilege,
                                           @NotNull Optional<Boolean> isCacheEnabled,
                                           @NotNull S3ControlAsyncClient s3ControlAsyncClient,
-                                          @NotNull S3AccessGrantsCache cache) {
+                                          @NotNull S3AccessGrantsCachedCredentialsProvider cache) {
         S3AccessGrantsUtils.argumentNotNull(credentialsProvider, "Expecting an Identity Provider to be specified while configuring S3Clients!");
         S3AccessGrantsUtils.argumentNotNull(region, "Expecting a region to be configured on the S3Clients!");
         this.credentialsProvider = credentialsProvider;
@@ -145,7 +146,11 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
                         .secretAccessKey(credentials.secretAccessKey())
                         .sessionToken(credentials.sessionToken()).build();
             }).exceptionally(e -> {
-                throw S3ControlException.builder().message(e.getMessage()).cause(e.getCause()).build();
+                if (e.getCause() instanceof S3ControlException) {
+                    S3ControlException exc = (S3ControlException) e.getCause();
+                    throw S3ControlException.builder().statusCode(exc.statusCode()).cause(exc.getCause()).message(exc.getMessage()).build();
+                }
+                throw S3ControlException.builder().cause(e.getCause()).message(e.getMessage()).build();
             });
     }
 
@@ -156,7 +161,22 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
             // TODO: Remove the supplysync after cache starts supporting this.
 
-            return CompletableFuture.supplyAsync(() ->  cache.getValueFromCache(CacheKey.builder().credentials(credentials).permission(permission).s3Prefix(S3Prefix).build(),accountId));
+            return CompletableFuture.supplyAsync(() ->  {
+                try {
+                    return cache.getDataAccess(credentials, permission,S3Prefix, accountId);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }).exceptionally(e -> {
+                /* below code wraps any exceptions arising from the cache in S3ControlExceptions along with the corresponding statusCode */
+                if (e.getCause() instanceof S3ControlException) {
+                    S3ControlException exc = (S3ControlException) e.getCause();
+                    throw S3ControlException.builder().statusCode(exc.statusCode()).cause(exc.getCause()).message(exc.getMessage()).build();
+                } else if (e.getCause() instanceof RuntimeException) {
+                    throw S3ControlException.builder().cause(e.getCause().getCause()).message(e.getCause().getMessage()).build();
+                }
+                throw S3ControlException.builder().cause(e.getCause()).message(e.getMessage()).build();
+            });
     }
 
     private void validateRequestParameters(ResolveIdentityRequest resolveIdentityRequest, String accountId, Privilege privilege) {
@@ -181,6 +201,4 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
     Boolean getIsCacheEnabled(Optional<Boolean> isCacheEnabled) {
         return isCacheEnabled.isPresent() ? isCacheEnabled.get() : true;
     }
-
-
 }
