@@ -15,7 +15,7 @@
 
 package software.amazon.awssdk.s3accessgrants.cache;
 
-import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.DEFAULT_ACCESS_GRANTS_MAX_CACHE_SIZE;
+import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.ACCESS_DENIED_CACHE_SIZE;
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.MAX_LIMIT_ACCESS_GRANTS_MAX_CACHE_SIZE;
 
 import com.github.benmanes.caffeine.cache.Cache;
@@ -28,7 +28,7 @@ public class S3AccessGrantsAccessDeniedCache {
     private int maxCacheSize;
 
     private S3AccessGrantsAccessDeniedCache () {
-        this.maxCacheSize = DEFAULT_ACCESS_GRANTS_MAX_CACHE_SIZE;
+        this.maxCacheSize = ACCESS_DENIED_CACHE_SIZE;
     }
 
     public static S3AccessGrantsAccessDeniedCache.Builder builder() {
@@ -42,7 +42,7 @@ public class S3AccessGrantsAccessDeniedCache {
 
     static final class BuilderImpl implements S3AccessGrantsAccessDeniedCache.Builder {
 
-        private int maxCacheSize = DEFAULT_ACCESS_GRANTS_MAX_CACHE_SIZE;
+        private int maxCacheSize = ACCESS_DENIED_CACHE_SIZE;
         private BuilderImpl() {
         }
 
@@ -51,7 +51,7 @@ public class S3AccessGrantsAccessDeniedCache {
             S3AccessGrantsAccessDeniedCache s3AccessGrantsAccessDeniedCache = new S3AccessGrantsAccessDeniedCache();
             s3AccessGrantsAccessDeniedCache.maxCacheSize = maxCacheSize();
             s3AccessGrantsAccessDeniedCache.cache = Caffeine.newBuilder()
-                                                            .maximumSize(500)
+                                                            .maximumSize(maxCacheSize)
                                                             .expireAfterWrite(5, TimeUnit.MINUTES)
                                                             .recordStats()
                                                             .build();
@@ -82,11 +82,7 @@ public class S3AccessGrantsAccessDeniedCache {
      */
     public S3ControlException getValueFromCache (CacheKey cacheKey) throws S3ControlException{
 
-        S3ControlException exception = cache.getIfPresent(cacheKey);
-        if (exception != null) {
-            throw exception;
-        }
-        return null;
+        return cache.getIfPresent(cacheKey);
     }
 
     /**

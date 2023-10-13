@@ -49,7 +49,7 @@ public class S3AccessGrantsAccessDeniedCacheTest {
         // When
         cache.putValueInCache(key1,s3ControlException);
         // Then
-        assertThrows(S3ControlException.class, () -> cache.getValueFromCache(key1));
+        assertThat(cache.getValueFromCache(key1)).isInstanceOf(S3ControlException.class);
 
     }
 

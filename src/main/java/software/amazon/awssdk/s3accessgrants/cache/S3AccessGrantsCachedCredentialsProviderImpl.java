@@ -16,8 +16,8 @@
 package software.amazon.awssdk.s3accessgrants.cache;
 
 import org.assertj.core.util.VisibleForTesting;
+import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
-import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
@@ -123,12 +123,16 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
 
     @Override
     public AwsCredentialsIdentity getDataAccess (AwsCredentialsIdentity credentials, Permission permission,
-                                                     String s3Prefix, String accountId) throws S3ControlException {
+                                                     String s3Prefix, @NotNull String accountId) throws S3ControlException {
         CacheKey cacheKey = CacheKey.builder()
                                     .credentials(credentials)
                                     .permission(permission)
                                     .s3Prefix(s3Prefix).build();
-        s3AccessGrantsAccessDeniedCache.getValueFromCache(cacheKey);
+        try {
+            s3AccessGrantsAccessDeniedCache.getValueFromCache(cacheKey);
+        } catch (S3ControlException e) {
+            throw S3ControlException.builder().cause(e.getCause()).message(e.getMessage()).build();
+        }
         return accessGrantsCache.getCredentials(cacheKey, accountId, s3AccessGrantsAccessDeniedCache);
     }
 

@@ -174,8 +174,6 @@ public class S3AccessGrantsCache {
                                                                             .sessionToken(credentials.sessionToken()).build();
             Instant ttl = getDataAccessResponse.join().credentials().expiration();
             Instant now = Instant.now();
-            // cache 90% of ttl ny default to prevent Access Denied because of credentials expiry.
-            System.out.println("cacheExpirationTimePercentage is " + cacheExpirationTimePercentage);
             duration = (long)(now.getEpochSecond() - ttl.getEpochSecond() * (cacheExpirationTimePercentage / 100.0f));
         }
         catch (S3ControlException s3ControlException) {
