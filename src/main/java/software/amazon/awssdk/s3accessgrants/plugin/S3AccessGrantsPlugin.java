@@ -26,11 +26,7 @@ import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGran
  */
 public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Builder, S3AccessGrantsPlugin> {
 
-    private String accountId;
-
-    private Privilege privilege;
-
-    private Boolean isCacheEnabled;
+    private final String accountId;
 
     S3AccessGrantsPlugin(BuilderImpl builder) {
         this.accountId = builder.accountId;
@@ -59,7 +55,8 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         S3ControlAsyncClient s3ControlAsyncClient = S3ControlAsyncClient.builder()
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider())
-                .region(serviceClientConfiguration.region()).build();
+                .region(serviceClientConfiguration.region())
+                .build();
 
         serviceClientConfiguration.authSchemeProvider(new S3AccessGrantsAuthSchemeProvider(serviceClientConfiguration.authSchemeProvider()));
 
@@ -92,8 +89,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
     public static final class BuilderImpl implements Builder{
         private String accountId;
 
-        /** Initializing access grants plugin instance. By default, customers do not need to specify any of the optional
-         * customizations, default values will be used instead for these missing customizations.
+        /** Initializing access grants plugin instance.
          * Default values - {@link S3AccessGrantsUtils}}*/
         BuilderImpl() {
             this.accountId = null;

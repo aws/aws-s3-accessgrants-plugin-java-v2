@@ -27,7 +27,7 @@ public class S3AccessGrantsPluginTests {
     @Test
     public void create_access_grants_rebuild_plugin_from_existing_plugin() {
         S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().accountId(TEST_ACCOUNT).build();
-        Assertions.assertThatNoException().isThrownBy(() -> accessGrantsPlugin.toBuilder().build());
+        Assertions.assertThatNoException().isThrownBy(() -> accessGrantsPlugin.toBuilder().accountId(TEST_ACCOUNT).build());
     }
 
     @Test
