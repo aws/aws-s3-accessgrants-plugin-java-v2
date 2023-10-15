@@ -136,7 +136,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
      * @return a completableFuture that resolves to credentials returned by access grants
      * @throws S3ControlException for any request failures
      * */
-    private CompletableFuture<? extends AwsCredentialsIdentity> getCredentialsFromAccessGrants(GetDataAccessRequest getDataAccessRequest) {
+    CompletableFuture<? extends AwsCredentialsIdentity> getCredentialsFromAccessGrants(GetDataAccessRequest getDataAccessRequest) {
 
             S3AccessGrantsUtils.argumentNotNull(getDataAccessRequest, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "request", "for calling access grants"));
 
