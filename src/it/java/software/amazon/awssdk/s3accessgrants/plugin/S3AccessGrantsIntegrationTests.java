@@ -21,22 +21,29 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 
+import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
+import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
+import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProviderImpl;
 import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils;
 import software.amazon.awssdk.core.ResponseInputStream;
-import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.http.auth.spi.scheme.AuthSchemeOption;
 import software.amazon.awssdk.identity.spi.ResolveIdentityRequest;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeParams;
-import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
+import software.amazon.awssdk.services.s3control.model.Credentials;
+import software.amazon.awssdk.services.s3control.model.GetDataAccessResponse;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
 
@@ -45,6 +52,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.OPERATION_PROPERTY;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PREFIX_PROPERTY;
 
 /** Readme.md (will be moved to readme or contributing guide in the repo)
  * Before running the integration tests with your account be aware that the integration tests make requests to the AWS accounts
@@ -78,15 +89,27 @@ import static org.mockito.Mockito.verify;
 
 public class S3AccessGrantsIntegrationTests {
 
-    @org.junit.BeforeClass
+    private final String TEST_ACCESS_KEY = "ARAGXXXXXXX123";
+
+    private final String TEST_SECRET_KEY = "ARAGXXXXXXX123112e2e3aadadwefdscac";
+
+    private static ProfileCredentialsProvider credentialsProvider;
+
+    private static S3ControlAsyncClient s3ControlAsyncClient;
+
+    private static S3AuthSchemeProvider authSchemeProvider;
+
+    @BeforeClass
     public static void testsSetUp() {
 
         S3AccessGrantsInstanceSetUpUtils.setUpAccessGrantsInstanceForTests();
-
+        credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
+        s3ControlAsyncClient = S3AccessGrantsIntegrationTestsUtils.s3ControlAsyncClientBuilder(credentialsProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
+        authSchemeProvider = new S3AccessGrantsAuthSchemeProvider(S3AuthSchemeProvider.defaultProvider());
 
     }
 
-    @org.junit.AfterClass
+    @AfterClass
     public static void tearDown() {
         if (!S3AccessGrantsIntegrationTestsUtils.DISABLE_TEAR_DOWN) {
             S3AccessGrantsInstanceSetUpUtils.tearDown();
@@ -94,47 +117,44 @@ public class S3AccessGrantsIntegrationTests {
     }
 
     @Test
-    public void call_s3_with_operation_not_supported_by_access_grants_request_failure() {
+    public void call_s3_with_operation_not_supported_by_access_grants_request_failure() throws Exception {
 
-        ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
-
-        S3ControlAsyncClient s3ControlAsyncClient = S3AccessGrantsIntegrationTestsUtils.s3ControlAsyncClientBuilder(credentialsProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
+        S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
+                .S3ControlAsyncClient(s3ControlAsyncClient)
+                .build());
 
         S3AccessGrantsIdentityProvider identityProvider =
                 spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
                         S3AccessGrantsIntegrationTestsUtils.TEST_REGION, S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
-                        s3ControlAsyncClient));
-
-        S3AuthSchemeProvider authSchemeProvider =
-                spy(new S3AccessGrantsAuthSchemeProvider(S3AuthSchemeProvider.defaultProvider()));
+                        s3ControlAsyncClient,
+                        cache));
 
         String bucketName = "access-grants-sdk-create-test";
 
         S3Client s3client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
-        try {
-            CreateBucketResponse createBucketResponse = S3AccessGrantsIntegrationTestsUtils.CreateBucket(s3client, bucketName);
+        Throwable exc = Assertions.catchThrowableOfType(() -> S3AccessGrantsIntegrationTestsUtils.CreateBucket(s3client, bucketName), S3ControlException.class);
 
-            Assertions.assertThat(createBucketResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
+        Assertions.assertThat(((S3ControlException) exc).statusCode()).isEqualTo(404);
 
-            verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
+        verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
 
-            verify(identityProvider, never()).getCredentialsFromAccessGrants(any());
+        verify(identityProvider, never()).getCredentialsFromCache(any(), any(), any(), any());
 
-        } finally {
-            S3AccessGrantsIntegrationTestsUtils.DeleteBucket(s3client, bucketName);
-        }
+        verify(identityProvider, never()).getCredentialsFromAccessGrants(any());
+
+        verify(cache, never()).getDataAccess(any(), any(), any(), any());
 
     }
 
     @Test
-    public void call_s3_with_supported_operation_request_success() throws IOException {
+    public void call_s3_with_supported_operation_request_success() throws Exception {
 
-        ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
-
-        S3ControlAsyncClient s3ControlAsyncClient = S3AccessGrantsIntegrationTestsUtils.s3ControlAsyncClientBuilder(credentialsProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
+        S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
+                .S3ControlAsyncClient(s3ControlAsyncClient)
+                .build());
 
         S3AccessGrantsIdentityProvider identityProvider =
             spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
@@ -142,12 +162,8 @@ public class S3AccessGrantsIntegrationTests {
                                                    S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
-                                                   s3ControlAsyncClient));
-
-
-       S3AuthSchemeProvider authSchemeProvider =
-            spy(new S3AccessGrantsAuthSchemeProvider(S3AuthSchemeProvider.defaultProvider()));
-
+                                                   s3ControlAsyncClient,
+                                                   cache));
 
        S3Client s3client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
@@ -160,18 +176,99 @@ public class S3AccessGrantsIntegrationTests {
 
        verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
 
-       verify(identityProvider, times(1)).getCredentialsFromAccessGrants(any());
+       verify(identityProvider, times(1)).getCredentialsFromCache(any(), any(), any(), any());
 
-       // TODO: cache testing goes here!
+       verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
 
     }
 
     @Test
-    public void call_s3_without_access_grants_request_failure() {
+    public void call_s3_with_supported_operation_request_success_cache_test() throws Exception {
 
-        ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
+        S3ControlAsyncClient s3ControlAsyncClient = mock(S3ControlAsyncClient.class);
+        S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
+                .S3ControlAsyncClient(s3ControlAsyncClient)
+                .build());
 
-        S3ControlAsyncClient s3ControlAsyncClient = S3AccessGrantsIntegrationTestsUtils.s3ControlAsyncClientBuilder(credentialsProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
+        S3AccessGrantsIdentityProvider identityProvider =
+                spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
+                        S3AccessGrantsIntegrationTestsUtils.TEST_REGION,
+                        S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
+                        S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
+                        S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
+                        s3ControlAsyncClient,
+                        cache));
+        ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
+        CompletableFuture<GetDataAccessResponse> getDataAccessResponse = CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().credentials(Credentials.builder()
+                    .accessKeyId(TEST_ACCESS_KEY)
+                    .secretAccessKey(TEST_SECRET_KEY)
+                    .build()).build());
+
+        when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
+        when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn("GetObject");
+        when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
+
+        AwsCredentialsIdentity credentialsIdentity = identityProvider.resolveIdentity(resolveIdentityRequest).join();
+
+        Assertions.assertThat(credentialsIdentity.secretAccessKey()).isEqualTo(TEST_SECRET_KEY);
+        Assertions.assertThat(credentialsIdentity.accessKeyId()).isEqualTo(TEST_ACCESS_KEY);
+        verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
+        verify(s3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
+
+        // resend the request and validate no interaction with data access request from the cache
+        credentialsIdentity = identityProvider.resolveIdentity(resolveIdentityRequest).join();
+        Assertions.assertThat(credentialsIdentity.secretAccessKey()).isEqualTo(TEST_SECRET_KEY);
+        Assertions.assertThat(credentialsIdentity.accessKeyId()).isEqualTo(TEST_ACCESS_KEY);
+        verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
+        verify(s3ControlAsyncClient, never()).getDataAccess(any(GetDataAccessRequest.class));
+
+    }
+
+    @Test
+    public void call_s3_with_supported_operation_request_failure_cache_test() throws Exception {
+
+        S3ControlAsyncClient s3ControlAsyncClient = mock(S3ControlAsyncClient.class);
+        S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
+                .S3ControlAsyncClient(s3ControlAsyncClient)
+                .build());
+
+        S3AccessGrantsIdentityProvider identityProvider =
+                spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
+                        S3AccessGrantsIntegrationTestsUtils.TEST_REGION,
+                        S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
+                        S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
+                        S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
+                        s3ControlAsyncClient,
+                        cache));
+        ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
+
+        when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
+        when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn("GetObject");
+        when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied").build());
+
+        try {
+            identityProvider.resolveIdentity(resolveIdentityRequest).join();
+        } catch(CompletionException e) {
+            verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
+            verify(s3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
+        }
+
+        // resend the request and validate no interaction with the service.
+        try {
+            identityProvider.resolveIdentity(resolveIdentityRequest).join();
+        } catch(CompletionException e) {
+            verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
+            verify(s3ControlAsyncClient, never()).getDataAccess(any(GetDataAccessRequest.class));
+        }
+
+    }
+
+    @Test
+    public void call_s3_without_access_grants_request_failure() throws Exception {
+
+        S3AccessGrantsCachedCredentialsProviderImpl cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
+                .S3ControlAsyncClient(s3ControlAsyncClient)
+                .build());
 
         S3AccessGrantsIdentityProvider identityProvider =
             spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
@@ -179,11 +276,8 @@ public class S3AccessGrantsIntegrationTests {
                                                    S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
-                                                   s3ControlAsyncClient));
-
-
-       S3AuthSchemeProvider authSchemeProvider =
-            spy(new S3AccessGrantsAuthSchemeProvider(S3AuthSchemeProvider.defaultProvider()));
+                                                   s3ControlAsyncClient,
+                                                   cache));
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
@@ -198,22 +292,21 @@ public class S3AccessGrantsIntegrationTests {
 
             verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
 
-            verify(identityProvider, times(1)).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
+            verify(identityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
+
+            verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
 
             Assertions.assertThat(e.statusCode()).isEqualTo(403);
 
         }
-
-        // TODO: cache testing here!
-
     }
 
     @Test
-    public void call_s3_with_unregistered_access_grants_location_request_failure() {
+    public void call_s3_with_unregistered_access_grants_location_request_failure() throws Exception {
 
-        ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
-
-        S3ControlAsyncClient s3ControlAsyncClient = S3AccessGrantsIntegrationTestsUtils.s3ControlAsyncClientBuilder(credentialsProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
+        S3AccessGrantsCachedCredentialsProviderImpl cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
+                .S3ControlAsyncClient(s3ControlAsyncClient)
+                .build());
 
         S3AccessGrantsIdentityProvider identityProvider =
             spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
@@ -221,11 +314,8 @@ public class S3AccessGrantsIntegrationTests {
                                                    S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
-                                                   s3ControlAsyncClient));
-
-
-        S3AuthSchemeProvider authSchemeProvider =
-            spy(new S3AccessGrantsAuthSchemeProvider(S3AuthSchemeProvider.defaultProvider()));
+                                                   s3ControlAsyncClient,
+                                                   cache));
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
@@ -242,21 +332,21 @@ public class S3AccessGrantsIntegrationTests {
 
             verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
 
-            verify(identityProvider, times(1)).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
+            verify(identityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
+
+            verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
 
             Assertions.assertThat(e.statusCode()).isEqualTo(403);
         }
 
-        // TODO: cache related testing here !
-
     }
 
     @Test
-    public void call_s3_with_supported_operation_but_no_grant_request_failure() {
+    public void call_s3_with_supported_operation_but_no_grant_request_failure() throws Exception {
 
-        ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
-
-        S3ControlAsyncClient s3ControlAsyncClient = S3AccessGrantsIntegrationTestsUtils.s3ControlAsyncClientBuilder(credentialsProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
+        S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
+                .S3ControlAsyncClient(s3ControlAsyncClient)
+                .build());
 
         S3AccessGrantsIdentityProvider identityProvider =
             spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
@@ -264,11 +354,8 @@ public class S3AccessGrantsIntegrationTests {
                                                    S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
-                                                   s3ControlAsyncClient));
-
-
-        S3AuthSchemeProvider authSchemeProvider =
-            spy(new S3AccessGrantsAuthSchemeProvider(S3AuthSchemeProvider.defaultProvider()));
+                                                   s3ControlAsyncClient,
+                                                   cache));
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
@@ -283,22 +370,22 @@ public class S3AccessGrantsIntegrationTests {
 
             verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
 
-            verify(identityProvider, times(1)).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
+            verify(identityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
+
+            verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
 
             Assertions.assertThat(e.statusCode()).isEqualTo(403);
 
         }
 
-        // TODO: cache related testing here !
-
     }
 
     @Test
-    public void call_s3_with_non_existent_location_request_failure() {
+    public void call_s3_with_non_existent_location_request_failure() throws Exception {
 
-        ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
-
-        S3ControlAsyncClient s3ControlAsyncClient = S3AccessGrantsIntegrationTestsUtils.s3ControlAsyncClientBuilder(credentialsProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
+        S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
+                .S3ControlAsyncClient(s3ControlAsyncClient)
+                .build());
 
         S3AccessGrantsIdentityProvider identityProvider =
             spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
@@ -306,11 +393,8 @@ public class S3AccessGrantsIntegrationTests {
                                                    S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
-                                                   s3ControlAsyncClient));
-
-
-        S3AuthSchemeProvider authSchemeProvider =
-            spy(new S3AccessGrantsAuthSchemeProvider(S3AuthSchemeProvider.defaultProvider()));
+                                                   s3ControlAsyncClient,
+                                                   cache));
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
@@ -324,22 +408,21 @@ public class S3AccessGrantsIntegrationTests {
 
             verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
 
-            verify(identityProvider, times(1)).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
+            verify(identityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
+
+            verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
 
             Assertions.assertThat(e.statusCode()).isEqualTo(403);
 
         }
-
-        // TODO: cache related testing here !
-
-    }
+     }
 
     @Test
-    public void faulty_auth_scheme_returing_unsupported_scheme_request_failure() {
+    public void faulty_auth_scheme_returning_unsupported_scheme_request_failure() {
 
-        ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
-
-        S3ControlAsyncClient s3ControlAsyncClient = S3AccessGrantsIntegrationTestsUtils.s3ControlAsyncClientBuilder(credentialsProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
+        S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
+                .S3ControlAsyncClient(s3ControlAsyncClient)
+                .build());
 
         S3AccessGrantsIdentityProvider validIdentityProvider =
             spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
@@ -347,7 +430,8 @@ public class S3AccessGrantsIntegrationTests {
                                                    S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
-                                                   s3ControlAsyncClient));
+                                                   s3ControlAsyncClient,
+                    cache));
 
         try {
             class InvalidAccessGrantsProvider implements S3AuthSchemeProvider {
@@ -380,16 +464,15 @@ public class S3AccessGrantsIntegrationTests {
             verify(validIdentityProvider, never()).resolveIdentity(any(ResolveIdentityRequest.class));
 
         }
-
     }
 
-    //
     @Test
-    public void faulty_auth_scheme_provider_dropping_auth_params_request_failure() {
+    public void faulty_auth_scheme_provider_dropping_auth_params_request_failure() throws Exception {
 
-        ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
+        S3AccessGrantsCachedCredentialsProvider cache = S3AccessGrantsCachedCredentialsProviderImpl.builder()
+                .S3ControlAsyncClient(s3ControlAsyncClient)
+                .build();
 
-        S3ControlAsyncClient s3ControlAsyncClient = S3AccessGrantsIntegrationTestsUtils.s3ControlAsyncClientBuilder(credentialsProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
         S3AccessGrantsIdentityProvider validIdentityProvider =
             spy(new S3AccessGrantsIdentityProvider(software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build(),
@@ -397,7 +480,8 @@ public class S3AccessGrantsIntegrationTests {
                                                    S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
-                                                   s3ControlAsyncClient));
+                                                   s3ControlAsyncClient,
+                                                   cache));
 
         try {
             class InvalidAccessGrantsProvider implements S3AuthSchemeProvider {
@@ -425,16 +509,20 @@ public class S3AccessGrantsIntegrationTests {
 
             verify(validIdentityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
 
+            verify(validIdentityProvider, never()).getCredentialsFromCache(any(), any(), any(), any());
+
+            verify(cache, never()).getDataAccess(any(), any(), any(), any());
+
         }
 
     }
 
     @Test
-    public void faulty_default_credentials_provider_configuration_request_failure() {
+    public void faulty_default_credentials_provider_configuration_request_failure() throws Exception {
 
-        ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
-
-        S3ControlAsyncClient s3ControlAsyncClient = S3AccessGrantsIntegrationTestsUtils.s3ControlAsyncClientBuilder(credentialsProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
+        S3AccessGrantsCachedCredentialsProvider cache = S3AccessGrantsCachedCredentialsProviderImpl.builder()
+                .S3ControlAsyncClient(s3ControlAsyncClient)
+                .build();
 
         S3AccessGrantsIdentityProvider invalidIdentityProvider =
             spy(new S3AccessGrantsIdentityProvider(software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider.builder().profileName("random-non-existent"
@@ -443,10 +531,8 @@ public class S3AccessGrantsIntegrationTests {
                                                    S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
-                                                   s3ControlAsyncClient));
-
-        S3AuthSchemeProvider authSchemeProvider =
-            spy(new S3AccessGrantsAuthSchemeProvider(S3AuthSchemeProvider.defaultProvider()));
+                                                   s3ControlAsyncClient,
+                                                   cache));
 
         try {
            S3Client invalidS3Client =
@@ -462,6 +548,9 @@ public class S3AccessGrantsIntegrationTests {
 
             verify(invalidIdentityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
 
+            verify(invalidIdentityProvider, never()).getCredentialsFromCache(any(), any(), any(), any());
+
+            verify(cache, never()).getDataAccess(any(), any(), any(), any());
         }
 
     }
@@ -498,10 +587,10 @@ public class S3AccessGrantsIntegrationTests {
         ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
 
         S3AccessGrantsPlugin accessGrantsPlugin =
-            spy(S3AccessGrantsPlugin.builder().accountId(S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT).privilege(software.amazon.awssdk.services.s3control.model.Privilege.DEFAULT).cacheEnabled(false).build());
+            spy(S3AccessGrantsPlugin.builder().accountId(S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT).build());
 
-        software.amazon.awssdk.services.s3.S3Client s3Client =
-            software.amazon.awssdk.services.s3.S3Client.builder()
+        S3Client s3Client =
+            S3Client.builder()
                     .credentialsProvider(credentialsProvider)
                     .addPlugin(accessGrantsPlugin)
                     .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
@@ -522,9 +611,8 @@ public class S3AccessGrantsIntegrationTests {
     @Test
     public void call_s3_with_plugin_invalid_default_credentials_provider_request_failure() {
         S3AccessGrantsPlugin accessGrantsPlugin =
-            spy(S3AccessGrantsPlugin.builder().accountId(S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT).privilege(S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE.get()).cacheEnabled(!S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED.get()).build());
+            spy(S3AccessGrantsPlugin.builder().accountId(S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT).build());
         try {
-
            S3Client s3Client =
                S3Client.builder()
                        .addPlugin(accessGrantsPlugin)
@@ -542,12 +630,12 @@ public class S3AccessGrantsIntegrationTests {
     }
 
     @Test
-    public void call_s3_with_plugin_invalid_auth_scheme_provider_request_failure() {
+    public void call_s3_with_plugin_invalid_auth_scheme_provider_request_success() throws IOException {
 
         ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
 
         S3AccessGrantsPlugin accessGrantsPlugin =
-            spy(S3AccessGrantsPlugin.builder().accountId(S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT).privilege(S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE.get()).cacheEnabled(!S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED.get()).build());
+            spy(S3AccessGrantsPlugin.builder().accountId(S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT).build());
 
         S3Client s3Client =
                 S3Client.builder()
@@ -557,17 +645,13 @@ public class S3AccessGrantsIntegrationTests {
                         .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
                         .build();
 
-        S3AccessGrantsIntegrationTestsUtils.GetObject(s3Client,
+        ResponseInputStream<GetObjectResponse> responseInputStream = S3AccessGrantsIntegrationTestsUtils.GetObject(s3Client,
                                                           S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
                                                           S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT1);
 
-    }
+        Assertions.assertThat(S3AccessGrantsIntegrationTestsUtils.getFileContentFromGetResponse(responseInputStream)).isEqualTo("access grants test content in file1!");
 
-    @Test
-    public void testAccessGrants_IdentifiesTheCorrectAccessGrantsAccount() {
-
+        Assertions.assertThat(S3AccessGrantsIntegrationTestsUtils.getStatusCodeFromGetResponse(responseInputStream)).isEqualTo(200);
 
     }
-
-
 }

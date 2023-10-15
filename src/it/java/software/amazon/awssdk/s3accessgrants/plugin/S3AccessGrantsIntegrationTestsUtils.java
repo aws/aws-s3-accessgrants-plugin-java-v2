@@ -38,27 +38,30 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3control.S3ControlClient;
+import software.amazon.awssdk.services.s3control.model.AccessGrantsLocationConfiguration;
 import software.amazon.awssdk.services.s3control.model.CreateAccessGrantsInstanceRequest;
 import software.amazon.awssdk.services.s3control.model.CreateAccessGrantsInstanceResponse;
 import software.amazon.awssdk.services.s3control.model.CreateAccessGrantsLocationRequest;
-import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceRequest;
-import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceResponse;
-import software.amazon.awssdk.services.s3control.model.Grantee;
-import software.amazon.awssdk.services.s3control.model.GranteeType;
-import software.amazon.awssdk.services.s3control.model.AccessGrantsLocationConfiguration;
 import software.amazon.awssdk.services.s3control.model.CreateAccessGrantRequest;
 import software.amazon.awssdk.services.s3control.model.DeleteAccessGrantRequest;
 import software.amazon.awssdk.services.s3control.model.DeleteAccessGrantsLocationRequest;
 import software.amazon.awssdk.services.s3control.model.DeleteAccessGrantsInstanceRequest;
+import software.amazon.awssdk.services.s3control.model.ListAccessGrantsResponse;
+import software.amazon.awssdk.services.s3control.model.ListAccessGrantEntry;
+import software.amazon.awssdk.services.s3control.model.Grantee;
+import software.amazon.awssdk.services.s3control.model.GranteeType;
 import software.amazon.awssdk.services.s3control.model.GetAccessGrantRequest;
 import software.amazon.awssdk.services.s3control.model.GetAccessGrantResponse;
-import software.amazon.awssdk.services.s3control.model.ListAccessGrantsResponse;
-import software.amazon.awssdk.services.s3control.model.ListAccessGrantEntry;;
 import software.amazon.awssdk.services.s3control.model.ListAccessGrantsLocationsRequest;
 import software.amazon.awssdk.services.s3control.model.ListAccessGrantsLocationsResponse;
-import software.amazon.awssdk.services.s3control.model.ListAccessGrantsRequest;
+
+import software.amazon.awssdk.services.s3control.model.Privilege;
 import software.amazon.awssdk.services.s3control.model.Permission;
+import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceRequest;
+import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceResponse;
+import software.amazon.awssdk.services.s3control.model.ListAccessGrantsRequest;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
+
 
 public class S3AccessGrantsIntegrationTestsUtils {
 
@@ -66,7 +69,7 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
     public static software.amazon.awssdk.services.s3control.S3ControlClient s3ControlClient = null;
 
-    public static final software.amazon.awssdk.regions.Region TEST_REGION = software.amazon.awssdk.regions.Region.US_EAST_2;
+    public static final software.amazon.awssdk.regions.Region TEST_REGION = Region.US_EAST_2;
 
     public static final String TEST_CREDENTIALS_PROFILE_NAME = "aws-test-account";
 
@@ -92,9 +95,9 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
     public static final String ALLOWED_BUCKET_PREFIX2 = TEST_LOCATION_2+"*";
 
-    public static final java.util.Optional<software.amazon.awssdk.services.s3control.model.Privilege> DEFAULT_PRIVILEGE = java.util.Optional.of(software.amazon.awssdk.services.s3control.model.Privilege.DEFAULT);
+    public static final Privilege DEFAULT_PRIVILEGE = Privilege.DEFAULT;
 
-    public static final java.util.Optional<Boolean> DEFAULT_IS_CACHE_ENABLED = java.util.Optional.of(true);
+    public static final Boolean DEFAULT_IS_CACHE_ENABLED = true;
 
     public static String TEST_OBJECT_1_CONTENTS = "access grants test content in file1!";
 
