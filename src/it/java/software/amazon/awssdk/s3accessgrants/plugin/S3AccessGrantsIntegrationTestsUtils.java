@@ -17,7 +17,10 @@ package software.amazon.awssdk.s3accessgrants.plugin;
 
 import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.iam.model.*;
+
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Properties;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.ResponseInputStream;
@@ -30,7 +33,6 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
 import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
-import software.amazon.awssdk.services.s3.model.DeleteBucketResponse;
 import software.amazon.awssdk.services.s3.model.DeleteBucketRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -69,11 +71,11 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
     public static software.amazon.awssdk.services.s3control.S3ControlClient s3ControlClient = null;
 
-    public static final software.amazon.awssdk.regions.Region TEST_REGION = Region.US_EAST_2;
+    public static Region TEST_REGION;
 
-    public static final String TEST_CREDENTIALS_PROFILE_NAME = "aws-test-account";
+    public static String TEST_CREDENTIALS_PROFILE_NAME;
 
-    public static final String TEST_ACCOUNT =  "527802564711";
+    public static String TEST_ACCOUNT;
 
     public static final String TEST_BUCKET_NAME = "access-grants-sdk-test-bucket";
 
@@ -89,7 +91,7 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
     public static final String ACCESS_GRANTS_POLICY_NAME = "access-grants-policy-sdk-test";
 
-    public static final String ACCESS_GRANTS_IAM_ROLE_NAME = "aws-s3-access-grants-sdk-plugin-integration-role";
+    public static String ACCESS_GRANTS_IAM_ROLE_NAME;
 
     public static final String ALLOWED_BUCKET_PREFIX = TEST_LOCATION_1+"*";
 
@@ -155,13 +157,6 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
     }
 
-    public static DeleteBucketResponse DeleteBucket(S3Client s3Client, String bucketName) {
-
-        DeleteBucketRequest deleteBucketRequest = DeleteBucketRequest.builder().bucket(bucketName).build();
-        return s3Client.deleteBucket(deleteBucketRequest);
-
-    }
-
     public static PutObjectResponse PutObject(S3Client s3Client, String bucketName, String key, String content) {
 
         try {
@@ -188,7 +183,6 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
             return s3Client.getObject(getObjectRequest);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
             throw e;
         }
     }

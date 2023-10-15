@@ -15,14 +15,20 @@
 
 package software.amazon.awssdk.s3accessgrants.plugin;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Properties;
 
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3control.S3ControlClient;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
+import software.amazon.awssdk.services.s3control.model.Permission;
 
 
 public class S3AccessGrantsInstanceSetUpUtils {
@@ -37,13 +43,19 @@ public class S3AccessGrantsInstanceSetUpUtils {
 
     private static String accessGrantsArn = null;
 
-    private static String policyArn = null;
-
     private static String iamRoleArn = null;
 
     private static List<String> registeredAccessGrants = new ArrayList<>();
 
-    public static void setUpAccessGrantsInstanceForTests() {
+    public static void setUpAccessGrantsInstanceForTests() throws IOException {
+        String defaultPropertiesFilePath = System.getProperty("user.dir")+"/default.properties";
+        Properties testProps = new Properties();
+        testProps.load(new FileInputStream(defaultPropertiesFilePath));
+        S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME = testProps.getProperty("credentialsProfile").trim();
+        S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_IAM_ROLE_NAME = testProps.getProperty("IamRoleName").trim();
+        S3AccessGrantsIntegrationTestsUtils.TEST_REGION = Region.of(testProps.getProperty("region").trim());
+        S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT = testProps.getProperty("accountId").trim();
+
         ProfileCredentialsProvider profileCredentialsProvider =
            ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
 
@@ -62,16 +74,10 @@ public class S3AccessGrantsInstanceSetUpUtils {
             S3AccessGrantsIntegrationTestsUtils.iamClientBuilder(profileCredentialsProvider,
                              S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
-        policyArn = createS3AccessGrantsIAMPolicy();
-
         iamRoleArn = S3AccessGrantsIntegrationTestsUtils.createS3AccessGrantsIAMRole(iamClient,
                                                                                      S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_IAM_ROLE_NAME,
                                                                                      createS3AccessGrantsIAMTrustRelationship(),
                                                                                      S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT);
-
-        // S3AccessGrantsIntegrationTestsUtils.attachPolicyToRole(iamClient,
-        //                                                        S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_IAM_ROLE_NAME,
-        //                                                        policyArn);
 
         CreateAccessGrantsBucket(S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME);
 
@@ -84,16 +90,16 @@ public class S3AccessGrantsInstanceSetUpUtils {
 
         registeredAccessGrants.add(S3AccessGrantsIntegrationTestsUtils.registerAccessGrant(s3ControlClient,
                                                                                            S3AccessGrantsIntegrationTestsUtils.ALLOWED_BUCKET_PREFIX,
-                                                        software.amazon.awssdk.services.s3control.model.Permission.READ, iamRoleArn,
+                                                                                           Permission.READ, iamRoleArn,
                                                                                            S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT, accessGrantsInstanceLocationId));
 
         registeredAccessGrants.add(S3AccessGrantsIntegrationTestsUtils.
                                    registerAccessGrant(s3ControlClient, S3AccessGrantsIntegrationTestsUtils.ALLOWED_BUCKET_PREFIX,
-                                                       software.amazon.awssdk.services.s3control.model.Permission.WRITE, iamRoleArn,
+                                                       Permission.WRITE, iamRoleArn,
                                                        S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT, accessGrantsInstanceLocationId));
 
         registeredAccessGrants.add(S3AccessGrantsIntegrationTestsUtils.registerAccessGrant(s3ControlClient,
-                                                                                           S3AccessGrantsIntegrationTestsUtils.ALLOWED_BUCKET_PREFIX2, software.amazon.awssdk.services.s3control.model.Permission.WRITE, iamRoleArn, S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT, accessGrantsInstanceLocationId));
+                                                                                           S3AccessGrantsIntegrationTestsUtils.ALLOWED_BUCKET_PREFIX2, Permission.WRITE, iamRoleArn, S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT, accessGrantsInstanceLocationId));
 
         S3AccessGrantsIntegrationTestsUtils.PutObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
                                                       S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT1,
