@@ -107,6 +107,10 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
     public static final boolean DISABLE_TEAR_DOWN = false;
 
+    public static String ACCESS_GRANTS_INSTANCE_ARN;
+
+    public static String ACCESS_GRANTS_INSTANCE_ID;
+
     public static S3Client s3clientBuilder(S3AuthSchemeProvider authSchemeProvider,
                                                                               IdentityProvider<AwsCredentialsIdentity> identityProvider,
                                                                               Region region
