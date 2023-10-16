@@ -8,18 +8,14 @@ import org.junit.Test;
 import org.assertj.core.api.Assertions;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.identity.spi.IdentityProvider;
 import software.amazon.awssdk.identity.spi.ResolveIdentityRequest;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProviderImpl;
-import software.amazon.awssdk.services.s3control.model.Credentials;
-import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
-import software.amazon.awssdk.services.s3control.model.GetDataAccessResponse;
-import software.amazon.awssdk.services.s3control.model.InvalidRequestException;
-import software.amazon.awssdk.services.s3control.model.Privilege;
-import software.amazon.awssdk.services.s3control.model.S3ControlException;
+import software.amazon.awssdk.services.s3control.model.*;
 
 
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
@@ -216,8 +212,8 @@ public class S3AccessGrantsIdentityProviderTests {
         when(testCache.getDataAccess(any(), any(), any(), any())).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied for the user").build());
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build()));
 
-        Throwable exc = Assertions.catchThrowableOfType(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join(), S3ControlException.class);
-        Assertions.assertThat(((S3ControlException) exc).statusCode()).isEqualTo(403);
+        Throwable exc = Assertions.catchThrowableOfType(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join(), SdkServiceException.class);
+        Assertions.assertThat(((S3ControlException) exc.getCause()).statusCode()).isEqualTo(403);
     }
 
     @Test
@@ -234,7 +230,7 @@ public class S3AccessGrantsIdentityProviderTests {
         when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().build()).whenComplete((r,e) -> { throw S3ControlException.builder().statusCode(403).build(); }));
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build()));
 
-        Throwable exc = Assertions.catchThrowableOfType(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join(), S3ControlException.class);
+        Throwable exc = Assertions.catchThrowableOfType(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join(), SdkServiceException.class);
         Assertions.assertThat(exc.getCause()).isInstanceOf(NullPointerException.class);
     }
 
@@ -294,16 +290,22 @@ public class S3AccessGrantsIdentityProviderTests {
         S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, TEST_ACCOUNT, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClient, testCache);
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
         AwsCredentialsIdentity credentials = AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build();
+        CompletableFuture<GetAccessGrantsInstanceForPrefixResponse>  getAccessGrantsInstanceForPrefixResponse = CompletableFuture.supplyAsync(() -> GetAccessGrantsInstanceForPrefixResponse.builder()
+                .accessGrantsInstanceArn("arn:aws:s3:us-east-2:123456678:access-grants/default")
+                .accessGrantsInstanceId("default").build());
 
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
         when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn(TEST_OPERATION);
         when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenThrow(InvalidRequestException.class);
+        when(localS3ControlClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class))).thenReturn(getAccessGrantsInstanceForPrefixResponse);
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> credentials));
 
         Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join())
                 .isInstanceOf(CompletionException.class)
                         .getCause()
-                                .isInstanceOf(S3ControlException.class);
+                                .isInstanceOf(SdkServiceException.class)
+                                    .getCause()
+                                        .isInstanceOf(InvalidRequestException.class);
     }
 
     @Test
