@@ -72,20 +72,10 @@ public class S3AccessGrantsCachedAccountIdResolverCreationTest {
     }
 
     @Test
-    public void create_Resolver_without_AccountId_via_Builder() {
-        assertThatIllegalArgumentException().isThrownBy(() -> S3AccessGrantsCachedAccountIdResolver
-            .builder()
-            .accountId(null)
-            .S3ControlAsyncClient(S3ControlAsyncClient)
-            .build());
-    }
-
-    @Test
     public void create_DefaultResolver_via_Builder() {
         // When
         S3AccessGrantsCachedAccountIdResolver resolver = S3AccessGrantsCachedAccountIdResolver
             .builder()
-            .accountId(TEST_S3_ACCESSGRANTS_ACCOUNT)
             .S3ControlAsyncClient(S3ControlAsyncClient)
             .build();
         // Then
@@ -103,7 +93,6 @@ public class S3AccessGrantsCachedAccountIdResolverCreationTest {
         // When
         S3AccessGrantsCachedAccountIdResolver resolver = S3AccessGrantsCachedAccountIdResolver
             .builder()
-            .accountId(TEST_S3_ACCESSGRANTS_ACCOUNT)
             .S3ControlAsyncClient(S3ControlAsyncClient)
             .maxCacheSize(customMaxCacheSize)
             .expireCacheAfterWriteSeconds(customExpireCacheAfterWriteSeconds)
@@ -147,7 +136,6 @@ public class S3AccessGrantsCachedAccountIdResolverCreationTest {
         // When
         S3AccessGrantsCachedAccountIdResolver resolver = S3AccessGrantsCachedAccountIdResolver
             .builder()
-            .accountId(TEST_S3_ACCESSGRANTS_ACCOUNT)
             .S3ControlAsyncClient(S3ControlAsyncClient)
             .maxCacheSize(customMaxCacheSize)
             .expireCacheAfterWriteSeconds(customExpireCacheAfterWriteSeconds)

@@ -47,7 +47,6 @@ public class S3AccessGrantsCachedAccountIdResolverTest {
         S3ControlAsyncClient = Mockito.mock(S3ControlAsyncClient.class);
         resolver = S3AccessGrantsCachedAccountIdResolver
             .builder()
-            .accountId(TEST_S3_ACCESSGRANTS_ACCOUNT)
             .S3ControlAsyncClient(S3ControlAsyncClient)
             .build();
     }

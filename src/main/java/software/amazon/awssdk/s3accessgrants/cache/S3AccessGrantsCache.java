@@ -47,19 +47,20 @@ public class S3AccessGrantsCache {
 
 
     private S3AccessGrantsCache (@NotNull S3ControlAsyncClient s3ControlAsyncClient, int maxCacheSize,
-                                 int cacheExpirationTimePrecentage) {
-        this(s3ControlAsyncClient, new S3AccessGrantsCachedAccountIdResolver(s3ControlAsyncClient), maxCacheSize,
-             cacheExpirationTimePrecentage);
+                                 int cacheExpirationTimePercentage) {
+
+        this(s3ControlAsyncClient, S3AccessGrantsCachedAccountIdResolver.builder().S3ControlAsyncClient(s3ControlAsyncClient).build(), maxCacheSize,
+             cacheExpirationTimePercentage);
     }
 
     private S3AccessGrantsCache (@NotNull S3ControlAsyncClient s3ControlAsyncClient,
-                                 S3AccessGrantsCachedAccountIdResolver resolver, int maxCacheSize, int cacheExpirationTimePrecentage) {
+                                 S3AccessGrantsCachedAccountIdResolver resolver, int maxCacheSize, int cacheExpirationTimePercentage) {
         if (s3ControlAsyncClient == null) {
             throw new IllegalArgumentException("S3ControlAsyncClient is required");
         }
         this.s3ControlAsyncClient = s3ControlAsyncClient;
         this.s3AccessGrantsCachedAccountIdResolver = resolver;
-        this.cacheExpirationTimePercentage = cacheExpirationTimePrecentage;
+        this.cacheExpirationTimePercentage = cacheExpirationTimePercentage;
         this.maxCacheSize = maxCacheSize;
         this.cache = Caffeine.newBuilder()
                                           .maximumSize(maxCacheSize)
