@@ -79,10 +79,10 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     /**
      * <p> This is a method that will talk to access grants to process the request.
-     * This method Will return the credentials for the role that is present in the grant allowing requesters access to the
+     * This method will return the credentials for the role that is present in the grant allowing requesters access to the
      * specific resource.
      * This method uses cache to store credentials to reduce requests sent to S3 access grant APIs
-     * This method Will throw an exception if the necessary grant is not available to the requester.
+     * This method will throw an exception if the necessary grant is not available to the requester.
      * </p>
      * @param resolveIdentityRequest The request to resolve an Identity.
      * @return a completable future that will resolve to the credentials registered within a grant.
