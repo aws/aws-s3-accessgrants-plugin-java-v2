@@ -24,31 +24,31 @@ import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsTestCons
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
-import software.amazon.awssdk.services.s3control.S3ControlClient;
+import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 
 public class S3AccessGrantsCachedAccountIdResolverCreationTest {
-    private S3ControlClient s3ControlClient;
+    private S3ControlAsyncClient S3ControlAsyncClient;
 
     @Before
     public void setup() {
-        s3ControlClient = Mockito.mock(S3ControlClient.class);
+        S3ControlAsyncClient = Mockito.mock(S3ControlAsyncClient.class);
     }
 
     @Test
-    public void create_DefaultResolver_without_S3ControlClient_via_Constructor() {
+    public void create_DefaultResolver_without_S3ControlAsyncClient_via_Constructor() {
         // Given
-        s3ControlClient = null;
+        S3ControlAsyncClient = null;
         // Then
-        assertThatIllegalArgumentException().isThrownBy(() -> new S3AccessGrantsCachedAccountIdResolver(s3ControlClient));
+        assertThatIllegalArgumentException().isThrownBy(() -> new S3AccessGrantsCachedAccountIdResolver(S3ControlAsyncClient));
     }
 
     @Test
     public void create_DefaultResolver_via_Constructor() {
         // When
-        S3AccessGrantsCachedAccountIdResolver resolver = new S3AccessGrantsCachedAccountIdResolver(s3ControlClient);
+        S3AccessGrantsCachedAccountIdResolver resolver = new S3AccessGrantsCachedAccountIdResolver(S3ControlAsyncClient);
         // Then
         assertThat(resolver).isNotNull();
-        assertThat(resolver.s3ControlClient()).isEqualTo(s3ControlClient);
+        assertThat(resolver.S3ControlAsyncClient()).isEqualTo(S3ControlAsyncClient);
         assertThat(resolver.maxCacheSize()).isEqualTo(DEFAULT_ACCOUNT_ID_MAX_CACHE_SIZE);
         assertThat(resolver.expireCacheAfterWriteSeconds()).isEqualTo(DEFAULT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS);
     }
@@ -61,13 +61,13 @@ public class S3AccessGrantsCachedAccountIdResolverCreationTest {
     }
 
     @Test
-    public void create_Resolver_without_S3ControlClient_via_Builder() {
+    public void create_Resolver_without_S3ControlAsyncClient_via_Builder() {
         // Given
-        s3ControlClient = null;
+        S3ControlAsyncClient = null;
         //Then
         assertThatIllegalArgumentException().isThrownBy(() -> S3AccessGrantsCachedAccountIdResolver
             .builder()
-            .s3ControlClient(s3ControlClient)
+            .S3ControlAsyncClient(S3ControlAsyncClient)
             .build());
     }
 
@@ -76,7 +76,7 @@ public class S3AccessGrantsCachedAccountIdResolverCreationTest {
         assertThatIllegalArgumentException().isThrownBy(() -> S3AccessGrantsCachedAccountIdResolver
             .builder()
             .accountId(null)
-            .s3ControlClient(s3ControlClient)
+            .S3ControlAsyncClient(S3ControlAsyncClient)
             .build());
     }
 
@@ -86,11 +86,11 @@ public class S3AccessGrantsCachedAccountIdResolverCreationTest {
         S3AccessGrantsCachedAccountIdResolver resolver = S3AccessGrantsCachedAccountIdResolver
             .builder()
             .accountId(TEST_S3_ACCESSGRANTS_ACCOUNT)
-            .s3ControlClient(s3ControlClient)
+            .S3ControlAsyncClient(S3ControlAsyncClient)
             .build();
         // Then
         assertThat(resolver).isNotNull();
-        assertThat(resolver.s3ControlClient()).isEqualTo(s3ControlClient);
+        assertThat(resolver.S3ControlAsyncClient()).isEqualTo(S3ControlAsyncClient);
         assertThat(resolver.maxCacheSize()).isEqualTo(DEFAULT_ACCOUNT_ID_MAX_CACHE_SIZE);
         assertThat(resolver.expireCacheAfterWriteSeconds()).isEqualTo(DEFAULT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS);
     }
@@ -104,13 +104,13 @@ public class S3AccessGrantsCachedAccountIdResolverCreationTest {
         S3AccessGrantsCachedAccountIdResolver resolver = S3AccessGrantsCachedAccountIdResolver
             .builder()
             .accountId(TEST_S3_ACCESSGRANTS_ACCOUNT)
-            .s3ControlClient(s3ControlClient)
+            .S3ControlAsyncClient(S3ControlAsyncClient)
             .maxCacheSize(customMaxCacheSize)
             .expireCacheAfterWriteSeconds(customExpireCacheAfterWriteSeconds)
             .build();
         // Then
         assertThat(resolver).isNotNull();
-        assertThat(resolver.s3ControlClient()).isEqualTo(s3ControlClient);
+        assertThat(resolver.S3ControlAsyncClient()).isEqualTo(S3ControlAsyncClient);
         assertThat(resolver.maxCacheSize()).isEqualTo(customMaxCacheSize);
         assertThat(resolver.expireCacheAfterWriteSeconds()).isEqualTo(customExpireCacheAfterWriteSeconds);
     }
@@ -122,7 +122,7 @@ public class S3AccessGrantsCachedAccountIdResolverCreationTest {
         // Then
         assertThatIllegalArgumentException().isThrownBy(() -> S3AccessGrantsCachedAccountIdResolver
             .builder()
-            .s3ControlClient(s3ControlClient)
+            .S3ControlAsyncClient(S3ControlAsyncClient)
             .maxCacheSize(customMaxCacheSize)
             .build());
     }
@@ -134,7 +134,7 @@ public class S3AccessGrantsCachedAccountIdResolverCreationTest {
         // Then
         assertThatIllegalArgumentException().isThrownBy(() -> S3AccessGrantsCachedAccountIdResolver
             .builder()
-            .s3ControlClient(s3ControlClient)
+            .S3ControlAsyncClient(S3ControlAsyncClient)
             .expireCacheAfterWriteSeconds(customExpireCacheAfterWriteSeconds)
             .build());
     }
@@ -148,14 +148,14 @@ public class S3AccessGrantsCachedAccountIdResolverCreationTest {
         S3AccessGrantsCachedAccountIdResolver resolver = S3AccessGrantsCachedAccountIdResolver
             .builder()
             .accountId(TEST_S3_ACCESSGRANTS_ACCOUNT)
-            .s3ControlClient(s3ControlClient)
+            .S3ControlAsyncClient(S3ControlAsyncClient)
             .maxCacheSize(customMaxCacheSize)
             .expireCacheAfterWriteSeconds(customExpireCacheAfterWriteSeconds)
             .build();
         S3AccessGrantsCachedAccountIdResolver copy = resolver.toBuilder().build();
         // Then
         assertThat(copy).isNotNull();
-        assertThat(copy.s3ControlClient()).isEqualTo(s3ControlClient);
+        assertThat(copy.S3ControlAsyncClient()).isEqualTo(S3ControlAsyncClient);
         assertThat(copy.maxCacheSize()).isEqualTo(customMaxCacheSize);
         assertThat(copy.expireCacheAfterWriteSeconds()).isEqualTo(customExpireCacheAfterWriteSeconds);
     }
