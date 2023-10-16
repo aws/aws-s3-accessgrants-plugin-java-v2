@@ -15,6 +15,7 @@
 
 package software.amazon.awssdk.s3accessgrants.cache;
 
+import java.util.concurrent.CompletableFuture;
 import org.assertj.core.util.VisibleForTesting;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
@@ -34,7 +35,7 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
     private S3AccessGrantsCachedCredentialsProviderImpl(S3ControlAsyncClient S3ControlAsyncClient, int maxCacheSize, int cacheExpirationTimePercentage) {
 
         accessGrantsCache = S3AccessGrantsCache.builder()
-                                               .S3ControlAsyncClient(S3ControlAsyncClient)
+                                               .s3ControlAsyncClient(S3ControlAsyncClient)
                                                .maxCacheSize(maxCacheSize)
                                                .cacheExpirationTimePercentage(cacheExpirationTimePercentage).build();
 
@@ -43,11 +44,11 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
     }
 
     @VisibleForTesting
-    S3AccessGrantsCachedCredentialsProviderImpl(S3ControlAsyncClient S3ControlAsyncClient,
+    S3AccessGrantsCachedCredentialsProviderImpl(S3ControlAsyncClient s3ControlAsyncClient,
                                                         S3AccessGrantsCachedAccountIdResolver resolver,int maxCacheSize, int cacheExpirationTimePercentage) {
 
         accessGrantsCache = S3AccessGrantsCache.builder()
-                                               .S3ControlAsyncClient(S3ControlAsyncClient)
+                                               .s3ControlAsyncClient(s3ControlAsyncClient)
                                                .maxCacheSize(maxCacheSize)
                                                .cacheExpirationTimePercentage(cacheExpirationTimePercentage)
                                                .s3AccessGrantsCachedAccountIdResolver(resolver)
@@ -122,8 +123,8 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
     }
 
     @Override
-    public AwsCredentialsIdentity getDataAccess (AwsCredentialsIdentity credentials, Permission permission,
-                                                     String s3Prefix, @NotNull String accountId) throws S3ControlException {
+    public CompletableFuture<AwsCredentialsIdentity> getDataAccess (AwsCredentialsIdentity credentials, Permission permission,
+                                                                    String s3Prefix, @NotNull String accountId) throws S3ControlException {
         CacheKey cacheKey = CacheKey.builder()
                                     .credentials(credentials)
                                     .permission(permission)
@@ -133,7 +134,8 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
         if (s3ControlException != null) {
             throw s3ControlException;
         }
-        return accessGrantsCache.getCredentials(cacheKey, accountId, s3AccessGrantsAccessDeniedCache);
+        return CompletableFuture.supplyAsync(() -> accessGrantsCache.getCredentials(cacheKey, accountId,
+                                                                               s3AccessGrantsAccessDeniedCache));
     }
 
     public void invalidateCache() {

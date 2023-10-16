@@ -89,7 +89,8 @@ public class S3AccessGrantsCachedCredentialsProviderImplTest {
         // When
         AwsCredentialsIdentity credentialsIdentity = cacheWithMockedAccountIdResolver.getDataAccess(AWS_SESSION_CREDENTIALS,
                                                                                       Permission.READ,
-                                                                                     "s3://bucket2/foo/bar", TEST_S3_ACCESSGRANTS_ACCOUNT);
+                                                                                     "s3://bucket2/foo/bar",
+                                                                                                    TEST_S3_ACCESSGRANTS_ACCOUNT).join();
         // Then
         assertThat(credentialsIdentity).isEqualTo(sessionCredentials);
 

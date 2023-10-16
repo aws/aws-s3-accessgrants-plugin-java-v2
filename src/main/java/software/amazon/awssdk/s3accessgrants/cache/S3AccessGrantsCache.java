@@ -30,7 +30,6 @@ import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.model.Credentials;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
-import software.amazon.awssdk.services.s3control.model.GetDataAccessResponse;
 import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.s3control.model.Privilege;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
@@ -41,27 +40,27 @@ import software.amazon.awssdk.services.s3control.model.S3ControlException;
 public class S3AccessGrantsCache {
 
     Cache<CacheKey, AwsCredentialsIdentity> cache;
-    private final S3ControlAsyncClient S3ControlAsyncClient;
+    private final S3ControlAsyncClient s3ControlAsyncClient;
     private int maxCacheSize;
     private final S3AccessGrantsCachedAccountIdResolver s3AccessGrantsCachedAccountIdResolver;
     private final int cacheExpirationTimePercentage;
 
 
-    private S3AccessGrantsCache (@NotNull S3ControlAsyncClient S3ControlAsyncClient, int maxCacheSize, int cacheExpirationTimePrecentage) {
-        this(S3ControlAsyncClient, new S3AccessGrantsCachedAccountIdResolver(S3ControlAsyncClient), maxCacheSize,
+    private S3AccessGrantsCache (@NotNull S3ControlAsyncClient s3ControlAsyncClient, int maxCacheSize,
+                                 int cacheExpirationTimePrecentage) {
+        this(s3ControlAsyncClient, new S3AccessGrantsCachedAccountIdResolver(s3ControlAsyncClient), maxCacheSize,
              cacheExpirationTimePrecentage);
     }
 
-    private S3AccessGrantsCache (@NotNull S3ControlAsyncClient S3ControlAsyncClient,
+    private S3AccessGrantsCache (@NotNull S3ControlAsyncClient s3ControlAsyncClient,
                                  S3AccessGrantsCachedAccountIdResolver resolver, int maxCacheSize, int cacheExpirationTimePrecentage) {
-        if (S3ControlAsyncClient == null) {
+        if (s3ControlAsyncClient == null) {
             throw new IllegalArgumentException("S3ControlAsyncClient is required");
         }
-        this.S3ControlAsyncClient = S3ControlAsyncClient;
-        this.maxCacheSize = DEFAULT_ACCESS_GRANTS_MAX_CACHE_SIZE;
+        this.s3ControlAsyncClient = s3ControlAsyncClient;
         this.s3AccessGrantsCachedAccountIdResolver = resolver;
         this.cacheExpirationTimePercentage = cacheExpirationTimePrecentage;
-        this.maxCacheSize = maxCacheSize();
+        this.maxCacheSize = maxCacheSize;
         this.cache = Caffeine.newBuilder()
                                           .maximumSize(maxCacheSize)
                                           .expireAfter(new CustomCacheExpiry<>())
@@ -69,26 +68,22 @@ public class S3AccessGrantsCache {
                                           .build();
     }
 
-    protected int maxCacheSize() {
-        return maxCacheSize;
-    }
-
     protected static S3AccessGrantsCache.Builder builder() {
         return new S3AccessGrantsCache.BuilderImpl();
     }
 
-    protected interface Builder {
+    public interface Builder {
         S3AccessGrantsCache build();
         S3AccessGrantsCache buildWithAccountIdResolver();
-        S3AccessGrantsCache.Builder S3ControlAsyncClient(S3ControlAsyncClient S3ControlAsyncClient);
+        S3AccessGrantsCache.Builder s3ControlAsyncClient(S3ControlAsyncClient s3ControlAsyncClient);
         S3AccessGrantsCache.Builder maxCacheSize(int maxCacheSize);
         S3AccessGrantsCache.Builder cacheExpirationTimePercentage(int cacheExpirationTimePrecentage);
         S3AccessGrantsCache.Builder s3AccessGrantsCachedAccountIdResolver(S3AccessGrantsCachedAccountIdResolver s3AccessGrantsCachedAccountIdResolver);
     }
 
     static final class BuilderImpl implements S3AccessGrantsCache.Builder {
-        private S3ControlAsyncClient S3ControlAsyncClient;
-        private int maxCacheSize;
+        private S3ControlAsyncClient s3ControlAsyncClient;
+        private int maxCacheSize = DEFAULT_ACCESS_GRANTS_MAX_CACHE_SIZE;
         private S3AccessGrantsCachedAccountIdResolver s3AccessGrantsCachedAccountIdResolver;
         private int cacheExpirationTimePercentage;
 
@@ -97,17 +92,18 @@ public class S3AccessGrantsCache {
 
         @Override
         public S3AccessGrantsCache build() {
-            return new S3AccessGrantsCache(S3ControlAsyncClient, maxCacheSize, cacheExpirationTimePercentage);
+            return new S3AccessGrantsCache(s3ControlAsyncClient, maxCacheSize, cacheExpirationTimePercentage);
         }
 
         @Override
         public S3AccessGrantsCache buildWithAccountIdResolver() {
-                    return new S3AccessGrantsCache(S3ControlAsyncClient, s3AccessGrantsCachedAccountIdResolver, maxCacheSize, cacheExpirationTimePercentage);
+                    return new S3AccessGrantsCache(s3ControlAsyncClient, s3AccessGrantsCachedAccountIdResolver, maxCacheSize,
+                                                   cacheExpirationTimePercentage);
                 }
 
         @Override
-        public Builder S3ControlAsyncClient(S3ControlAsyncClient S3ControlAsyncClient) {
-            this.S3ControlAsyncClient = S3ControlAsyncClient;
+        public Builder s3ControlAsyncClient(S3ControlAsyncClient s3ControlAsyncClient) {
+            this.s3ControlAsyncClient = s3ControlAsyncClient;
             return this;
         }
 
@@ -134,6 +130,8 @@ public class S3AccessGrantsCache {
      * This method searches for the cacheKey in the cache. It will also search for a cache key with broader permission than
      * requested.
      * @param cacheKey CacheKey consists of AwsCredentialsIdentity, Permission, and S3Prefix.
+     * @param accountId Account Id of the requester
+     * @param s3AccessGrantsAccessDeniedCache instance of S3AccessGrantsAccessDeniedCache
      * @return cached Access Grants credentials.
      */
     protected AwsCredentialsIdentity getCredentials (CacheKey cacheKey, String accountId,
@@ -147,43 +145,43 @@ public class S3AccessGrantsCache {
         }
 
         if (credentials == null) {
-            credentials = getCredentialsFromService(cacheKey, accountId, s3AccessGrantsAccessDeniedCache);
+            try {
+                Credentials accessGrantsCredentials = getCredentialsFromService(cacheKey, accountId).join();
+                Instant ttl = accessGrantsCredentials.expiration();
+                Instant now = Instant.now();
+                long duration = (long) (now.getEpochSecond() - ttl.getEpochSecond() * (cacheExpirationTimePercentage / 100.0f));
+                credentials =
+                    AwsSessionCredentials.builder().accessKeyId(accessGrantsCredentials.accessKeyId())
+                                         .secretAccessKey(accessGrantsCredentials.secretAccessKey())
+                                         .sessionToken(accessGrantsCredentials.sessionToken()).build();
+                putValueInCache(cacheKey, credentials, duration);
+            } catch (S3ControlException s3ControlException) {
+                if (s3ControlException.statusCode() == 403) {
+                    s3AccessGrantsAccessDeniedCache.putValueInCache(cacheKey, s3ControlException);
+                }
+                throw s3ControlException;
+            }
         }
         return credentials;
     }
 
-    protected AwsCredentialsIdentity getCredentialsFromService(CacheKey cacheKey, String accountId,
-                                                            S3AccessGrantsAccessDeniedCache s3AccessGrantsAccessDeniedCache) throws S3ControlException{
+    /**
+     * This method calls Access Grants service to get the credentials.
+     * @param cacheKey CacheKey consists of AwsCredentialsIdentity, Permission, and S3Prefix.
+     * @param accountId Account Id of the requester.
+     * @return Access Grants Credentials.
+     * @throws S3ControlException throws Exception received from service.
+     */
+    private CompletableFuture<Credentials> getCredentialsFromService(CacheKey cacheKey, String accountId) throws S3ControlException{
         String resolvedAccountId = s3AccessGrantsCachedAccountIdResolver.resolve(accountId, cacheKey.s3Prefix);
-        AwsSessionCredentials sessionCredentials;
-        long duration;
+        GetDataAccessRequest dataAccessRequest = GetDataAccessRequest.builder()
+                                                                     .accountId(resolvedAccountId)
+                                                                     .target(cacheKey.s3Prefix)
+                                                                     .permission(cacheKey.permission)
+                                                                     .privilege(Privilege.DEFAULT)
+                                                                     .build();
 
-        try {
-            GetDataAccessRequest dataAccessRequest = GetDataAccessRequest.builder()
-                                                                         .accountId(resolvedAccountId)
-                                                                         .target(cacheKey.s3Prefix)
-                                                                         .permission(cacheKey.permission)
-                                                                         .privilege(Privilege.DEFAULT)
-                                                                         .build();
-
-            CompletableFuture<GetDataAccessResponse> getDataAccessResponse =
-                S3ControlAsyncClient.getDataAccess(dataAccessRequest);
-            Credentials credentials = getDataAccessResponse.join().credentials();
-            sessionCredentials = AwsSessionCredentials.builder().accessKeyId(credentials.accessKeyId())
-                                                                            .secretAccessKey(credentials.secretAccessKey())
-                                                                            .sessionToken(credentials.sessionToken()).build();
-            Instant ttl = getDataAccessResponse.join().credentials().expiration();
-            Instant now = Instant.now();
-            duration = (long)(now.getEpochSecond() - ttl.getEpochSecond() * (cacheExpirationTimePercentage / 100.0f));
-        }
-        catch (S3ControlException s3ControlException) {
-            if (s3ControlException.statusCode() == 403) {
-                s3AccessGrantsAccessDeniedCache.putValueInCache(cacheKey, s3ControlException);
-            }
-            throw s3ControlException;
-        }
-        putValueInCache(cacheKey, sessionCredentials, duration);
-        return sessionCredentials;
+        return s3ControlAsyncClient.getDataAccess(dataAccessRequest).thenApply(dataAccessResponse -> dataAccessResponse.credentials());
     }
 
     /**
@@ -196,7 +194,7 @@ public class S3AccessGrantsCache {
 
         AwsCredentialsIdentity cacheValue;
         String prefix = cacheKey.s3Prefix;
-        while (!prefix.equals("s3:/")) {
+        while (!prefix.equals("s3:/")){
             cacheValue = cache.getIfPresent(cacheKey.toBuilder().s3Prefix(prefix).build());
             if (cacheValue != null){
                 return cacheValue;
@@ -204,7 +202,6 @@ public class S3AccessGrantsCache {
             prefix = getNextPrefix(prefix);
         }
         return null;
-
     }
 
     /**

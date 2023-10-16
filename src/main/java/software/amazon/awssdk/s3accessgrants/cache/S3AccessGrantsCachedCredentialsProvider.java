@@ -15,6 +15,7 @@
 
 package software.amazon.awssdk.s3accessgrants.cache;
 
+import java.util.concurrent.CompletableFuture;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
@@ -28,8 +29,8 @@ public interface S3AccessGrantsCachedCredentialsProvider {
      * @return Credentials from Access Grants.
      * @throws S3ControlException in-case exception is cached.
      */
-    AwsCredentialsIdentity getDataAccess (AwsCredentialsIdentity credentials, Permission permission, String s3Prefix,
-                                          String accountId) throws Exception;
+    CompletableFuture<AwsCredentialsIdentity> getDataAccess (AwsCredentialsIdentity credentials, Permission permission, String s3Prefix,
+                                                             String accountId) throws Exception;
 
 }
 
