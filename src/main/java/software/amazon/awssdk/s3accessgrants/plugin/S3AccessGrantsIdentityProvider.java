@@ -5,6 +5,8 @@ import java.util.concurrent.CompletionException;
 import java.util.regex.Pattern;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.identity.spi.IdentityProvider;
 import software.amazon.awssdk.identity.spi.ResolveIdentityRequest;
@@ -154,27 +156,14 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
      */
     CompletableFuture<? extends AwsCredentialsIdentity> getCredentialsFromCache(AwsCredentialsIdentity credentials, Permission permission, String S3Prefix, String accountId) {
 
-            return CompletableFuture.supplyAsync(() ->  {
-                try {
-                    return cache.getDataAccess(credentials, permission,S3Prefix, accountId);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }).exceptionally(e -> {
-                /* Majority of exceptions thrown here would be S3ControlException from the control client.
-                * These exceptions will be wrapped in RunTimeException, which will be unwrapped to get the actual exceptions.
-                */
-                if (e.getCause() instanceof RuntimeException) {
-                    if (e.getCause().getCause() != null) {
-                        if(e.getCause().getCause() instanceof S3ControlException){
-                            S3ControlException exc = (S3ControlException) e.getCause().getCause();
-                            throw S3ControlException.builder().statusCode(exc.statusCode()).cause(exc.getCause()).message(exc.getMessage()).build();
-                        }
-                        throw S3ControlException.builder().cause(e.getCause().getCause()).message(e.getCause().getMessage()).build();
-                    }
-                }
-                throw S3ControlException.builder().cause(e.getCause()).message(e.getMessage()).build();
+        try {
+            return cache.getDataAccess(credentials, permission, S3Prefix, accountId).exceptionally(e -> {
+                throw unwrapAndBuildException(e);
             });
+        } catch (Exception e) {
+            throw unwrapAndBuildException(e);
+        }
+
     }
 
     private void validateRequestParameters(ResolveIdentityRequest resolveIdentityRequest, String accountId, Privilege privilege, Boolean isCacheEnabled) {
@@ -186,5 +175,27 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
         S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest.property(PREFIX_PROPERTY), String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "S3Prefix", "identity provider"));
         Validate.isTrue(pattern.matcher(resolveIdentityRequest.property(PREFIX_PROPERTY).toString()).find(), String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "S3Prefix", "identity provider"));
         S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest.property(OPERATION_PROPERTY), String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "operation", "identity provider"));
+    }
+
+    /**
+     * With asynchronous behavior, the exceptions are wrapped within CompletionException.
+     * With Chaining CompletionExceptions, we can end up with a chain of wrapped exceptions.
+     * The function helps to unwrap the main exception that caused a chain of CompletionExceptions.
+     * */
+    private SdkServiceException unwrapAndBuildException(Throwable e) {
+        while(e.getCause() != null) {
+            e = e.getCause();
+        }
+        if (e instanceof S3ControlException) {
+            S3ControlException exc = (S3ControlException) e;
+            return SdkServiceException.builder().statusCode(exc.statusCode())
+                    .message(exc.getMessage())
+                    .cause(e)
+                    .build();
+        }
+        return SdkServiceException.builder()
+                .message(e.getMessage())
+                .cause(e)
+                .build();
     }
 }
