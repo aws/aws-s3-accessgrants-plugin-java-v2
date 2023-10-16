@@ -55,6 +55,8 @@ public class S3AccessGrantsInstanceSetUpUtils {
         S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_IAM_ROLE_NAME = testProps.getProperty("IamRoleName").trim();
         S3AccessGrantsIntegrationTestsUtils.TEST_REGION = Region.of(testProps.getProperty("region").trim());
         S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT = testProps.getProperty("accountId").trim();
+        S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_INSTANCE_ARN = "arn:aws:s3:"+S3AccessGrantsIntegrationTestsUtils.TEST_REGION+":"+ S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT+":access-grants/default";
+        S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_INSTANCE_ID = "default";
 
         ProfileCredentialsProvider profileCredentialsProvider =
            ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();

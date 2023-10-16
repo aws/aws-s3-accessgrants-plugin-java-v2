@@ -19,6 +19,7 @@ import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Test;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
+import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProviderImpl;
@@ -42,10 +44,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
-import software.amazon.awssdk.services.s3control.model.Credentials;
-import software.amazon.awssdk.services.s3control.model.GetDataAccessResponse;
-import software.amazon.awssdk.services.s3control.model.S3ControlException;
-import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
+import software.amazon.awssdk.services.s3control.model.*;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -92,6 +91,7 @@ public class S3AccessGrantsIntegrationTests {
     private final String TEST_ACCESS_KEY = "ARAGXXXXXXX123";
 
     private final String TEST_SECRET_KEY = "ARAGXXXXXXX123112e2e3aadadwefdscac";
+    private final String TEST_SESSION_TOKEN = "AESAGAXXVAVACVCAKCCBCBCXXXXXXAKDHCXXXADKAKXXXXXXXXXABDASHJBXX";
 
     private static ProfileCredentialsProvider credentialsProvider;
 
@@ -202,11 +202,17 @@ public class S3AccessGrantsIntegrationTests {
         CompletableFuture<GetDataAccessResponse> getDataAccessResponse = CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().credentials(Credentials.builder()
                     .accessKeyId(TEST_ACCESS_KEY)
                     .secretAccessKey(TEST_SECRET_KEY)
+                    .sessionToken(TEST_SESSION_TOKEN)
+                        .expiration(Instant.now().plusMillis(3000))
                     .build()).build());
+        CompletableFuture<GetAccessGrantsInstanceForPrefixResponse>  getAccessGrantsInstanceForPrefixResponse = CompletableFuture.supplyAsync(() -> GetAccessGrantsInstanceForPrefixResponse.builder()
+                    .accessGrantsInstanceArn(S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_INSTANCE_ARN)
+                    .accessGrantsInstanceId(S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_INSTANCE_ID).build());
 
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
         when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn("GetObject");
         when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
+        when(s3ControlAsyncClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class))).thenReturn(getAccessGrantsInstanceForPrefixResponse);
 
         AwsCredentialsIdentity credentialsIdentity = identityProvider.resolveIdentity(resolveIdentityRequest).join();
 
@@ -219,8 +225,8 @@ public class S3AccessGrantsIntegrationTests {
         credentialsIdentity = identityProvider.resolveIdentity(resolveIdentityRequest).join();
         Assertions.assertThat(credentialsIdentity.secretAccessKey()).isEqualTo(TEST_SECRET_KEY);
         Assertions.assertThat(credentialsIdentity.accessKeyId()).isEqualTo(TEST_ACCESS_KEY);
-        verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
-        verify(s3ControlAsyncClient, never()).getDataAccess(any(GetDataAccessRequest.class));
+        verify(cache, times(2)).getDataAccess(any(), any(), any(), any());
+        verify(s3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
 
     }
 
@@ -241,10 +247,14 @@ public class S3AccessGrantsIntegrationTests {
                         s3ControlAsyncClient,
                         cache));
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
+        CompletableFuture<GetAccessGrantsInstanceForPrefixResponse>  getAccessGrantsInstanceForPrefixResponse = CompletableFuture.supplyAsync(() -> GetAccessGrantsInstanceForPrefixResponse.builder()
+                .accessGrantsInstanceArn(S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_INSTANCE_ARN)
+                .accessGrantsInstanceId(S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_INSTANCE_ID).build());
 
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
         when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn("GetObject");
         when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied").build());
+        when(s3ControlAsyncClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class))).thenReturn(getAccessGrantsInstanceForPrefixResponse);
 
         try {
             identityProvider.resolveIdentity(resolveIdentityRequest).join();
@@ -252,17 +262,17 @@ public class S3AccessGrantsIntegrationTests {
         } catch(CompletionException e) {
             verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
             verify(s3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
-            Assertions.assertThat(e.getCause()).isInstanceOf(S3ControlException.class);
-            Assertions.assertThat(((S3ControlException)e.getCause()).statusCode()).isEqualTo(403);
+            Assertions.assertThat(e.getCause().getCause()).isInstanceOf(S3ControlException.class);
+            Assertions.assertThat(((S3ControlException)e.getCause().getCause()).statusCode()).isEqualTo(403);
         }
 
         // resend the request and validate no interaction with the service.
         try {
             identityProvider.resolveIdentity(resolveIdentityRequest).join();
             Assert.fail("Expecting an exception to be thrown as the request is denied by the server and should be retrieved from cache!");
-        } catch(CompletionException e) {
-            verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
-            verify(s3ControlAsyncClient, never()).getDataAccess(any(GetDataAccessRequest.class));
+        } catch(SdkServiceException e) {
+            verify(cache, times(2)).getDataAccess(any(), any(), any(), any());
+            verify(s3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
             Assertions.assertThat(e.getCause()).isInstanceOf(S3ControlException.class);
             Assertions.assertThat(((S3ControlException)e.getCause()).statusCode()).isEqualTo(403);
         }
@@ -292,7 +302,7 @@ public class S3AccessGrantsIntegrationTests {
                                                           S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT2);
 
             Assert.fail("Expected an exception as no READ grant has been added for the desired prefix!");
-        } catch (S3ControlException e) {
+        } catch (SdkServiceException e) {
 
             verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
 
@@ -300,6 +310,7 @@ public class S3AccessGrantsIntegrationTests {
 
             verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
 
+            Assertions.assertThat(e.getCause()).isInstanceOf(S3ControlException.class);
             Assertions.assertThat(e.statusCode()).isEqualTo(403);
 
         }
@@ -332,17 +343,13 @@ public class S3AccessGrantsIntegrationTests {
 
            Assert.fail("Expected an exception to occur as the bucket is not registered with access grants!");
 
-        } catch (S3ControlException e) {
-
+        } catch (SdkServiceException e) {
             verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
-
             verify(identityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
-
             verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
-
+            Assertions.assertThat(e.getCause()).isInstanceOf(S3ControlException.class);
             Assertions.assertThat(e.statusCode()).isEqualTo(403);
         }
-
     }
 
     @Test
@@ -370,13 +377,15 @@ public class S3AccessGrantsIntegrationTests {
 
             Assert.fail("Expected an exception to occur as no WRITE grant has been added to the prefix where we are adding a file!");
 
-        } catch (S3ControlException e) {
+        } catch (SdkServiceException e) {
 
             verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
 
             verify(identityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
 
             verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
+
+            Assertions.assertThat(e.getCause()).isInstanceOf(S3ControlException.class);
 
             Assertions.assertThat(e.statusCode()).isEqualTo(403);
 
@@ -408,13 +417,15 @@ public class S3AccessGrantsIntegrationTests {
                                                           "PrefixC/file4.txt", "Writing a file to the non-existent location!");
 
             Assert.fail("Expected an exception to occur as the location where we are writing a file does not exist!");
-        } catch (S3ControlException e) {
+        } catch (SdkServiceException e) {
 
             verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
 
             verify(identityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
 
             verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
+
+            Assertions.assertThat(e.getCause()).isInstanceOf(S3ControlException.class);
 
             Assertions.assertThat(e.statusCode()).isEqualTo(403);
 
@@ -567,13 +578,12 @@ public class S3AccessGrantsIntegrationTests {
 
     }
 
-    // TODO: Depends on if we decide to take the accountID as an input or not
     @Test
     public void call_s3_with_plugin_default_configuration_success_response() throws IOException {
 
         ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
 
-        S3AccessGrantsPlugin accessGrantsPlugin = spy(S3AccessGrantsPlugin.builder().build());
+        S3AccessGrantsPlugin accessGrantsPlugin = spy(S3AccessGrantsPlugin.builder().accountId(S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT).build());
 
         S3Client s3Client =
             S3Client.builder()
@@ -639,9 +649,8 @@ public class S3AccessGrantsIntegrationTests {
             ResponseInputStream<GetObjectResponse> responseInputStream = S3AccessGrantsIntegrationTestsUtils.GetObject(s3Client,
                     S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
                     S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT2);
-        } catch (CompletionException e) {
+        } catch (SdkServiceException e) {
             verify(accessGrantsPlugin, times(1)).configureClient(any());
-            Assertions.assertThat(e.getCause()).isInstanceOf(S3ControlException.class);
             Assertions.assertThat(((S3ControlException)e.getCause()).statusCode()).isEqualTo(403);
         }
 
