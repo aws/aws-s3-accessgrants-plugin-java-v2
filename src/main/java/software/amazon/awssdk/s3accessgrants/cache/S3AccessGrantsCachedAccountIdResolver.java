@@ -110,8 +110,6 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
     public interface Builder {
         S3AccessGrantsCachedAccountIdResolver build();
 
-        Builder accountId(String accountId);
-
         Builder S3ControlAsyncClient(S3ControlAsyncClient S3ControlAsyncClient);
 
         Builder maxCacheSize(int maxCacheSize);
@@ -120,7 +118,6 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
     }
 
     static final class BuilderImpl implements Builder {
-        private String accountId;
         private S3ControlAsyncClient S3ControlAsyncClient;
         private int maxCacheSize = DEFAULT_ACCOUNT_ID_MAX_CACHE_SIZE;
         private int expireCacheAfterWriteSeconds = DEFAULT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
@@ -165,19 +162,6 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
                                                                  MAX_LIMIT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS));
             }
             this.expireCacheAfterWriteSeconds = expireCacheAfterWriteSeconds;
-            return this;
-        }
-
-        public String accountId() {
-            return accountId;
-        }
-
-        @Override
-        public Builder accountId(String accountId) {
-            if (accountId == null) {
-                throw new IllegalArgumentException("accountId is required");
-            }
-            this.accountId = accountId;
             return this;
         }
 
