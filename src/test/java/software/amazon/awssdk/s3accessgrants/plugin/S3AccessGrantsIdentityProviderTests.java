@@ -1,5 +1,6 @@
 package software.amazon.awssdk.s3accessgrants.plugin;
 
+import java.net.CacheResponse;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -77,12 +78,13 @@ public class S3AccessGrantsIdentityProviderTests {
                                 .secretAccessKey(credentials.secretAccessKey())
                                 .build())
                         .build());
+        CompletableFuture<AwsCredentialsIdentity> cacheResponse  = CompletableFuture.supplyAsync(() -> credentials);
         resolveIdentityRequest = mock(ResolveIdentityRequest.class);
 
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket/");
         when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn("GetObject");
         when(s3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
-        when(cache.getDataAccess(any(), any(), any(), any())).thenReturn(credentials);
+        when(cache.getDataAccess(any(), any(), any(), any())).thenReturn(cacheResponse);
     }
 
     @Test
@@ -214,9 +216,8 @@ public class S3AccessGrantsIdentityProviderTests {
         when(testCache.getDataAccess(any(), any(), any(), any())).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied for the user").build());
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build()));
 
-        Throwable exc = Assertions.catchThrowableOfType(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join(), CompletionException.class);
-        Assertions.assertThat(exc.getCause()).isInstanceOf(S3ControlException.class);
-        Assertions.assertThat(((S3ControlException) exc.getCause()).statusCode()).isEqualTo(403);
+        Throwable exc = Assertions.catchThrowableOfType(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join(), S3ControlException.class);
+        Assertions.assertThat(((S3ControlException) exc).statusCode()).isEqualTo(403);
     }
 
     @Test
@@ -233,9 +234,8 @@ public class S3AccessGrantsIdentityProviderTests {
         when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().build()).whenComplete((r,e) -> { throw S3ControlException.builder().statusCode(403).build(); }));
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build()));
 
-        Throwable exc = Assertions.catchThrowableOfType(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join(), CompletionException.class);
-        Assertions.assertThat(exc.getCause()).isInstanceOf(S3ControlException.class);
-        Assertions.assertThat(exc.getCause().getCause()).isInstanceOf(NullPointerException.class);
+        Throwable exc = Assertions.catchThrowableOfType(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join(), S3ControlException.class);
+        Assertions.assertThat(exc.getCause()).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -269,10 +269,11 @@ public class S3AccessGrantsIdentityProviderTests {
         S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, TEST_ACCOUNT, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClient, testCache);
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
         AwsCredentialsIdentity credentials = AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build();
+        CompletableFuture<AwsCredentialsIdentity> cacheResponse = CompletableFuture.supplyAsync(() -> credentials);
 
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
         when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn(TEST_OPERATION);
-        when(testCache.getDataAccess(any(), any(), any(), any())).thenReturn(credentials);
+        when(testCache.getDataAccess(any(), any(), any(), any())).thenReturn(cacheResponse);
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> {
             return credentials;
         }));
