@@ -57,6 +57,10 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
         return expireCacheAfterWriteSeconds;
     }
 
+    public Cache<String, String> getCache() {
+        return cache;
+    }
+
     @VisibleForTesting
     S3AccessGrantsCachedAccountIdResolver(@NotNull S3ControlAsyncClient S3ControlAsyncClient) {
         if (S3ControlAsyncClient == null) {

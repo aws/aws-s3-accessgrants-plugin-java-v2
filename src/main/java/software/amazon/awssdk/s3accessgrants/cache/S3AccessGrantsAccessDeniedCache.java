@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
 
 public class S3AccessGrantsAccessDeniedCache {
-    Cache<CacheKey, S3ControlException> cache;
+    private Cache<CacheKey, S3ControlException> cache;
     private int maxCacheSize;
 
     private S3AccessGrantsAccessDeniedCache () {
@@ -34,6 +34,8 @@ public class S3AccessGrantsAccessDeniedCache {
     public static S3AccessGrantsAccessDeniedCache.Builder builder() {
         return new S3AccessGrantsAccessDeniedCache.BuilderImpl();
     }
+
+    public Cache<CacheKey, S3ControlException> getCache() { return cache; }
 
     public interface Builder {
         S3AccessGrantsAccessDeniedCache build();

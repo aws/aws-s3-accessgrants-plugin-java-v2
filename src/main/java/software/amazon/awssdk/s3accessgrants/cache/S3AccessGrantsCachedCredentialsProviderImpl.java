@@ -19,6 +19,8 @@ import java.util.concurrent.CompletableFuture;
 import org.assertj.core.util.VisibleForTesting;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
+import software.amazon.awssdk.metrics.MetricCollector;
+import software.amazon.awssdk.metrics.internal.DefaultMetricCollector;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
@@ -141,5 +143,15 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
     public void invalidateCache() {
         accessGrantsCache.invalidateCache();
     }
+
+    public DefaultMetricCollector getMetrics() {
+        MetricsCollector metricCollector = new MetricsCollector();
+        metricCollector.getMetricsForAccessGrantsCache(accessGrantsCache.getCache().stats());
+        metricCollector.getMetricsForAccessDeniedCache(s3AccessGrantsAccessDeniedCache.getCache().stats());
+        metricCollector.getMetricsForAccessDeniedCache(accessGrantsCache.getS3AccessGrantsCachedAccountIdResolver().getCache().stats());
+        return metricCollector.getCollector();
+
+    }
+
 
 }
