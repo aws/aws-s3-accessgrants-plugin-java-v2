@@ -16,7 +16,7 @@
 package software.amazon.awssdk.s3accessgrants.cache;
 
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
-import software.amazon.awssdk.core.metrics.CoreMetric;
+import java.time.Duration;
 import software.amazon.awssdk.metrics.MetricCategory;
 import software.amazon.awssdk.metrics.MetricLevel;
 import software.amazon.awssdk.metrics.SdkMetric;
@@ -56,31 +56,34 @@ public class MetricsCollector {
         ACCOUNT_ID_RESOLVER_CACHE_METRIC_LOAD_SUCCESS_COUNT = SdkMetric.create("AccountIdResolverCacheLoadSuccessCount", Long.class, MetricLevel.INFO, MetricCategory.CUSTOM),
         ACCOUNT_ID_RESOLVER_CACHE_METRIC_EVICTION_COUNT = SdkMetric.create("AccountIdResolverCacheEvictionCount", Long.class, MetricLevel.INFO, MetricCategory.CUSTOM);
 
-        DefaultMetricCollector collector = new DefaultMetricCollector("collector");
+    public static final SdkMetric<Integer> CALL_COUNT =
+        SdkMetric.create("CallCount", Integer.class, MetricLevel.INFO, MetricCategory.CUSTOM);
 
-    public void getMetricsForAccessGrantsCache (CacheStats stats) {
-        collector.reportMetric(CoreMetric.SERVICE_ID, "CredentialCache");
-        collector.reportMetric(CoreMetric.OPERATION_NAME, "Metrics");
+    public static final SdkMetric<Integer> ERROR_COUNT =
+        SdkMetric.create("ErrorCount", Integer.class, MetricLevel.ERROR, MetricCategory.CUSTOM);
+
+    public static final SdkMetric<Duration> LATENCY =
+        SdkMetric.create("Latency", Duration.class, MetricLevel.INFO, MetricCategory.CUSTOM);
+
+    public void getMetricsForAccessGrantsCache (CacheStats stats, DefaultMetricCollector collector) {
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_HIT_RATE, stats.hitRate());
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_HIT_COUNT, stats.hitCount());
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_MISS_COUNT, stats.missCount());
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_LOAD_COUNT, stats.loadCount());
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_LOAD_SUCCESS_COUNT, stats.loadSuccessCount());
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_EVICTION_COUNT, stats.evictionCount());
-
     }
 
-    public void getMetricsForAccessDeniedCache (CacheStats stats) {
+    public void getMetricsForAccessDeniedCache (CacheStats stats, DefaultMetricCollector collector) {
         collector.reportMetric(ACCESS_DENIED_CACHE_METRIC_HIT_RATE, stats.hitRate());
         collector.reportMetric(ACCESS_DENIED_CACHE_METRIC_HIT_COUNT, stats.hitCount());
         collector.reportMetric(ACCESS_DENIED_CACHE_METRIC_MISS_COUNT, stats.missCount());
         collector.reportMetric(ACCESS_DENIED_CACHE_METRIC_LOAD_COUNT, stats.loadCount());
         collector.reportMetric(ACCESS_DENIED_CACHE_METRIC_LOAD_SUCCESS_COUNT, stats.loadSuccessCount());
         collector.reportMetric(ACCESS_DENIED_CACHE_METRIC_EVICTION_COUNT, stats.evictionCount());
-
     }
 
-    public void getMetricsForAccountIdResolverCache (CacheStats stats) {
+    public void getMetricsForAccountIdResolverCache (CacheStats stats, DefaultMetricCollector collector) {
 
         collector.reportMetric(ACCOUNT_ID_RESOLVER_CACHE_METRIC_HIT_RATE, stats.hitRate());
         collector.reportMetric(ACCOUNT_ID_RESOLVER_CACHE_METRIC_HIT_COUNT, stats.hitCount());
@@ -90,8 +93,4 @@ public class MetricsCollector {
         collector.reportMetric(ACCOUNT_ID_RESOLVER_CACHE_METRIC_EVICTION_COUNT, stats.evictionCount());
     }
 
-    public DefaultMetricCollector getCollector() {
-        return collector;
-
-    }
 }
