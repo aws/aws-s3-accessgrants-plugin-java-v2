@@ -5,7 +5,7 @@ import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
 
-public class S3AccessGrantsStaticOperationToPermissionMapper implements S3AccessGrantsOperationToPermissionMapper{
+public class S3AccessGrantsStaticOperationToPermissionMapper implements S3AccessGrantsOperationToPermissionMapper {
 
     private static final HashMap<String, Permission> supportedAccessGrantsOperations =  new HashMap<>();
 
@@ -14,11 +14,12 @@ public class S3AccessGrantsStaticOperationToPermissionMapper implements S3Access
         supportedAccessGrantsOperations.put("GETOBJECTACL", Permission.READ);
         supportedAccessGrantsOperations.put("LISTMULTIPARTUPLOADS", Permission.READ);
         supportedAccessGrantsOperations.put("LISTOBJECTS", Permission.READ);
+        supportedAccessGrantsOperations.put("LISTOBJECTVERSIONS", Permission.READ);
 
         supportedAccessGrantsOperations.put("PUTOBJECT", Permission.WRITE);
         supportedAccessGrantsOperations.put("PUTOBJECTACL", Permission.WRITE);
         supportedAccessGrantsOperations.put("DELETEOBJECT", Permission.WRITE);
-        supportedAccessGrantsOperations.put("ABORTMULTIPARTUPLOADS", Permission.WRITE);
+        supportedAccessGrantsOperations.put("ABORTMULTIPARTUPLOAD", Permission.WRITE);
 
         supportedAccessGrantsOperations.put("DECRYPT", Permission.READ);
         supportedAccessGrantsOperations.put("GENERATEDATAKEY", Permission.WRITE);
