@@ -20,6 +20,7 @@ import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstant
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Expiry;
+import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -63,10 +64,6 @@ public class S3AccessGrantsCache {
 
     protected S3AccessGrantsCachedAccountIdResolver getS3AccessGrantsCachedAccountIdResolver() {
         return this.s3AccessGrantsCachedAccountIdResolver;
-    }
-
-    protected Cache<CacheKey, AwsCredentialsIdentity> getCache() {
-        return this.cache;
     }
 
     protected static S3AccessGrantsCache.Builder builder() {
@@ -227,6 +224,11 @@ public class S3AccessGrantsCache {
 
         return prefix.substring(0, prefix.lastIndexOf("/"));
     }
+
+    /***
+     * @return metrics captured by the cache
+     */
+    protected CacheStats getCacheStats() { return cache.stats();}
 
     /**
      * Invalidates the cache.

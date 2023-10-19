@@ -35,7 +35,7 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
 
     private final S3AccessGrantsCache accessGrantsCache;
     private final S3AccessGrantsAccessDeniedCache s3AccessGrantsAccessDeniedCache;
-    MetricsCollector metricCollector = new MetricsCollector();
+    // MetricsCollector metricCollector = new MetricsCollector();
     DefaultMetricCollector collector = new DefaultMetricCollector("AccessGrantsMetrics");
 
     private S3AccessGrantsCachedCredentialsProviderImpl(S3ControlAsyncClient S3ControlAsyncClient, int maxCacheSize, int cacheExpirationTimePercentage) {
@@ -163,9 +163,9 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
     public void collectMetrics() {
         collector.reportMetric(CoreMetric.SERVICE_ID, "AccessGrants");
         collector.reportMetric(CoreMetric.OPERATION_NAME, "Metrics");
-        metricCollector.getMetricsForAccessGrantsCache(accessGrantsCache.getCache().stats(), collector);
-        metricCollector.getMetricsForAccessDeniedCache(s3AccessGrantsAccessDeniedCache.getCache().stats(), collector);
-        metricCollector.getMetricsForAccountIdResolverCache(accessGrantsCache.getS3AccessGrantsCachedAccountIdResolver().getCache().stats(), collector);
+        MetricsCollector.getMetricsForAccessGrantsCache(accessGrantsCache.getCacheStats(), collector);
+        MetricsCollector.getMetricsForAccessDeniedCache(s3AccessGrantsAccessDeniedCache.getCacheStats(), collector);
+        MetricsCollector.getMetricsForAccountIdResolverCache(accessGrantsCache.getS3AccessGrantsCachedAccountIdResolver().getCacheStats(), collector);
 
     }
 

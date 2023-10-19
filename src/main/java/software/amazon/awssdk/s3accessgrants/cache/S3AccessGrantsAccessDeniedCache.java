@@ -20,6 +20,7 @@ import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstant
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import java.util.concurrent.TimeUnit;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
 
@@ -34,8 +35,6 @@ public class S3AccessGrantsAccessDeniedCache {
     public static S3AccessGrantsAccessDeniedCache.Builder builder() {
         return new S3AccessGrantsAccessDeniedCache.BuilderImpl();
     }
-
-    public Cache<CacheKey, S3ControlException> getCache() { return cache; }
 
     public interface Builder {
         S3AccessGrantsAccessDeniedCache build();
@@ -101,5 +100,10 @@ public class S3AccessGrantsAccessDeniedCache {
     public void invalidateCache() {
         cache.invalidateAll();
     }
+
+    /***
+     * @return metrics captured by the cache
+     */
+    protected CacheStats getCacheStats() { return cache.stats(); }
 
 }

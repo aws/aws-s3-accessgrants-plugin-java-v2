@@ -65,7 +65,7 @@ public class MetricsCollector {
     public static final SdkMetric<Duration> LATENCY =
         SdkMetric.create("Latency", Duration.class, MetricLevel.INFO, MetricCategory.CUSTOM);
 
-    public void getMetricsForAccessGrantsCache (CacheStats stats, DefaultMetricCollector collector) {
+    public static void getMetricsForAccessGrantsCache (CacheStats stats, DefaultMetricCollector collector) {
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_HIT_RATE, stats.hitRate());
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_HIT_COUNT, stats.hitCount());
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_MISS_COUNT, stats.missCount());
@@ -74,7 +74,7 @@ public class MetricsCollector {
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_EVICTION_COUNT, stats.evictionCount());
     }
 
-    public void getMetricsForAccessDeniedCache (CacheStats stats, DefaultMetricCollector collector) {
+    public static void getMetricsForAccessDeniedCache (CacheStats stats, DefaultMetricCollector collector) {
         collector.reportMetric(ACCESS_DENIED_CACHE_METRIC_HIT_RATE, stats.hitRate());
         collector.reportMetric(ACCESS_DENIED_CACHE_METRIC_HIT_COUNT, stats.hitCount());
         collector.reportMetric(ACCESS_DENIED_CACHE_METRIC_MISS_COUNT, stats.missCount());
@@ -83,7 +83,7 @@ public class MetricsCollector {
         collector.reportMetric(ACCESS_DENIED_CACHE_METRIC_EVICTION_COUNT, stats.evictionCount());
     }
 
-    public void getMetricsForAccountIdResolverCache (CacheStats stats, DefaultMetricCollector collector) {
+    public static void getMetricsForAccountIdResolverCache (CacheStats stats, DefaultMetricCollector collector) {
 
         collector.reportMetric(ACCOUNT_ID_RESOLVER_CACHE_METRIC_HIT_RATE, stats.hitRate());
         collector.reportMetric(ACCOUNT_ID_RESOLVER_CACHE_METRIC_HIT_COUNT, stats.hitCount());
