@@ -1,6 +1,5 @@
 package software.amazon.awssdk.s3accessgrants.plugin;
 
-import java.net.CacheResponse;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -15,7 +14,14 @@ import software.amazon.awssdk.identity.spi.ResolveIdentityRequest;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProviderImpl;
-import software.amazon.awssdk.services.s3control.model.*;
+import software.amazon.awssdk.services.s3control.model.Privilege;
+import software.amazon.awssdk.services.s3control.model.GetDataAccessResponse;
+import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
+import software.amazon.awssdk.services.s3control.model.Credentials;
+import software.amazon.awssdk.services.s3control.model.S3ControlException;
+import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixResponse;
+import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixRequest;
+import software.amazon.awssdk.services.s3control.model.InvalidRequestException;
 
 
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
@@ -25,7 +31,6 @@ import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGran
 
 import org.junit.BeforeClass;
 import software.amazon.awssdk.services.sts.StsAsyncClient;
-import software.amazon.awssdk.services.sts.model.GetCallerIdentityRequest;
 import software.amazon.awssdk.services.sts.model.GetCallerIdentityResponse;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -34,6 +39,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.atLeast;
 
 public class S3AccessGrantsIdentityProviderTests {
 
@@ -113,9 +119,15 @@ public class S3AccessGrantsIdentityProviderTests {
 
     @Test
     public void call_identity_provider_with_invalid_request() {
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache);
+        StsAsyncClient localAsyncStsClient = mock(StsAsyncClient.class);
+        when(localAsyncStsClient.getCallerIdentity()).thenReturn(CompletableFuture.supplyAsync(() ->
+                GetCallerIdentityResponse.builder()
+                        .account(TEST_ACCOUNT)
+                        .build()));
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, localAsyncStsClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache);
         ResolveIdentityRequest resolveIdentityRequest = null;
         Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest)).isInstanceOf(IllegalArgumentException.class);
+        verify(localAsyncStsClient, atLeast(1)).getCallerIdentity();
     }
 
     @Test
@@ -127,6 +139,12 @@ public class S3AccessGrantsIdentityProviderTests {
     public void call_identity_provider_with_invalid_privilege() {
         S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, null, TEST_CACHE_ENABLED, s3ControlClient, cache);
         Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    public void call_identity_provider_get_account_id() {
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, null, TEST_CACHE_ENABLED, s3ControlClient, cache);
+        Assertions.assertThat(accessGrantsIdentityProvider.getCallerAccountID().join().account()).isEqualTo(TEST_ACCOUNT);
     }
 
     @Test

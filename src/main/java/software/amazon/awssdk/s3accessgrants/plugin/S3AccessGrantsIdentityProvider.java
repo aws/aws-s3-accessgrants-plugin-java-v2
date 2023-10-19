@@ -208,7 +208,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
      * Fetches the caller accountID from the requester using STS.
      * @return a completableFuture containing response from STS.
      * */
-    private CompletableFuture<GetCallerIdentityResponse> getCallerAccountID() {
+    CompletableFuture<GetCallerIdentityResponse> getCallerAccountID() {
         return stsAsyncClient.getCallerIdentity();
     }
 }
