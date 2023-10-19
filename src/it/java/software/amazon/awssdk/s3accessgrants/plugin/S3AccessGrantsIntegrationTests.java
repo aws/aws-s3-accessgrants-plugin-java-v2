@@ -44,9 +44,13 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
-import software.amazon.awssdk.services.s3control.model.*;
+import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
+import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixResponse;
+import software.amazon.awssdk.services.s3control.model.S3ControlException;
 import software.amazon.awssdk.services.sts.StsAsyncClient;
-import software.amazon.awssdk.services.sts.model.GetCallerIdentityRequest;
+import software.amazon.awssdk.services.s3control.model.GetDataAccessResponse;
+import software.amazon.awssdk.services.s3control.model.Credentials;
+import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixRequest;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
