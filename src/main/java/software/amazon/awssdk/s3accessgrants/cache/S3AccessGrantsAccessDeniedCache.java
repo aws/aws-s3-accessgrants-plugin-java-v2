@@ -22,6 +22,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import java.util.concurrent.TimeUnit;
+import org.assertj.core.util.VisibleForTesting;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
 
 public class S3AccessGrantsAccessDeniedCache {
@@ -81,7 +82,7 @@ public class S3AccessGrantsAccessDeniedCache {
      * @return null
      * @throws S3ControlException when it's a cache hit.
      */
-    public S3ControlException getValueFromCache (CacheKey cacheKey) {
+    protected S3ControlException getValueFromCache (CacheKey cacheKey) {
         return cache.getIfPresent(cacheKey);
     }
 
@@ -90,14 +91,15 @@ public class S3AccessGrantsAccessDeniedCache {
      * @param cacheKey CacheKey consists of AwsCredentialsIdentity, Permission, and S3Prefix.
      * @param exception The cache value is an Access Denied Exception.
      */
-    public void putValueInCache(CacheKey cacheKey, S3ControlException exception) {
+    protected void putValueInCache(CacheKey cacheKey, S3ControlException exception) {
         cache.put(cacheKey, exception);
     }
 
     /**
      * Invalidates the cache.
      */
-    public void invalidateCache() {
+    @VisibleForTesting
+    void invalidateCache() {
         cache.invalidateAll();
     }
 

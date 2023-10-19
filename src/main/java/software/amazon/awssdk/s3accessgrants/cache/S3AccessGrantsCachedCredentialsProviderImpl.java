@@ -22,6 +22,7 @@ import org.assertj.core.util.VisibleForTesting;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.core.metrics.CoreMetric;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
+import software.amazon.awssdk.metrics.MetricCollector;
 import software.amazon.awssdk.metrics.internal.DefaultMetricCollector;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.model.Permission;
@@ -160,7 +161,7 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
         accessGrantsCache.invalidateCache();
     }
 
-    public void collectMetrics() {
+    private void collectMetrics() {
         collector.reportMetric(CoreMetric.SERVICE_ID, "AccessGrants");
         collector.reportMetric(CoreMetric.OPERATION_NAME, "Metrics");
         MetricsCollector.getMetricsForAccessGrantsCache(accessGrantsCache.getCacheStats(), collector);
@@ -169,7 +170,7 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
 
     }
 
-    public DefaultMetricCollector getAccessGrantsMetrics() {
+    public MetricCollector getAccessGrantsMetrics() {
         collectMetrics();
         return collector;
 
