@@ -15,10 +15,15 @@
 
 package software.amazon.awssdk.s3accessgrants.cache;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import org.assertj.core.util.VisibleForTesting;
 import software.amazon.awssdk.annotations.NotNull;
+import software.amazon.awssdk.core.metrics.CoreMetric;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
+import software.amazon.awssdk.metrics.MetricCollector;
+import software.amazon.awssdk.metrics.internal.DefaultMetricCollector;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
@@ -31,6 +36,8 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
 
     private final S3AccessGrantsCache accessGrantsCache;
     private final S3AccessGrantsAccessDeniedCache s3AccessGrantsAccessDeniedCache;
+    // MetricsCollector metricCollector = new MetricsCollector();
+    DefaultMetricCollector collector = new DefaultMetricCollector("AccessGrantsMetrics");
 
     private S3AccessGrantsCachedCredentialsProviderImpl(S3ControlAsyncClient S3ControlAsyncClient, int maxCacheSize, int cacheExpirationTimePercentage) {
 
@@ -125,6 +132,8 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
     @Override
     public CompletableFuture<AwsCredentialsIdentity> getDataAccess (AwsCredentialsIdentity credentials, Permission permission,
                                                                     String s3Prefix, @NotNull String accountId) throws S3ControlException {
+
+        Instant start = Instant.now();
         CacheKey cacheKey = CacheKey.builder()
                                     .credentials(credentials)
                                     .permission(permission)
@@ -134,12 +143,37 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
         if (s3ControlException != null) {
             throw s3ControlException;
         }
-        return CompletableFuture.supplyAsync(() -> accessGrantsCache.getCredentials(cacheKey, accountId,
-                                                                               s3AccessGrantsAccessDeniedCache));
+
+        CompletableFuture<AwsCredentialsIdentity> accessGrantsCredentials;
+        try {
+            accessGrantsCredentials = CompletableFuture.supplyAsync(() -> accessGrantsCache.getCredentials(cacheKey, accountId,
+                                                                                                           s3AccessGrantsAccessDeniedCache));
+        }catch (S3ControlException e) {
+            collector.reportMetric(MetricsCollector.ERROR_COUNT,1);
+            throw e;
+        }
+        collector.reportMetric(MetricsCollector.LATENCY, Duration.between(start, Instant.now()));
+        collector.reportMetric(MetricsCollector.CALL_COUNT, 1);
+        return accessGrantsCredentials;
     }
 
     public void invalidateCache() {
         accessGrantsCache.invalidateCache();
+    }
+
+    private void collectMetrics() {
+        collector.reportMetric(CoreMetric.SERVICE_ID, "AccessGrants");
+        collector.reportMetric(CoreMetric.OPERATION_NAME, "Metrics");
+        MetricsCollector.getMetricsForAccessGrantsCache(accessGrantsCache.getCacheStats(), collector);
+        MetricsCollector.getMetricsForAccessDeniedCache(s3AccessGrantsAccessDeniedCache.getCacheStats(), collector);
+        MetricsCollector.getMetricsForAccountIdResolverCache(accessGrantsCache.getS3AccessGrantsCachedAccountIdResolver().getCacheStats(), collector);
+
+    }
+
+    public MetricCollector getAccessGrantsMetrics() {
+        collectMetrics();
+        return collector;
+
     }
 
 }

@@ -23,6 +23,7 @@ import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsUtil.get
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -56,6 +57,8 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
     public int expireCacheAfterWriteSeconds() {
         return expireCacheAfterWriteSeconds;
     }
+
+    protected CacheStats getCacheStats() { return cache.stats(); }
 
     @VisibleForTesting
     S3AccessGrantsCachedAccountIdResolver(@NotNull S3ControlAsyncClient S3ControlAsyncClient) {
