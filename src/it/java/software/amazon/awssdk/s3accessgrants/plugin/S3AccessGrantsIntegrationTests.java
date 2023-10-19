@@ -45,6 +45,8 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.model.*;
+import software.amazon.awssdk.services.sts.StsAsyncClient;
+import software.amazon.awssdk.services.sts.model.GetCallerIdentityRequest;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -99,6 +101,8 @@ public class S3AccessGrantsIntegrationTests {
 
     private static S3AuthSchemeProvider authSchemeProvider;
 
+    private static StsAsyncClient stsAsyncClient;
+
     @BeforeClass
     public static void testsSetUp() throws IOException {
 
@@ -106,7 +110,10 @@ public class S3AccessGrantsIntegrationTests {
         credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
         s3ControlAsyncClient = S3AccessGrantsIntegrationTestsUtils.s3ControlAsyncClientBuilder(credentialsProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
         authSchemeProvider = new S3AccessGrantsAuthSchemeProvider(S3AuthSchemeProvider.defaultProvider());
-
+        stsAsyncClient = StsAsyncClient.builder()
+                .credentialsProvider(credentialsProvider)
+                .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
+                .build();
     }
 
     @AfterClass
@@ -125,7 +132,8 @@ public class S3AccessGrantsIntegrationTests {
 
         S3AccessGrantsIdentityProvider identityProvider =
                 spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
-                        S3AccessGrantsIntegrationTestsUtils.TEST_REGION, S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
+                        S3AccessGrantsIntegrationTestsUtils.TEST_REGION,
+                        stsAsyncClient,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
                         s3ControlAsyncClient,
@@ -159,7 +167,7 @@ public class S3AccessGrantsIntegrationTests {
         S3AccessGrantsIdentityProvider identityProvider =
             spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
                                                    S3AccessGrantsIntegrationTestsUtils.TEST_REGION,
-                                                   S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
+                                                   stsAsyncClient,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
                                                    s3ControlAsyncClient,
@@ -193,7 +201,7 @@ public class S3AccessGrantsIntegrationTests {
         S3AccessGrantsIdentityProvider identityProvider =
                 spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
                         S3AccessGrantsIntegrationTestsUtils.TEST_REGION,
-                        S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
+                        stsAsyncClient,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
                         s3ControlAsyncClient,
@@ -241,7 +249,7 @@ public class S3AccessGrantsIntegrationTests {
         S3AccessGrantsIdentityProvider identityProvider =
                 spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
                         S3AccessGrantsIntegrationTestsUtils.TEST_REGION,
-                        S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
+                        stsAsyncClient,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
                         s3ControlAsyncClient,
@@ -289,7 +297,7 @@ public class S3AccessGrantsIntegrationTests {
         S3AccessGrantsIdentityProvider identityProvider =
             spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
                                                    S3AccessGrantsIntegrationTestsUtils.TEST_REGION,
-                                                   S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
+                                                   stsAsyncClient,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
                                                    s3ControlAsyncClient,
@@ -326,7 +334,7 @@ public class S3AccessGrantsIntegrationTests {
         S3AccessGrantsIdentityProvider identityProvider =
             spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
                                                    S3AccessGrantsIntegrationTestsUtils.TEST_REGION,
-                                                   S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
+                                                   stsAsyncClient,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
                                                    s3ControlAsyncClient,
@@ -362,7 +370,7 @@ public class S3AccessGrantsIntegrationTests {
         S3AccessGrantsIdentityProvider identityProvider =
             spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
                                                    S3AccessGrantsIntegrationTestsUtils.TEST_REGION,
-                                                   S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
+                                                   stsAsyncClient,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
                                                    s3ControlAsyncClient,
@@ -403,7 +411,7 @@ public class S3AccessGrantsIntegrationTests {
         S3AccessGrantsIdentityProvider identityProvider =
             spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
                                                    S3AccessGrantsIntegrationTestsUtils.TEST_REGION,
-                                                   S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
+                                                   stsAsyncClient,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
                                                    s3ControlAsyncClient,
@@ -459,7 +467,7 @@ public class S3AccessGrantsIntegrationTests {
         S3AccessGrantsIdentityProvider validIdentityProvider =
                 spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
                         S3AccessGrantsIntegrationTestsUtils.TEST_REGION,
-                        S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
+                        stsAsyncClient,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
                         s3ControlAsyncClient,
@@ -506,7 +514,7 @@ public class S3AccessGrantsIntegrationTests {
         S3AccessGrantsIdentityProvider validIdentityProvider =
             spy(new S3AccessGrantsIdentityProvider(software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build(),
                                                    S3AccessGrantsIntegrationTestsUtils.TEST_REGION,
-                                                   S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
+                                                   stsAsyncClient,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
                                                    s3ControlAsyncClient,
@@ -551,7 +559,7 @@ public class S3AccessGrantsIntegrationTests {
             spy(new S3AccessGrantsIdentityProvider(software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider.builder().profileName("random-non-existent"
                                                                                                     + "-profile").build(),
                                                    S3AccessGrantsIntegrationTestsUtils.TEST_REGION,
-                                                   S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
+                                                   stsAsyncClient,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_PRIVILEGE,
                                                    S3AccessGrantsIntegrationTestsUtils.DEFAULT_IS_CACHE_ENABLED,
                                                    s3ControlAsyncClient,
@@ -583,7 +591,7 @@ public class S3AccessGrantsIntegrationTests {
 
         ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
 
-        S3AccessGrantsPlugin accessGrantsPlugin = spy(S3AccessGrantsPlugin.builder().accountId(S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT).build());
+        S3AccessGrantsPlugin accessGrantsPlugin = spy(S3AccessGrantsPlugin.builder().build());
 
         S3Client s3Client =
             S3Client.builder()
@@ -610,7 +618,7 @@ public class S3AccessGrantsIntegrationTests {
         ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
 
         S3AccessGrantsPlugin accessGrantsPlugin =
-            spy(S3AccessGrantsPlugin.builder().accountId(S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT).build());
+            spy(S3AccessGrantsPlugin.builder().build());
 
         S3Client s3Client =
             S3Client.builder()
@@ -637,7 +645,7 @@ public class S3AccessGrantsIntegrationTests {
         ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
 
         S3AccessGrantsPlugin accessGrantsPlugin =
-                spy(S3AccessGrantsPlugin.builder().accountId(S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT).build());
+                spy(S3AccessGrantsPlugin.builder().build());
 
         S3Client s3Client =
                 S3Client.builder()
@@ -660,7 +668,7 @@ public class S3AccessGrantsIntegrationTests {
     @Test
     public void call_s3_with_plugin_invalid_default_credentials_provider_request_failure() {
         S3AccessGrantsPlugin accessGrantsPlugin =
-            spy(S3AccessGrantsPlugin.builder().accountId(S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT).build());
+            spy(S3AccessGrantsPlugin.builder().build());
         try {
            S3Client s3Client =
                S3Client.builder()
@@ -684,7 +692,7 @@ public class S3AccessGrantsIntegrationTests {
         ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
 
         S3AccessGrantsPlugin accessGrantsPlugin =
-            spy(S3AccessGrantsPlugin.builder().accountId(S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT).build());
+            spy(S3AccessGrantsPlugin.builder().build());
 
         S3Client s3Client =
                 S3Client.builder()
