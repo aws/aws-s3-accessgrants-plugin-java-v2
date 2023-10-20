@@ -218,10 +218,8 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
     }
 
     Boolean shouldFallbackToDefaultCredentialsForThisCase(int statusCode, Throwable cause) {
-        if((statusCode == 404 && cause instanceof UnsupportedOperationException) || statusCode == 403) {
-            return true;
-        }
-        return false;
+        // add a optional fallback for 403 later
+        return true;
     }
 
     /**
