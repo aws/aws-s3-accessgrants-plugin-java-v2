@@ -20,6 +20,4 @@ import software.amazon.awssdk.utils.builder.CopyableBuilder;
 
 public interface Builder extends CopyableBuilder<Builder, S3AccessGrantsPlugin> {
 
-    Builder accountId(String accountId);
-
 }

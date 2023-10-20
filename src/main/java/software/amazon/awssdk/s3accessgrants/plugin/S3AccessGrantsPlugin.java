@@ -1,17 +1,12 @@
 package software.amazon.awssdk.s3accessgrants.plugin;
 
-import java.util.Optional;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.core.SdkPlugin;
 import software.amazon.awssdk.core.SdkServiceClientConfiguration;
-import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
-import software.amazon.awssdk.identity.spi.IdentityProvider;
-import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCache;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProviderImpl;
-import software.amazon.awssdk.services.s3control.S3ControlClient;
-import software.amazon.awssdk.services.s3control.model.Privilege;
 import software.amazon.awssdk.services.s3.S3ServiceClientConfiguration;
+import software.amazon.awssdk.services.sts.StsAsyncClient;
 import software.amazon.awssdk.utils.builder.ToCopyableBuilder;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils;
@@ -26,18 +21,16 @@ import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGran
  */
 public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Builder, S3AccessGrantsPlugin> {
 
-    private final String accountId;
-
     S3AccessGrantsPlugin(BuilderImpl builder) {
-        this.accountId = builder.accountId;
+
     }
 
     public static Builder builder() {
         return new BuilderImpl();
     }
 
-    public static Builder builder(S3AccessGrantsPlugin accessGrantsPlugin) {
-        return new BuilderImpl(accessGrantsPlugin);
+    public static Builder builder(S3AccessGrantsPlugin plugin) {
+        return new BuilderImpl(plugin);
     }
 
     /**
@@ -62,9 +55,14 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         S3AccessGrantsCachedCredentialsProvider cache = createAccessGrantsCache(s3ControlAsyncClient);
 
+        StsAsyncClient stsClient = StsAsyncClient.builder()
+                .credentialsProvider(serviceClientConfiguration.credentialsProvider())
+                .region(serviceClientConfiguration.region())
+                .build();
+
         serviceClientConfiguration.credentialsProvider(new S3AccessGrantsIdentityProvider(serviceClientConfiguration.credentialsProvider(),
                 serviceClientConfiguration.region(),
-                this.accountId,
+                stsClient,
                 DEFAULT_PRIVILEGE_FOR_PLUGIN,
                 DEFAULT_CACHE_SETTING,
                 s3ControlAsyncClient,
@@ -87,22 +85,13 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
     }
 
     public static final class BuilderImpl implements Builder{
-        private String accountId;
 
-        /** Initializing access grants plugin instance.
-         * Default values - {@link S3AccessGrantsUtils}}*/
         BuilderImpl() {
-            this.accountId = null;
+
         }
 
         BuilderImpl(S3AccessGrantsPlugin plugin) {
-            this.accountId = plugin.accountId;
-        }
 
-        @Override
-        public Builder accountId(@NotNull String accountId) {
-            this.accountId = accountId;
-            return this;
         }
 
         @Override
