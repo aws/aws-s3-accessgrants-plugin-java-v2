@@ -158,7 +158,7 @@ public class S3AccessGrantsIdentityProviderTests {
     public void call_should_fallback_with_response_codes() {
         S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache);
         Assertions.assertThat(accessGrantsIdentityProvider.shouldFallbackToDefaultCredentialsForThisCase(404, mock(UnsupportedOperationException.class))).isTrue();
-        Assertions.assertThat(accessGrantsIdentityProvider.shouldFallbackToDefaultCredentialsForThisCase(404, mock(Exception.class))).isFalse();
+        Assertions.assertThat(accessGrantsIdentityProvider.shouldFallbackToDefaultCredentialsForThisCase(404, mock(Exception.class))).isTrue();
         Assertions.assertThat(accessGrantsIdentityProvider.shouldFallbackToDefaultCredentialsForThisCase(403, mock(AccessDeniedException.class))).isTrue();
     }
 
@@ -268,8 +268,10 @@ public class S3AccessGrantsIdentityProviderTests {
         when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().build()).whenComplete((r,e) -> { throw S3ControlException.builder().statusCode(403).build(); }));
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build()));
 
-        Throwable exc = Assertions.catchThrowableOfType(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join(), SdkServiceException.class);
-        Assertions.assertThat(exc.getCause()).isInstanceOf(NullPointerException.class);
+        AwsCredentialsIdentity credentialsIdentity = accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join();
+
+        Assertions.assertThat(credentialsIdentity.accessKeyId()).isEqualTo(TEST_ACCESS_KEY);
+        Assertions.assertThat(credentialsIdentity.secretAccessKey()).isEqualTo(TEST_SECRET_KEY);
     }
 
     @Test
@@ -317,7 +319,7 @@ public class S3AccessGrantsIdentityProviderTests {
     }
 
     @Test
-    public void call_access_grants_identity_provider_with_cache_enabled_request_failure() {
+    public void call_access_grants_identity_provider_with_cache_enabled_request_failure_returns_user_credentials() {
 
         IdentityProvider credentialsProvider = mock(IdentityProvider.class);
         S3ControlAsyncClient localS3ControlClient = mock(S3ControlAsyncClient.class);
@@ -338,12 +340,10 @@ public class S3AccessGrantsIdentityProviderTests {
         when(localS3ControlClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class))).thenReturn(getAccessGrantsInstanceForPrefixResponse);
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> credentials));
 
-        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join())
-                .isInstanceOf(CompletionException.class)
-                        .getCause()
-                                .isInstanceOf(SdkServiceException.class)
-                                    .getCause()
-                                        .isInstanceOf(InvalidRequestException.class);
+        AwsCredentialsIdentity credentialsIdentity = accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join();
+        // invalid request should still return the default user credentials
+        Assertions.assertThat(credentialsIdentity.accessKeyId()).isEqualTo(credentials.accessKeyId());
+        Assertions.assertThat(credentialsIdentity.secretAccessKey()).isEqualTo(credentials.secretAccessKey());
     }
 
     @Test
