@@ -39,7 +39,11 @@ import software.amazon.awssdk.http.auth.spi.scheme.AuthSchemeOption;
 import software.amazon.awssdk.identity.spi.ResolveIdentityRequest;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeParams;
-import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
+import software.amazon.awssdk.services.s3.model.DeleteBucketResponse;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
@@ -246,7 +250,7 @@ public class S3AccessGrantsIntegrationTests {
     }
 
     @Test
-    public void call_s3_with_operation_supported_by_access_grants_request_failure_cache_test_fallback_to_default_credentials() throws Exception {
+    public void call_s3_with_operation_supported_by_access_grants_request_failure_cache_test_fallback_to_policy_evaluation() throws Exception {
 
         S3ControlAsyncClient s3ControlAsyncClient = mock(S3ControlAsyncClient.class);
         S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
@@ -289,7 +293,7 @@ public class S3AccessGrantsIntegrationTests {
     }
 
     @Test
-    public void call_s3_without_an_access_grant_request_failure_fallback_to_policies() throws Exception {
+    public void call_s3_without_an_access_grant_request_failure_fallback_to_policy_evaluation() throws Exception {
 
         S3AccessGrantsCachedCredentialsProviderImpl cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
                 .S3ControlAsyncClient(s3ControlAsyncClient)
@@ -325,7 +329,7 @@ public class S3AccessGrantsIntegrationTests {
     }
 
     @Test
-    public void call_s3_with_unregistered_access_grants_location_request_failure_fallback_to_default_credentials() throws Exception {
+    public void call_s3_with_unregistered_access_grants_location_request_failure_fallback_to_policy_evaluation() throws Exception {
 
         String Key = S3AccessGrantsIntegrationTestsUtils.TEST_LOCATION_1 + "/file3.txt";
         S3AccessGrantsCachedCredentialsProviderImpl cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
@@ -360,7 +364,7 @@ public class S3AccessGrantsIntegrationTests {
     }
 
     @Test
-    public void call_s3_with_supported_operation_but_no_grant_request_failure_fallback_to_default_credentials() throws Exception {
+    public void call_s3_with_supported_operation_but_no_grant_request_failure_fallback_to_policy_evaluation() throws Exception {
 
         S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
                 .S3ControlAsyncClient(s3ControlAsyncClient)
@@ -396,7 +400,7 @@ public class S3AccessGrantsIntegrationTests {
     }
 
     @Test
-    public void call_s3_with_non_existent_location_request_failure_fallback_to_default_credentials() throws Exception {
+    public void call_s3_with_non_existent_location_request_failure_fallback_to_policy_evaluation() throws Exception {
 
         S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
                 .S3ControlAsyncClient(s3ControlAsyncClient)
