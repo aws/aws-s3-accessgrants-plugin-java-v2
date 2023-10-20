@@ -3,6 +3,7 @@ package software.amazon.awssdk.s3accessgrants.plugin;
 import org.assertj.core.api.Assertions;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
 import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsOperationToPermissionMapper;
@@ -24,7 +25,7 @@ public class S3AccessGrantsStaticOperationToPermissionMapperTests {
 
     @Test
     public void call_get_permission_with_invalid_operation() {
-        Assertions.assertThatThrownBy(()->mapper.getPermission(CREATE_OPERATION_NAME)).isInstanceOf(S3ControlException.class);
+        Assertions.assertThatThrownBy(()->mapper.getPermission(CREATE_OPERATION_NAME)).isInstanceOf(SdkServiceException.class);
     }
 
     @Test

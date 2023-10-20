@@ -98,18 +98,27 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
     @Override
     public CompletableFuture<? extends AwsCredentialsIdentity> resolveIdentity(ResolveIdentityRequest resolveIdentityRequest) {
 
-        String accountId = getCallerAccountID().join().account();
+        CompletableFuture<? extends AwsCredentialsIdentity> userCredentials = null;
 
-        validateRequestParameters(resolveIdentityRequest, accountId, privilege, isCacheEnabled);
+        try {
+            String accountId = getCallerAccountID().join().account();
 
-        CompletableFuture<? extends AwsCredentialsIdentity> userCredentials = credentialsProvider.resolveIdentity(resolveIdentityRequest);
+            validateRequestParameters(resolveIdentityRequest, accountId, privilege, isCacheEnabled);
 
-        String S3Prefix = resolveIdentityRequest.property(PREFIX_PROPERTY).toString();
-        String operation = resolveIdentityRequest.property(OPERATION_PROPERTY).toString();
-        Permission permission = permissionMapper.getPermission(operation);
+            userCredentials = credentialsProvider.resolveIdentity(resolveIdentityRequest);
 
-        return isCacheEnabled ? getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId) : getCredentialsFromAccessGrants(createDataAccessRequest(accountId, S3Prefix, permission, privilege));
+            String S3Prefix = resolveIdentityRequest.property(PREFIX_PROPERTY).toString();
+            String operation = resolveIdentityRequest.property(OPERATION_PROPERTY).toString();
+            Permission permission = permissionMapper.getPermission(operation);
 
+            return isCacheEnabled ? getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId) : getCredentialsFromAccessGrants(createDataAccessRequest(accountId, S3Prefix, permission, privilege));
+        } catch(SdkServiceException e) {
+            // catch in case the operation is not supported or access is denied
+            if(shouldFallbackToDefaultCredentialsForThisCase(e.statusCode(), e.getCause())) {
+                return userCredentials;
+            }
+            throw e;
+        }
     }
 
     /**
@@ -163,10 +172,14 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
         try {
             return cache.getDataAccess(credentials, permission, S3Prefix, accountId).exceptionally(e -> {
-                throw unwrapAndBuildException(e);
+                SdkServiceException throwableException = unwrapAndBuildException(e);
+                if (shouldFallbackToDefaultCredentialsForThisCase(throwableException.statusCode(), throwableException)) return credentials;
+                throw throwableException;
             });
         } catch (Exception e) {
-            throw unwrapAndBuildException(e);
+            SdkServiceException throwableException = unwrapAndBuildException(e);
+            if (shouldFallbackToDefaultCredentialsForThisCase(throwableException.statusCode(), throwableException)) return CompletableFuture.supplyAsync(() -> credentials);
+            throw throwableException;
         }
 
     }
@@ -202,6 +215,13 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
                 .message(e.getMessage())
                 .cause(e)
                 .build();
+    }
+
+    Boolean shouldFallbackToDefaultCredentialsForThisCase(int statusCode, Throwable cause) {
+        if((statusCode == 404 && cause instanceof UnsupportedOperationException) || statusCode == 403) {
+            return true;
+        }
+        return false;
     }
 
     /**
