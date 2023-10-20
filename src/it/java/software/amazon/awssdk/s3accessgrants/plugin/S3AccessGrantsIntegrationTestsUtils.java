@@ -24,6 +24,7 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
@@ -31,14 +32,6 @@ import software.amazon.awssdk.identity.spi.IdentityProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
-import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
-import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
-import software.amazon.awssdk.services.s3.model.DeleteBucketRequest;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3control.S3ControlClient;
 import software.amazon.awssdk.services.s3control.model.AccessGrantsLocationConfiguration;
 import software.amazon.awssdk.services.s3control.model.CreateAccessGrantsInstanceRequest;
@@ -442,14 +435,16 @@ public class S3AccessGrantsIntegrationTestsUtils {
         }
     }
 
-    public static void deleteBucket(S3Client s3Client, String bucketName) {
+    public static DeleteBucketResponse deleteBucket(S3Client s3Client, String bucketName) {
         try {
             DeleteBucketRequest deleteBucketRequest =
                 DeleteBucketRequest.builder().bucket(bucketName).build();
-            s3Client.deleteBucket(deleteBucketRequest);
+            DeleteBucketResponse deleteBucketResponse = s3Client.deleteBucket(deleteBucketRequest);
             System.out.println("successfully deleted the bucket during test teardown!");
+            return deleteBucketResponse;
         } catch (Exception e) {
             System.out.println("bucket cannot be deleted during test teardown! "+ e.getMessage());
+            throw e;
         }
     }
 

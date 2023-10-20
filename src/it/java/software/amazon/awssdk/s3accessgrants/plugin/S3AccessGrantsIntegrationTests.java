@@ -23,7 +23,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -40,8 +39,7 @@ import software.amazon.awssdk.http.auth.spi.scheme.AuthSchemeOption;
 import software.amazon.awssdk.identity.spi.ResolveIdentityRequest;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeParams;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
@@ -53,6 +51,7 @@ import software.amazon.awssdk.services.s3control.model.Credentials;
 import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixRequest;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -128,7 +127,7 @@ public class S3AccessGrantsIntegrationTests {
     }
 
     @Test
-    public void call_s3_with_operation_not_supported_by_access_grants_request_failure() throws Exception {
+    public void call_s3_with_operation_not_supported_by_access_grants_fallback_to_user_credentials() throws Exception {
 
         S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
                 .S3ControlAsyncClient(s3ControlAsyncClient)
@@ -143,13 +142,13 @@ public class S3AccessGrantsIntegrationTests {
                         s3ControlAsyncClient,
                         cache));
 
-        String bucketName = "access-grants-sdk-create-test";
+        String bucketName = "access-grants-sdk-create-test-unsupported-operation";
 
         S3Client s3client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
-        Throwable exc = Assertions.catchThrowableOfType(() -> S3AccessGrantsIntegrationTestsUtils.CreateBucket(s3client, bucketName), S3ControlException.class);
+        CreateBucketResponse createBucketResponse = S3AccessGrantsIntegrationTestsUtils.CreateBucket(s3client, bucketName);
 
-        Assertions.assertThat(((S3ControlException) exc).statusCode()).isEqualTo(404);
+        Assertions.assertThat(createBucketResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
 
         verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
 
@@ -158,6 +157,10 @@ public class S3AccessGrantsIntegrationTests {
         verify(identityProvider, never()).getCredentialsFromAccessGrants(any());
 
         verify(cache, never()).getDataAccess(any(), any(), any(), any());
+
+        DeleteBucketResponse deleteBucketResponse = S3AccessGrantsIntegrationTestsUtils.deleteBucket(s3client, bucketName);
+
+        Assertions.assertThat(deleteBucketResponse.sdkHttpResponse().statusCode()).isEqualTo(204); // delete bucket returns 204 on success
 
     }
 
@@ -243,7 +246,7 @@ public class S3AccessGrantsIntegrationTests {
     }
 
     @Test
-    public void call_s3_with_operation_supported_by_access_grants_request_failure_cache_test() throws Exception {
+    public void call_s3_with_operation_supported_by_access_grants_request_failure_cache_test_fallback_to_default_credentials() throws Exception {
 
         S3ControlAsyncClient s3ControlAsyncClient = mock(S3ControlAsyncClient.class);
         S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
@@ -268,31 +271,25 @@ public class S3AccessGrantsIntegrationTests {
         when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied").build());
         when(s3ControlAsyncClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class))).thenReturn(getAccessGrantsInstanceForPrefixResponse);
 
-        try {
-            identityProvider.resolveIdentity(resolveIdentityRequest).join();
-            Assert.fail("Expecting an exception to be thrown as the request is denied by the server!");
-        } catch(CompletionException e) {
-            verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
-            verify(s3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
-            Assertions.assertThat(e.getCause().getCause()).isInstanceOf(S3ControlException.class);
-            Assertions.assertThat(((S3ControlException)e.getCause().getCause()).statusCode()).isEqualTo(403);
-        }
+        AwsCredentialsIdentity credentialsIdentity = identityProvider.resolveIdentity(resolveIdentityRequest).join();
+        AwsCredentialsIdentity defaultCredentials = credentialsProvider.resolveIdentity().join();
+
+        verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
+        verify(s3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
+        verify(identityProvider, times(1)).shouldFallbackToDefaultCredentialsForThisCase(eq(403), any(Throwable.class));
+        // verifying if the credentials being returned for fallback are the ones used to talk to access grants
+        Assertions.assertThat(credentialsIdentity.accessKeyId()).isEqualTo(defaultCredentials.accessKeyId());
+        Assertions.assertThat(credentialsIdentity.secretAccessKey()).isEqualTo(defaultCredentials.secretAccessKey());
 
         // resend the request and validate no interaction with the service.
-        try {
-            identityProvider.resolveIdentity(resolveIdentityRequest).join();
-            Assert.fail("Expecting an exception to be thrown as the request is denied by the server and should be retrieved from cache!");
-        } catch(SdkServiceException e) {
-            verify(cache, times(2)).getDataAccess(any(), any(), any(), any());
-            verify(s3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
-            Assertions.assertThat(e.getCause()).isInstanceOf(S3ControlException.class);
-            Assertions.assertThat(((S3ControlException)e.getCause()).statusCode()).isEqualTo(403);
-        }
-
+        // Request should not fail because s3 client needs to fall back to evaluate policies instead.
+        identityProvider.resolveIdentity(resolveIdentityRequest).join();
+        verify(cache, times(2)).getDataAccess(any(), any(), any(), any());
+        verify(s3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
     }
 
     @Test
-    public void call_s3_without_an_access_grant_request_failure() throws Exception {
+    public void call_s3_without_an_access_grant_request_failure_fallback_to_policies() throws Exception {
 
         S3AccessGrantsCachedCredentialsProviderImpl cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
                 .S3ControlAsyncClient(s3ControlAsyncClient)
@@ -309,28 +306,28 @@ public class S3AccessGrantsIntegrationTests {
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
-        try {
-            S3AccessGrantsIntegrationTestsUtils.GetObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
+        ResponseInputStream<GetObjectResponse> responseInputStream = S3AccessGrantsIntegrationTestsUtils.GetObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
                                                           S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT2);
 
-            Assert.fail("Expected an exception as no READ grant has been added for the desired prefix!");
-        } catch (SdkServiceException e) {
+        // the fact that we are able to read the file content without access grants means that the requests are being processed by the policies.
+        Assertions.assertThat(S3AccessGrantsIntegrationTestsUtils.getFileContentFromGetResponse(responseInputStream)).isEqualTo("access grants test content in file2!");
 
-            verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
+        Assertions.assertThat(S3AccessGrantsIntegrationTestsUtils.getStatusCodeFromGetResponse(responseInputStream)).isEqualTo(200);
 
-            verify(identityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
+        verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
 
-            verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
+        verify(identityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
 
-            Assertions.assertThat(e.getCause()).isInstanceOf(S3ControlException.class);
-            Assertions.assertThat(e.statusCode()).isEqualTo(403);
+        verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
 
-        }
+        verify(identityProvider, times(1)).shouldFallbackToDefaultCredentialsForThisCase(eq(403), any(Throwable.class));
+
     }
 
     @Test
-    public void call_s3_with_unregistered_access_grants_location_request_failure() throws Exception {
+    public void call_s3_with_unregistered_access_grants_location_request_failure_fallback_to_default_credentials() throws Exception {
 
+        String Key = S3AccessGrantsIntegrationTestsUtils.TEST_LOCATION_1 + "/file3.txt";
         S3AccessGrantsCachedCredentialsProviderImpl cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
                 .S3ControlAsyncClient(s3ControlAsyncClient)
                 .build());
@@ -346,26 +343,24 @@ public class S3AccessGrantsIntegrationTests {
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
-        try {
-
-            S3AccessGrantsIntegrationTestsUtils.PutObject(s3Client,
+        PutObjectResponse putObjectResponse = S3AccessGrantsIntegrationTestsUtils.PutObject(s3Client,
                                                           S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME_NOT_REGISTERED,
-                                                          S3AccessGrantsIntegrationTestsUtils.TEST_LOCATION_1 + "/file3.txt",
+                                                          Key,
                                                           "Non-registered bucket should not accept any new data!");
 
-           Assert.fail("Expected an exception to occur as the bucket is not registered with access grants!");
+        verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
+        verify(identityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
+        verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
+        verify(identityProvider, times(1)).shouldFallbackToDefaultCredentialsForThisCase(eq(403), any(Throwable.class));
+        // the fact that we are able to write the file content without access grants means that the requests are being processed by the policies.
+        Assertions.assertThat(putObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
 
-        } catch (SdkServiceException e) {
-            verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
-            verify(identityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
-            verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
-            Assertions.assertThat(e.getCause()).isInstanceOf(S3ControlException.class);
-            Assertions.assertThat(e.statusCode()).isEqualTo(403);
-        }
+        S3AccessGrantsIntegrationTestsUtils.deleteObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME_NOT_REGISTERED, Key);
+
     }
 
     @Test
-    public void call_s3_with_supported_operation_but_no_grant_request_failure() throws Exception {
+    public void call_s3_with_supported_operation_but_no_grant_request_failure_fallback_to_default_credentials() throws Exception {
 
         S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
                 .S3ControlAsyncClient(s3ControlAsyncClient)
@@ -382,31 +377,26 @@ public class S3AccessGrantsIntegrationTests {
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
-        try {
-
-            S3AccessGrantsIntegrationTestsUtils.PutObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME_NOT_REGISTERED,
+        PutObjectResponse putObjectResponse = S3AccessGrantsIntegrationTestsUtils.PutObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME_NOT_REGISTERED,
                                                           "PrefixA/file3.txt", "Writing a file to  a non permissed location!");
 
-            Assert.fail("Expected an exception to occur as no WRITE grant has been added to the prefix where we are adding a file!");
 
-        } catch (SdkServiceException e) {
+        verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
 
-            verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
+        verify(identityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
 
-            verify(identityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
+        verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
 
-            verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
+        verify(identityProvider, times(1)).shouldFallbackToDefaultCredentialsForThisCase(eq(403), any(Throwable.class));
+        // the fact that we are able to write the file content without access grants means that the requests are being processed by the policies.
+        Assertions.assertThat(putObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
 
-            Assertions.assertThat(e.getCause()).isInstanceOf(S3ControlException.class);
-
-            Assertions.assertThat(e.statusCode()).isEqualTo(403);
-
-        }
+        S3AccessGrantsIntegrationTestsUtils.deleteObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME_NOT_REGISTERED, "PrefixA/file3.txt");
 
     }
 
     @Test
-    public void call_s3_with_non_existent_location_request_failure() throws Exception {
+    public void call_s3_with_non_existent_location_request_failure_fallback_to_default_credentials() throws Exception {
 
         S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
                 .S3ControlAsyncClient(s3ControlAsyncClient)
@@ -423,25 +413,22 @@ public class S3AccessGrantsIntegrationTests {
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
-        try {
-
-            S3AccessGrantsIntegrationTestsUtils.PutObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
+        PutObjectResponse putObjectResponse = S3AccessGrantsIntegrationTestsUtils.PutObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
                                                           "PrefixC/file4.txt", "Writing a file to the non-existent location!");
 
-            Assert.fail("Expected an exception to occur as the location where we are writing a file does not exist!");
-        } catch (SdkServiceException e) {
 
-            verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
+        verify(identityProvider, times(1)).resolveIdentity(any(ResolveIdentityRequest.class));
 
-            verify(identityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
+        verify(identityProvider, never()).getCredentialsFromAccessGrants(any(GetDataAccessRequest.class));
 
-            verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
+        verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
 
-            Assertions.assertThat(e.getCause()).isInstanceOf(S3ControlException.class);
+        verify(identityProvider, times(1)).shouldFallbackToDefaultCredentialsForThisCase(eq(403), any(Throwable.class));
+        // the fact that we are able to write the file content without access grants means that the requests are being processed by the policies.
+        Assertions.assertThat(putObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
 
-            Assertions.assertThat(e.statusCode()).isEqualTo(403);
+        S3AccessGrantsIntegrationTestsUtils.deleteObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME, "PrefixC/file4.txt");
 
-        }
      }
 
     @Test
