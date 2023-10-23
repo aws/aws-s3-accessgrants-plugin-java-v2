@@ -147,19 +147,16 @@ public class S3AccessGrantsCache {
         if (credentials == null) {
             try {
                 credentials = getCredentialsFromService(cacheKey,accountId).thenApply(accessGrantsCredentials -> {
-                    Instant ttl = accessGrantsCredentials.expiration();
+                    Instant expirationTime = accessGrantsCredentials.expiration();
                     Instant now = Instant.now();
                     long duration =
-                        (long) (now.getEpochSecond() - ttl.getEpochSecond() * (cacheExpirationTimePercentage / 100.0f));
+                        (long) (now.getEpochSecond() - expirationTime.getEpochSecond() * (cacheExpirationTimePercentage / 100.0f));
                     AwsSessionCredentials sessionCredentials = AwsSessionCredentials.builder().accessKeyId(accessGrantsCredentials.accessKeyId())
                                                                                     .secretAccessKey(accessGrantsCredentials.secretAccessKey())
                                                                                     .sessionToken(accessGrantsCredentials.sessionToken()).build();
 
-
-
                     putValueInCache(cacheKey, CompletableFuture.supplyAsync(()-> sessionCredentials), duration);
                     return sessionCredentials;
-
                 });
             } catch (S3ControlException s3ControlException) {
                 if (s3ControlException.statusCode() == 403) {
