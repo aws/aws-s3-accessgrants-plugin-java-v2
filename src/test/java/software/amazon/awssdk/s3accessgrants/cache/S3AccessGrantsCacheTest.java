@@ -21,6 +21,8 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import java.time.Duration;
 import java.time.Instant;
 
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.concurrent.CompletableFuture;
 import org.junit.After;
 import org.junit.Before;
@@ -66,7 +68,7 @@ public class S3AccessGrantsCacheTest {
         s3ControlAsyncClient = Mockito.mock(S3ControlAsyncClient.class);
         cache = S3AccessGrantsCache.builder()
                                    .s3ControlAsyncClient(s3ControlAsyncClient)
-            .cacheExpirationTimePercentage(60)
+                                   .cacheExpirationTimePercentage(60)
                                    .maxCacheSize(DEFAULT_ACCESS_GRANTS_MAX_CACHE_SIZE).build();
         cacheWithMockedAccountIdResolver = S3AccessGrantsCache.builder()
                                                               .s3ControlAsyncClient(s3ControlAsyncClient)
@@ -265,6 +267,14 @@ public class S3AccessGrantsCacheTest {
         }catch (S3ControlException e){}
         // Then
         assertThat(accessDeniedCache.getValueFromCache(key1)).isInstanceOf(S3ControlException.class);
+    }
+
+    @Test
+    public void accessGrantsCache_testTTL() {
+        // When
+        Instant expiration = Instant.now().plus(10, ChronoUnit.SECONDS);
+        // Then
+        assertThat(cacheWithMockedAccountIdResolver.getTTL(expiration)).isEqualTo(6);
     }
 
 }

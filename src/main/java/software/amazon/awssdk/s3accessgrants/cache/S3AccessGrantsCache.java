@@ -147,10 +147,10 @@ public class S3AccessGrantsCache {
         if (credentials == null) {
             try {
                 credentials = getCredentialsFromService(cacheKey,accountId).thenApply(accessGrantsCredentials -> {
-                    Instant expirationTime = accessGrantsCredentials.expiration();
-                    Instant now = Instant.now();
-                    long duration =
-                        (long) ((expirationTime.getEpochSecond() - now.getEpochSecond()) * (cacheExpirationTimePercentage / 100.0f));
+                    // Instant expirationTime = accessGrantsCredentials.expiration();
+                    // Instant now = Instant.now();
+                    long duration = getTTL(accessGrantsCredentials.expiration());
+                        // (long) ((expirationTime.getEpochSecond() - now.getEpochSecond()) * (cacheExpirationTimePercentage / 100.0f));
                     AwsSessionCredentials sessionCredentials = AwsSessionCredentials.builder().accessKeyId(accessGrantsCredentials.accessKeyId())
                                                                                     .secretAccessKey(accessGrantsCredentials.secretAccessKey())
                                                                                     .sessionToken(accessGrantsCredentials.sessionToken()).build();
@@ -166,6 +166,17 @@ public class S3AccessGrantsCache {
             }
         }
         return credentials;
+    }
+
+    /**
+     * This method calculates the TTL of a cache entry
+     * @param expirationTime of the credentials received from Access Grants
+     * @return TTL of a cache entry
+     */
+    @VisibleForTesting
+    long getTTL(Instant expirationTime) {
+        Instant now = Instant.now();
+        return (long) ((expirationTime.getEpochSecond() - now.getEpochSecond()) * (cacheExpirationTimePercentage / 100.0f));
     }
 
     /**
