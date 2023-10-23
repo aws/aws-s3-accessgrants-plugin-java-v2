@@ -104,7 +104,7 @@ public class S3AccessGrantsCacheTest {
                                 .credentials(AWS_SESSION_CREDENTIALS)
                                 .permission(Permission.READ)
                                 .s3Prefix("s3://bucket2/foo/bar").build();
-        cache.putValueInCache(key1, S3_ACCESS_GRANTS_CREDENTIALS, 2);
+        cache.putValueInCache(key1, CompletableFuture.supplyAsync(() -> S3_ACCESS_GRANTS_CREDENTIALS), 2);
         AwsSessionCredentials sessionCredentials = AwsSessionCredentials.builder()
                                                                         .accessKeyId(ACCESS_KEY_ID)
                                                                         .secretAccessKey(SECRET_ACCESS_KEY)
@@ -114,8 +114,8 @@ public class S3AccessGrantsCacheTest {
                                 .permission(Permission.READ)
                                 .s3Prefix("s3://bucket2/foo/bar").build();
         // When
-        AwsCredentialsIdentity cacheValue1 = cache.getCredentials(key1, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache);
-        AwsCredentialsIdentity cacheValue2 = cache.getCredentials(key2, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache);
+        AwsCredentialsIdentity cacheValue1 = cache.getCredentials(key1, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache).join();
+        AwsCredentialsIdentity cacheValue2 = cache.getCredentials(key2, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache).join();
         // Then
         assertThat(cacheValue2).isEqualTo(cacheValue1);
     }
@@ -127,7 +127,7 @@ public class S3AccessGrantsCacheTest {
                                 .credentials(AWS_SESSION_CREDENTIALS)
                                 .permission(Permission.READ)
                                 .s3Prefix("s3://bucket2/foo/bar").build();
-        cache.putValueInCache(key1, S3_ACCESS_GRANTS_CREDENTIALS, 2);
+        cache.putValueInCache(key1, CompletableFuture.supplyAsync(() -> S3_ACCESS_GRANTS_CREDENTIALS), 2);
 
         AwsSessionCredentials sessionCredentials = AwsSessionCredentials.builder()
                                                                         .accessKeyId(ACCESS_KEY_ID)
@@ -138,8 +138,8 @@ public class S3AccessGrantsCacheTest {
                                 .permission(Permission.READ)
                                 .s3Prefix("s3://bucket2/foo/bar/logs").build();
         // When
-        AwsCredentialsIdentity cacheValue1 = cache.getCredentials(key1, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache);
-        AwsCredentialsIdentity cacheValue2 = cache.getCredentials(key2, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache);
+        AwsCredentialsIdentity cacheValue1 = cache.getCredentials(key1, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache).join();
+        AwsCredentialsIdentity cacheValue2 = cache.getCredentials(key2, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache).join();
         // Then
         assertThat(cacheValue2).isEqualTo(cacheValue1);
     }
@@ -151,7 +151,7 @@ public class S3AccessGrantsCacheTest {
                                 .credentials(AWS_BASIC_CREDENTIALS)
                                 .permission(Permission.READWRITE)
                                 .s3Prefix("s3://bucket2/foo/bar").build();
-        cache.putValueInCache(key1, S3_ACCESS_GRANTS_CREDENTIALS, 2);
+        cache.putValueInCache(key1, CompletableFuture.supplyAsync(() -> S3_ACCESS_GRANTS_CREDENTIALS), 2);
 
         AwsBasicCredentials credentials = AwsBasicCredentials.create(ACCESS_KEY_ID, SECRET_ACCESS_KEY);
         CacheKey key2 = CacheKey.builder()
@@ -159,8 +159,8 @@ public class S3AccessGrantsCacheTest {
                                 .permission(Permission.READ)
                                 .s3Prefix("s3://bucket2/foo/bar/logs").build();
         // When
-        AwsCredentialsIdentity cacheValue1 = cache.getCredentials(key1, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache);
-        AwsCredentialsIdentity cacheValue2 = cache.getCredentials(key2, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache);
+        AwsCredentialsIdentity cacheValue1 = cache.getCredentials(key1, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache).join();
+        AwsCredentialsIdentity cacheValue2 = cache.getCredentials(key2, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache).join();
         // Then
         assertThat(cacheValue2).isEqualTo(cacheValue1);
     }
@@ -172,7 +172,7 @@ public class S3AccessGrantsCacheTest {
                                 .credentials(AWS_SESSION_CREDENTIALS)
                                 .permission(Permission.READ)
                                 .s3Prefix("s3://bucket2/foo/bar").build();
-        cache.putValueInCache(key1, S3_ACCESS_GRANTS_CREDENTIALS,2);
+        cache.putValueInCache(key1, CompletableFuture.supplyAsync(() -> S3_ACCESS_GRANTS_CREDENTIALS),2);
 
         AwsSessionCredentials sessionCredentials = AwsSessionCredentials.builder()
                                                                         .accessKeyId(ACCESS_KEY_ID)
@@ -183,7 +183,8 @@ public class S3AccessGrantsCacheTest {
                                 .permission(Permission.READ)
                                 .s3Prefix("s3://bucket2/foo/bar").build();
 
-        assertThat(S3_ACCESS_GRANTS_CREDENTIALS).isEqualTo(cache.getCredentials(key2, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache));
+        assertThat(S3_ACCESS_GRANTS_CREDENTIALS).isEqualTo(cache.getCredentials(key2, TEST_S3_ACCESSGRANTS_ACCOUNT,
+                                                                                accessDeniedCache).join());
         // When
         Thread.sleep(3000);
         when(mockResolver.resolve(any(String.class), any(String.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
@@ -218,7 +219,7 @@ public class S3AccessGrantsCacheTest {
                                 .credentials(AWS_BASIC_CREDENTIALS)
                                 .permission(Permission.READ)
                                 .s3Prefix("s3://bucket2/foo/bar").build();
-        cache.putValueInCache(key1, S3_ACCESS_GRANTS_CREDENTIALS, 2);
+        cache.putValueInCache(key1, CompletableFuture.supplyAsync(() -> S3_ACCESS_GRANTS_CREDENTIALS), 2);
 
         CacheKey key2 = CacheKey.builder()
                                 .credentials(S3_ACCESS_GRANTS_CREDENTIALS)
