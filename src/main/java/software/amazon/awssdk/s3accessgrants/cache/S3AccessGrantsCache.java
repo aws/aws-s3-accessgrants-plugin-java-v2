@@ -147,10 +147,7 @@ public class S3AccessGrantsCache {
         if (credentials == null) {
             try {
                 credentials = getCredentialsFromService(cacheKey,accountId).thenApply(accessGrantsCredentials -> {
-                    // Instant expirationTime = accessGrantsCredentials.expiration();
-                    // Instant now = Instant.now();
                     long duration = getTTL(accessGrantsCredentials.expiration());
-                        // (long) ((expirationTime.getEpochSecond() - now.getEpochSecond()) * (cacheExpirationTimePercentage / 100.0f));
                     AwsSessionCredentials sessionCredentials = AwsSessionCredentials.builder().accessKeyId(accessGrantsCredentials.accessKeyId())
                                                                                     .secretAccessKey(accessGrantsCredentials.secretAccessKey())
                                                                                     .sessionToken(accessGrantsCredentials.sessionToken()).build();
