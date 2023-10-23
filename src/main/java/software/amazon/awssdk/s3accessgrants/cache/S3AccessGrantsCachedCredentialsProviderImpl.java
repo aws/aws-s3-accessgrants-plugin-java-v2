@@ -36,7 +36,6 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
 
     private final S3AccessGrantsCache accessGrantsCache;
     private final S3AccessGrantsAccessDeniedCache s3AccessGrantsAccessDeniedCache;
-    // MetricsCollector metricCollector = new MetricsCollector();
     DefaultMetricCollector collector = new DefaultMetricCollector("AccessGrantsMetrics");
 
     private S3AccessGrantsCachedCredentialsProviderImpl(S3ControlAsyncClient S3ControlAsyncClient, int maxCacheSize, int cacheExpirationTimePercentage) {
@@ -146,8 +145,7 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
 
         CompletableFuture<AwsCredentialsIdentity> accessGrantsCredentials;
         try {
-            accessGrantsCredentials = CompletableFuture.supplyAsync(() -> accessGrantsCache.getCredentials(cacheKey, accountId,
-                                                                                                           s3AccessGrantsAccessDeniedCache));
+            accessGrantsCredentials = accessGrantsCache.getCredentials(cacheKey, accountId, s3AccessGrantsAccessDeniedCache);
         }catch (S3ControlException e) {
             collector.reportMetric(MetricsCollector.ERROR_COUNT,1);
             throw e;
