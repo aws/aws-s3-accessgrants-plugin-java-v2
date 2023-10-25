@@ -20,9 +20,7 @@ import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsStati
 import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
 import software.amazon.awssdk.services.sts.StsAsyncClient;
-import software.amazon.awssdk.services.sts.model.GetCallerIdentityRequest;
 import software.amazon.awssdk.services.sts.model.GetCallerIdentityResponse;
-import software.amazon.awssdk.utils.Logger;
 import software.amazon.awssdk.utils.Validate;
 
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.OPERATION_PROPERTY;
@@ -50,7 +48,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     private final S3AccessGrantsCachedCredentialsProvider cache;
 
-    private final boolean turnOnFallback;
+    private final boolean enableFallback;
 
     private String CONTACT_TEAM_MESSAGE_TEMPLATE = "An internal exception has occurred. Valid %s was not passed to the %s. Please contact S3 access grants plugin team!";
 
@@ -61,7 +59,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
                                           @NotNull Boolean isCacheEnabled,
                                           @NotNull S3ControlAsyncClient s3ControlAsyncClient,
                                           @NotNull S3AccessGrantsCachedCredentialsProvider cache,
-                                          @NotNull boolean turnOnFallback) {
+                                          @NotNull boolean enableFallback) {
         S3AccessGrantsUtils.argumentNotNull(credentialsProvider, "Expecting an Identity Provider to be specified while configuring S3Clients!");
         S3AccessGrantsUtils.argumentNotNull(region, "Expecting a region to be configured on the S3Clients!");
         S3AccessGrantsUtils.argumentNotNull(stsAsyncClient, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "sts client", "identity provider"));
@@ -73,7 +71,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
         this.s3control = s3ControlAsyncClient;
         this.permissionMapper = new S3AccessGrantsStaticOperationToPermissionMapper();
         this.cache = cache;
-        this.turnOnFallback = turnOnFallback;
+        this.enableFallback = enableFallback;
     }
 
     /**
@@ -182,8 +180,6 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
                 throw throwableException;
             });
         } catch (Exception e) {
-            System.out.println("Exception within the provider "+ e.getMessage());
-            e.printStackTrace();
             SdkServiceException throwableException = unwrapAndBuildException(e);
             if (shouldFallbackToDefaultCredentialsForThisCase(throwableException.statusCode(), throwableException)) return CompletableFuture.supplyAsync(() -> credentials);
             throw throwableException;
@@ -224,9 +220,17 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
                 .build();
     }
 
+    /**
+     * Validates if the fallback should be enabled in case of any error during request processing
+     * By default, unsupported operations invoke fallback regardless of user opt-in choice.
+     * If user opts in to the fallback mechanism, we fall back for all the cases where access grants is not able to vend credentials.
+     * @param statusCode status code returned by the access grants server
+     * @param cause cause for why the request failed
+     * @return
+     */
     Boolean shouldFallbackToDefaultCredentialsForThisCase(int statusCode, Throwable cause) {
 
-       if(turnOnFallback) return true;
+       if(enableFallback) return true;
        if(statusCode == 404 && cause instanceof UnsupportedOperationException) {
            return true;
        }

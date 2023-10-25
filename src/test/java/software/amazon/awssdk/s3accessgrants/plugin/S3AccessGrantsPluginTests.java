@@ -21,12 +21,14 @@ public class S3AccessGrantsPluginTests {
     public void create_access_grants_plugin_from_existing_plugin() {
         S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
         Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder(accessGrantsPlugin));
+        Assertions.assertThat(accessGrantsPlugin.enableFallback()).isFalse();
     }
 
     @Test
     public void create_access_grants_plugin_with_fallback_specified() {
-        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().turnOnFallback(true).build();
+        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().enableFallback(true).build();
         Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder(accessGrantsPlugin));
+        Assertions.assertThat(accessGrantsPlugin.enableFallback()).isTrue();
     }
 
     @Test
