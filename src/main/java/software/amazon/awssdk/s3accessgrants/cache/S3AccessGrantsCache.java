@@ -139,7 +139,7 @@ public class S3AccessGrantsCache {
     protected CompletableFuture<AwsCredentialsIdentity> getCredentials (CacheKey cacheKey, String accountId,
                                                   S3AccessGrantsAccessDeniedCache s3AccessGrantsAccessDeniedCache) throws S3ControlException {
 
-        logger.info(()->"Fetching credentials from Access Grants for s3Prefix: " + cacheKey.s3Prefix);
+        logger.debug(()->"Fetching credentials from Access Grants for s3Prefix: " + cacheKey.s3Prefix);
         CompletableFuture<AwsCredentialsIdentity> credentials = searchKeyInCache(cacheKey);
         if (credentials == null &&
             (cacheKey.permission == Permission.READ ||
@@ -168,7 +168,7 @@ public class S3AccessGrantsCache {
                 throw s3ControlException;
             }
         }
-        logger.info(()->"Successfully retrieved the credentials.");
+        logger.debug(()->"Successfully retrieved the credentials.");
         return credentials;
     }
 
@@ -233,7 +233,8 @@ public class S3AccessGrantsCache {
      */
     @VisibleForTesting
     void putValueInCache(CacheKey cacheKey, CompletableFuture<AwsCredentialsIdentity> credentials, long duration) {
-        logger.debug(()->"Caching the credentials.");
+        logger.debug(()->"Caching the credentials for s3Prefix:" + cacheKey.s3Prefix
+                         + " and permission: " + cacheKey.permission);
         cache.put(cacheKey, credentials);
         cache.synchronous().policy().expireVariably().ifPresent(ev -> ev.setExpiresAfter(cacheKey, duration, TimeUnit.SECONDS));
     }

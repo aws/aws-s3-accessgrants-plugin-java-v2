@@ -142,7 +142,7 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
 
         S3ControlException s3ControlException = s3AccessGrantsAccessDeniedCache.getValueFromCache(cacheKey);
         if (s3ControlException != null) {
-            logger.debug(()->"Found a similar request in the cache which was denied.");
+            logger.debug(()->"Found a matching request in the cache which was denied.");
             logger.error(()->"Exception occurred while fetching the credentials: " + s3ControlException);
             throw s3ControlException;
         }
