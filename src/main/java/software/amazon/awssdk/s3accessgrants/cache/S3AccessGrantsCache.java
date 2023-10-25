@@ -34,6 +34,7 @@ import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
 import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.s3control.model.Privilege;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
+import software.amazon.awssdk.utils.Logger;
 
 /**
  * This class caches the credentials returned by Access Grants.
@@ -45,6 +46,7 @@ public class S3AccessGrantsCache {
     private int maxCacheSize;
     private final S3AccessGrantsCachedAccountIdResolver s3AccessGrantsCachedAccountIdResolver;
     private final int cacheExpirationTimePercentage;
+    private static final Logger logger = Logger.loggerFor(S3AccessGrantsCache.class);
 
     private S3AccessGrantsCache (@NotNull S3ControlAsyncClient s3ControlAsyncClient,
                                  S3AccessGrantsCachedAccountIdResolver resolver, int maxCacheSize, int cacheExpirationTimePercentage) {
@@ -137,6 +139,7 @@ public class S3AccessGrantsCache {
     protected CompletableFuture<AwsCredentialsIdentity> getCredentials (CacheKey cacheKey, String accountId,
                                                   S3AccessGrantsAccessDeniedCache s3AccessGrantsAccessDeniedCache) throws S3ControlException {
 
+        logger.debug(()->"Fetching credentials from Access Grants for s3Prefix: " + cacheKey.s3Prefix);
         CompletableFuture<AwsCredentialsIdentity> credentials = searchKeyInCache(cacheKey);
         if (credentials == null &&
             (cacheKey.permission == Permission.READ ||
@@ -146,22 +149,26 @@ public class S3AccessGrantsCache {
 
         if (credentials == null) {
             try {
+                logger.debug(()->"Credentials not available in the cache. Fetching credentials from Access Grants service.");
                 credentials = getCredentialsFromService(cacheKey,accountId).thenApply(accessGrantsCredentials -> {
                     long duration = getTTL(accessGrantsCredentials.expiration());
                     AwsSessionCredentials sessionCredentials = AwsSessionCredentials.builder().accessKeyId(accessGrantsCredentials.accessKeyId())
                                                                                     .secretAccessKey(accessGrantsCredentials.secretAccessKey())
                                                                                     .sessionToken(accessGrantsCredentials.sessionToken()).build();
-
                     putValueInCache(cacheKey, CompletableFuture.supplyAsync(()-> sessionCredentials), duration);
+                    logger.debug(()->"Successfully retrieved the credentials from Access Grants service");
                     return sessionCredentials;
                 });
             } catch (S3ControlException s3ControlException) {
+                logger.error(()->"Exception occurred while fetching the credentials: " + s3ControlException);
                 if (s3ControlException.statusCode() == 403) {
+                    logger.debug(()->"Caching the Access Denied request.");
                     s3AccessGrantsAccessDeniedCache.putValueInCache(cacheKey, s3ControlException);
                 }
                 throw s3ControlException;
             }
         }
+        logger.debug(()->"Successfully retrieved the credentials.");
         return credentials;
     }
 
@@ -185,6 +192,8 @@ public class S3AccessGrantsCache {
      */
     private CompletableFuture<Credentials> getCredentialsFromService(CacheKey cacheKey, String accountId) throws S3ControlException{
         String resolvedAccountId = s3AccessGrantsCachedAccountIdResolver.resolve(accountId, cacheKey.s3Prefix);
+        logger.debug(()->"Fetching credentials from Access Grants for accountId: " + resolvedAccountId + ", s3Prefix: " + cacheKey.s3Prefix +
+                         ", permission: " + cacheKey.permission + ", privilege: " + Privilege.DEFAULT);
         GetDataAccessRequest dataAccessRequest = GetDataAccessRequest.builder()
                                                                      .accountId(resolvedAccountId)
                                                                      .target(cacheKey.s3Prefix)
@@ -208,6 +217,7 @@ public class S3AccessGrantsCache {
         while (!prefix.equals("s3:/")){
             cacheValue = cache.getIfPresent(cacheKey.toBuilder().s3Prefix(prefix).build());
             if (cacheValue != null){
+                logger.debug(()->"Successfully retrieved credentials from the cache");
                 return cacheValue;
             }
             prefix = getNextPrefix(prefix);
@@ -223,7 +233,8 @@ public class S3AccessGrantsCache {
      */
     @VisibleForTesting
     void putValueInCache(CacheKey cacheKey, CompletableFuture<AwsCredentialsIdentity> credentials, long duration) {
-
+        logger.debug(()->"Caching the credentials for s3Prefix:" + cacheKey.s3Prefix
+                         + " and permission: " + cacheKey.permission);
         cache.put(cacheKey, credentials);
         cache.synchronous().policy().expireVariably().ifPresent(ev -> ev.setExpiresAfter(cacheKey, duration, TimeUnit.SECONDS));
     }

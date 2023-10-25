@@ -34,6 +34,7 @@ import software.amazon.awssdk.services.s3control.endpoints.internal.Arn;
 import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixRequest;
 import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixResponse;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
+import software.amazon.awssdk.utils.Logger;
 
 /**
  * A loading cache S3 Access Grants AccountId Resolver
@@ -43,6 +44,7 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
     private final S3ControlAsyncClient S3ControlAsyncClient;
     private int maxCacheSize;
     private int expireCacheAfterWriteSeconds;
+    private static final Logger logger = Logger.loggerFor(S3AccessGrantsCachedAccountIdResolver.class);
 
     private Cache<String, String> cache;
 
@@ -84,6 +86,7 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
         String bucketName = getBucketName(s3Prefix);
         String s3PrefixAccountId = cache.getIfPresent(bucketName);
         if (s3PrefixAccountId == null) {
+            logger.debug(()->"Account Id not available in the cache. Fetching account from server.");
             s3PrefixAccountId = resolveFromService(accountId, s3Prefix);
             cache.put(bucketName, s3PrefixAccountId);
         }
@@ -105,6 +108,7 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
         String accessGrantsInstanceArn = accessGrantsInstanceForPrefix.join().accessGrantsInstanceArn();
         Optional<Arn> optionalArn = Arn.parse(accessGrantsInstanceArn);
         if (!optionalArn.isPresent()) {
+            logger.error(()->"accessGrantsInstanceArn is empty");
             throw S3ControlException.builder().message("accessGrantsInstanceArn is empty").build();
         }
         return optionalArn.get().accountId();
