@@ -12,8 +12,7 @@ import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils;
 import software.amazon.awssdk.utils.Validate;
 
-import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.DEFAULT_CACHE_SETTING;
-import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.DEFAULT_PRIVILEGE_FOR_PLUGIN;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.*;
 
 /**
  * Access Grants Plugin that can be configured on S3 Clients
@@ -21,8 +20,9 @@ import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGran
  */
 public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Builder, S3AccessGrantsPlugin> {
 
+    private boolean turnOnFallback;
     S3AccessGrantsPlugin(BuilderImpl builder) {
-
+        this.turnOnFallback = builder.turnOnFallback;
     }
 
     public static Builder builder() {
@@ -66,7 +66,8 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
                 DEFAULT_PRIVILEGE_FOR_PLUGIN,
                 DEFAULT_CACHE_SETTING,
                 s3ControlAsyncClient,
-                cache
+                cache,
+                turnOnFallback
                 ));
 
     }
@@ -85,13 +86,13 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
     }
 
     public static final class BuilderImpl implements Builder{
-
+        private boolean turnOnFallback;
         BuilderImpl() {
-
+            this.turnOnFallback = DEFAULT_FALLBACK_TURNED_ON;
         }
 
         BuilderImpl(S3AccessGrantsPlugin plugin) {
-
+            this.turnOnFallback = plugin.turnOnFallback;
         }
 
         @Override
@@ -99,6 +100,11 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
             return new S3AccessGrantsPlugin(this);
         }
 
+        @Override
+        public Builder turnOnFallback(@NotNull Boolean choice) {
+           this.turnOnFallback = choice == null ? DEFAULT_FALLBACK_TURNED_ON: choice;
+           return this;
+        }
     }
 }
 

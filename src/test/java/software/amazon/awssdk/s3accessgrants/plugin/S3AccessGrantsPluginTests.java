@@ -2,7 +2,6 @@ package software.amazon.awssdk.s3accessgrants.plugin;
 
 import org.junit.Test;
 import org.assertj.core.api.Assertions;
-import software.amazon.awssdk.services.s3control.model.Privilege;
 import software.amazon.awssdk.core.SdkServiceClientConfiguration;
 import software.amazon.awssdk.services.s3.S3ServiceClientConfiguration;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
@@ -21,6 +20,12 @@ public class S3AccessGrantsPluginTests {
     @Test
     public void create_access_grants_plugin_from_existing_plugin() {
         S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
+        Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder(accessGrantsPlugin));
+    }
+
+    @Test
+    public void create_access_grants_plugin_with_fallback_specified() {
+        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().turnOnFallback(true).build();
         Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder(accessGrantsPlugin));
     }
 
@@ -102,5 +107,4 @@ public class S3AccessGrantsPluginTests {
                 .hasMessage("Expecting a region to be configured on the S3Clients!");
 
     }
-
 }
