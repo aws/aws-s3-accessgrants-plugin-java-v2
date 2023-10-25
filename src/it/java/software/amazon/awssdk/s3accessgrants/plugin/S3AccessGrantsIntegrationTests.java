@@ -56,7 +56,6 @@ import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceFo
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.refEq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -122,6 +121,7 @@ public class S3AccessGrantsIntegrationTests {
                 .credentialsProvider(credentialsProvider)
                 .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
                 .build();
+
     }
 
     @AfterClass
@@ -253,8 +253,6 @@ public class S3AccessGrantsIntegrationTests {
         verify(cache, times(2)).getDataAccess(any(), any(), any(), any());
         verify(s3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
 
-        // wait 3000 secs and ensure that cache credentials has expired.
-
     }
 
     @Test
@@ -328,12 +326,11 @@ public class S3AccessGrantsIntegrationTests {
         when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied").build());
         when(s3ControlAsyncClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class))).thenReturn(getAccessGrantsInstanceForPrefixResponse);
 
-        Assertions.assertThatThrownBy(() -> identityProvider.resolveIdentity(resolveIdentityRequest).join()).isInstanceOf(CompletionException.class);
-        AwsCredentialsIdentity defaultCredentials = credentialsProvider.resolveIdentity().join();
+        Assertions.assertThatThrownBy(() -> identityProvider.resolveIdentity(resolveIdentityRequest).join()).isInstanceOf(SdkServiceException.class);
 
         verify(cache, times(1)).getDataAccess(any(), any(), any(), any());
         verify(s3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
-        verify(identityProvider, times(1)).shouldFallbackToDefaultCredentialsForThisCase(eq(403), any(Throwable.class));
+        verify(identityProvider, times(2)).shouldFallbackToDefaultCredentialsForThisCase(eq(403), any(Throwable.class));
 
         // resend the request and validate no interaction with the service.
         // Request should fail as the fallback is disabled.
@@ -643,7 +640,7 @@ public class S3AccessGrantsIntegrationTests {
 
         ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
 
-        S3AccessGrantsPlugin accessGrantsPlugin = spy(S3AccessGrantsPlugin.builder().turnOnFallback(true).build());
+        S3AccessGrantsPlugin accessGrantsPlugin = spy(S3AccessGrantsPlugin.builder().enableFallback(true).build());
 
         S3Client s3Client =
                 S3Client.builder()
@@ -762,5 +759,4 @@ public class S3AccessGrantsIntegrationTests {
         Assertions.assertThat(S3AccessGrantsIntegrationTestsUtils.getStatusCodeFromGetResponse(responseInputStream)).isEqualTo(200);
 
     }
-
 }
