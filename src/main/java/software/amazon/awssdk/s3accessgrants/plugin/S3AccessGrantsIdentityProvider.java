@@ -25,6 +25,7 @@ import software.amazon.awssdk.utils.Validate;
 
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.OPERATION_PROPERTY;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PREFIX_PROPERTY;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.logger;
 
 /**
  * A {@link IdentityProvider} implementation for S3 access grants
@@ -114,6 +115,12 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
             String operation = resolveIdentityRequest.property(OPERATION_PROPERTY).toString();
             Permission permission = permissionMapper.getPermission(operation);
 
+            logger.debug(() -> " Call access grants with the following request params! ");
+            logger.debug(() -> " S3Prefix : " + S3Prefix);
+            logger.debug(() -> " caller accountID : " + accountId);
+            logger.debug(() -> " operation : " + operation);
+            logger.debug(() -> " permission : " + permission);
+
             return isCacheEnabled ? getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId) : getCredentialsFromAccessGrants(createDataAccessRequest(accountId, S3Prefix, permission, privilege));
         } catch(SdkServiceException e) {
 
@@ -158,7 +165,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
     CompletableFuture<? extends AwsCredentialsIdentity> getCredentialsFromAccessGrants(GetDataAccessRequest getDataAccessRequest) {
 
             S3AccessGrantsUtils.argumentNotNull(getDataAccessRequest, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "request", "for calling access grants"));
-
+            logger.debug(() -> " Calling S3 Access Grants to validate access permissions!");
             return s3control.getDataAccess(getDataAccessRequest).thenApply(getDataAccessResponse -> {
                 Credentials credentials = getDataAccessResponse.credentials();
                 return AwsSessionCredentials.builder().accessKeyId(credentials.accessKeyId())
@@ -188,6 +195,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
     }
 
     private void validateRequestParameters(ResolveIdentityRequest resolveIdentityRequest, String accountId, Privilege privilege, Boolean isCacheEnabled) {
+        logger.debug(() -> "Validating the request parameters before sending a request to S3 Access grants!");
         S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "request", "identity provider"));
         S3AccessGrantsUtils.argumentNotNull(accountId, "Expecting account id to be configured on the plugin!");
         S3AccessGrantsUtils.argumentNotNull(privilege, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "privilege", "identity provider"));
@@ -196,6 +204,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
         S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest.property(PREFIX_PROPERTY), String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "S3Prefix", "identity provider"));
         Validate.isTrue(pattern.matcher(resolveIdentityRequest.property(PREFIX_PROPERTY).toString()).find(), String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "S3Prefix", "identity provider"));
         S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest.property(OPERATION_PROPERTY), String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "operation", "identity provider"));
+        logger.debug(() -> "Validation Complete. The request parameters can be forwarded to S3 Access grants!");
     }
 
     /**
@@ -230,10 +239,15 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
      */
     Boolean shouldFallbackToDefaultCredentialsForThisCase(int statusCode, Throwable cause) {
 
-       if(enableFallback) return true;
-       if(statusCode == 404 && cause instanceof UnsupportedOperationException) {
+       if(enableFallback) {
+           logger.debug(() -> " Fall back enabled on the plugin! falling back to evaluate permission through policies!");
            return true;
        }
+       if(statusCode == 404 && cause instanceof UnsupportedOperationException) {
+           logger.debug(() -> " Operation not supported by S3 access grants! fall back to evaluate permission through policies!");
+           return true;
+       }
+       logger.error(() -> " Fall back not enabled! An attempt will not be made to evaluate permissions through policies!");
        return false;
 
     }
@@ -243,6 +257,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
      * @return a completableFuture containing response from STS.
      * */
     CompletableFuture<GetCallerIdentityResponse> getCallerAccountID() {
+        logger.debug(() -> "requesting STS to fetch caller accountID!");
         return stsAsyncClient.getCallerIdentity();
     }
 }
