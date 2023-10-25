@@ -8,8 +8,7 @@ import software.amazon.awssdk.http.auth.spi.scheme.AuthSchemeOption;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeParams;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
 
-import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.OPERATION_PROPERTY;
-import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PREFIX_PROPERTY;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.*;
 
 
 /**
@@ -51,6 +50,7 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
     }
 
     private String getKeyIfExists(S3AuthSchemeParams authSchemeParams) {
+        logger.debug(() -> "no object key was specified for the operation!");
         return authSchemeParams.key() == null || authSchemeParams.key().isEmpty() ? "" : authSchemeParams.key();
     }
 }

@@ -247,7 +247,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
            logger.debug(() -> " Operation not supported by S3 access grants! fall back to evaluate permission through policies!");
            return true;
        }
-       logger.debug(() -> " Fall back not enabled! An attempt will not be made to evaluate permissions through policies!");
+       logger.error(() -> " Fall back not enabled! An attempt will not be made to evaluate permissions through policies!");
        return false;
 
     }

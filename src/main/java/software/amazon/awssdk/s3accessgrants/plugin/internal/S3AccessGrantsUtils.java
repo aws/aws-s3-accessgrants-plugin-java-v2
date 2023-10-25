@@ -22,6 +22,7 @@ public class S3AccessGrantsUtils {
 
     public static void argumentNotNull(Object param, String message) {
         try{
+            logger.error(() -> message);
             Validate.notNull(param, message);
         } catch (NullPointerException e) {
             throw new IllegalArgumentException(message);
