@@ -17,6 +17,7 @@ package software.amazon.awssdk.s3accessgrants.cache;
 
 import java.util.concurrent.CompletableFuture;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
+import software.amazon.awssdk.metrics.MetricCollector;
 import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
 
@@ -31,6 +32,12 @@ public interface S3AccessGrantsCachedCredentialsProvider {
      */
     CompletableFuture<AwsCredentialsIdentity> getDataAccess (AwsCredentialsIdentity credentials, Permission permission, String s3Prefix,
                                                              String accountId) throws Exception;
+
+    /**
+     * *
+     * @return metrics collected during
+     */
+    MetricCollector getAccessGrantsMetrics();
 
 }
 

@@ -27,6 +27,7 @@ import software.amazon.awssdk.metrics.internal.DefaultMetricCollector;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
+import software.amazon.awssdk.utils.Logger;
 
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.CACHE_EXPIRATION_TIME_PERCENTAGE;
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.DEFAULT_ACCESS_GRANTS_MAX_CACHE_SIZE;
@@ -37,6 +38,7 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
     private final S3AccessGrantsCache accessGrantsCache;
     private final S3AccessGrantsAccessDeniedCache s3AccessGrantsAccessDeniedCache;
     DefaultMetricCollector collector = new DefaultMetricCollector("AccessGrantsMetrics");
+    private static final Logger logger = Logger.loggerFor(S3AccessGrantsCachedCredentialsProviderImpl.class);
 
     private S3AccessGrantsCachedCredentialsProviderImpl(S3ControlAsyncClient S3ControlAsyncClient, int maxCacheSize, int cacheExpirationTimePercentage) {
 
@@ -140,6 +142,8 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
 
         S3ControlException s3ControlException = s3AccessGrantsAccessDeniedCache.getValueFromCache(cacheKey);
         if (s3ControlException != null) {
+            logger.debug(()->"Found a similar request in the cache which was denied.");
+            logger.error(()->"Exception occurred while fetching the credentials: " + s3ControlException);
             throw s3ControlException;
         }
 
@@ -165,9 +169,9 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
         MetricsCollector.getMetricsForAccessGrantsCache(accessGrantsCache.getCacheStats(), collector);
         MetricsCollector.getMetricsForAccessDeniedCache(s3AccessGrantsAccessDeniedCache.getCacheStats(), collector);
         MetricsCollector.getMetricsForAccountIdResolverCache(accessGrantsCache.getS3AccessGrantsCachedAccountIdResolver().getCacheStats(), collector);
-
     }
 
+    @Override
     public MetricCollector getAccessGrantsMetrics() {
         collectMetrics();
         return collector;
