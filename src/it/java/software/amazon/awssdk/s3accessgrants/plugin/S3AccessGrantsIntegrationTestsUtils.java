@@ -24,6 +24,7 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
@@ -31,14 +32,6 @@ import software.amazon.awssdk.identity.spi.IdentityProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
-import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
-import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
-import software.amazon.awssdk.services.s3.model.DeleteBucketRequest;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3control.S3ControlClient;
 import software.amazon.awssdk.services.s3control.model.AccessGrantsLocationConfiguration;
 import software.amazon.awssdk.services.s3control.model.CreateAccessGrantsInstanceRequest;
@@ -107,34 +100,36 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
     public static final boolean DISABLE_TEAR_DOWN = false;
 
+    public static final boolean DEFAULT_FALLBACK_ENABLED = false;
+
     public static String ACCESS_GRANTS_INSTANCE_ARN;
 
     public static String ACCESS_GRANTS_INSTANCE_ID;
 
     public static S3Client s3clientBuilder(S3AuthSchemeProvider authSchemeProvider,
-                                                                              IdentityProvider<AwsCredentialsIdentity> identityProvider,
-                                                                              Region region
-                                           ) {
+                                           IdentityProvider<AwsCredentialsIdentity> identityProvider,
+                                           Region region
+    ) {
 
         return S3Client.builder()
-                       .region(region)
-                       .authSchemeProvider(authSchemeProvider)
-                       .credentialsProvider(identityProvider)
-                       .build();
+                .region(region)
+                .authSchemeProvider(authSchemeProvider)
+                .credentialsProvider(identityProvider)
+                .build();
 
     }
 
     public static S3ControlClient s3ControlClientBuilder(IdentityProvider<AwsCredentialsIdentity> identityProvider,
-                                                                                                   Region region) {
-       return S3ControlClient.builder()
-                              .region(region)
-                              .credentialsProvider(identityProvider)
-                              .build();
+                                                         Region region) {
+        return S3ControlClient.builder()
+                .region(region)
+                .credentialsProvider(identityProvider)
+                .build();
 
     }
 
     public static S3ControlAsyncClient s3ControlAsyncClientBuilder(IdentityProvider<AwsCredentialsIdentity> identityProvider,
-                                                              Region region) {
+                                                                   Region region) {
         return S3ControlAsyncClient.builder()
                 .region(region)
                 .credentialsProvider(identityProvider)
@@ -145,17 +140,17 @@ public class S3AccessGrantsIntegrationTestsUtils {
     public static IamClient iamClientBuilder(IdentityProvider<AwsCredentialsIdentity> identityProvider, Region region) {
 
         return IamClient.builder()
-                        .region(region)
-                        .credentialsProvider(identityProvider)
-                        .build();
+                .region(region)
+                .credentialsProvider(identityProvider)
+                .build();
 
     }
 
     public static CreateBucketResponse CreateBucket(S3Client s3Client, String bucketName) {
 
         CreateBucketRequest createBucketRequest = CreateBucketRequest.builder()
-                                                                     .bucket(bucketName)
-                                                                     .build();
+                .bucket(bucketName)
+                .build();
 
         return s3Client.createBucket(createBucketRequest);
 
@@ -164,10 +159,10 @@ public class S3AccessGrantsIntegrationTestsUtils {
     public static PutObjectResponse PutObject(S3Client s3Client, String bucketName, String key, String content) {
 
         try {
-           PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                                                                .bucket(bucketName)
-                                                                .key(key)
-                                                                .build();
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build();
 
             return s3Client.putObject(putObjectRequest, RequestBody.fromString(content));
         } catch (Exception e) {
@@ -181,9 +176,9 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
         try {
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                                                                .key(key)
-                                                                .bucket(bucketName)
-                                                                .build();
+                    .key(key)
+                    .bucket(bucketName)
+                    .build();
 
             return s3Client.getObject(getObjectRequest);
         } catch (Exception e) {
@@ -214,22 +209,22 @@ public class S3AccessGrantsIntegrationTestsUtils {
     public static String createAccessGrantsInstance(S3ControlClient s3ControlClient, String accountId) {
 
         GetAccessGrantsInstanceRequest getAccessGrantsInstanceRequest = GetAccessGrantsInstanceRequest.builder().accountId(
-            accountId).build();
+                accountId).build();
 
         try {
 
             GetAccessGrantsInstanceResponse getAccessGrantsInstanceResponse =
-                s3ControlClient.getAccessGrantsInstance(getAccessGrantsInstanceRequest);
+                    s3ControlClient.getAccessGrantsInstance(getAccessGrantsInstanceRequest);
 
             return getAccessGrantsInstanceResponse.accessGrantsInstanceArn();
 
         } catch (S3ControlException e) {
 
-           CreateAccessGrantsInstanceRequest createAccessGrantsInstanceRequest =
-                CreateAccessGrantsInstanceRequest.builder().accountId(accountId).build();
+            CreateAccessGrantsInstanceRequest createAccessGrantsInstanceRequest =
+                    CreateAccessGrantsInstanceRequest.builder().accountId(accountId).build();
 
-           CreateAccessGrantsInstanceResponse createAccessGrantsInstanceResponse =
-                s3ControlClient.createAccessGrantsInstance(createAccessGrantsInstanceRequest);
+            CreateAccessGrantsInstanceResponse createAccessGrantsInstanceResponse =
+                    s3ControlClient.createAccessGrantsInstance(createAccessGrantsInstanceRequest);
 
             return createAccessGrantsInstanceResponse.accessGrantsInstanceArn();
 
@@ -242,10 +237,10 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
         try {
             CreateAccessGrantsLocationRequest locationRequest = CreateAccessGrantsLocationRequest.builder()
-                                                                                                 .accountId(accountId)
-                                                                                                 .iamRoleArn(iamRoleArn)
-                                                                                                 .locationScope(s3Prefix)
-                                                                                                 .build();
+                    .accountId(accountId)
+                    .iamRoleArn(iamRoleArn)
+                    .locationScope(s3Prefix)
+                    .build();
 
             return s3ControlClient.createAccessGrantsLocation(locationRequest).accessGrantsLocationId();
 
@@ -254,12 +249,12 @@ public class S3AccessGrantsIntegrationTestsUtils {
             // returns the first location id where the prefix is already registered
 
             ListAccessGrantsLocationsRequest listAccessGrantsLocationsRequest = ListAccessGrantsLocationsRequest.builder()
-                                                                                                                .accountId(accountId)
-                                                                                                                .locationScope(s3Prefix)
-                                                                                                                .build();
+                    .accountId(accountId)
+                    .locationScope(s3Prefix)
+                    .build();
 
             ListAccessGrantsLocationsResponse listAccessGrantsLocationsResponse =
-                s3ControlClient.listAccessGrantsLocations(listAccessGrantsLocationsRequest);
+                    s3ControlClient.listAccessGrantsLocations(listAccessGrantsLocationsRequest);
 
             return listAccessGrantsLocationsResponse.accessGrantsLocationsList().get(0).accessGrantsLocationId();
 
@@ -273,20 +268,20 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
         try {
             Grantee grantee = Grantee.builder().granteeType(GranteeType.IAM)
-                                     .granteeIdentifier(iamRoleArn)
-                                     .build();
+                    .granteeIdentifier(iamRoleArn)
+                    .build();
 
             AccessGrantsLocationConfiguration accessGrantsLocationConfiguration = AccessGrantsLocationConfiguration.builder()
-                                                                                                                   .s3SubPrefix(s3prefix)
-                                                                                                                   .build();
+                    .s3SubPrefix(s3prefix)
+                    .build();
 
             CreateAccessGrantRequest accessGrantRequest = CreateAccessGrantRequest.builder()
-                                                                                  .accessGrantsLocationId(accessGrantsInstanceLocationId)
-                                                                                  .accountId(accountId)
-                                                                                  .grantee(grantee)
-                                                                                  .permission(permission)
-                                                                                  .accessGrantsLocationConfiguration(accessGrantsLocationConfiguration)
-                                                                                  .build();
+                    .accessGrantsLocationId(accessGrantsInstanceLocationId)
+                    .accountId(accountId)
+                    .grantee(grantee)
+                    .permission(permission)
+                    .accessGrantsLocationConfiguration(accessGrantsLocationConfiguration)
+                    .build();
 
             return s3ControlClient.createAccessGrant(accessGrantRequest).accessGrantId();
 
@@ -296,23 +291,23 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
                 // fetch the grant and return the id.
                 ListAccessGrantsRequest listAccessGrantsRequest =
-                    ListAccessGrantsRequest.builder()
-                                           .accountId(accountId)
-                                           .granteeIdentifier(iamRoleArn)
-                                           .granteeType(GranteeType.IAM)
-                                           .permission(permission)
-                                           .build();
+                        ListAccessGrantsRequest.builder()
+                                .accountId(accountId)
+                                .granteeIdentifier(iamRoleArn)
+                                .granteeType(GranteeType.IAM)
+                                .permission(permission)
+                                .build();
 
                 ListAccessGrantsResponse listAccessGrantsResponse = s3ControlClient.listAccessGrants(listAccessGrantsRequest);
 
                 java.util.List<software.amazon.awssdk.services.s3control.model.ListAccessGrantEntry> listAccessGrantEntries =
-                    listAccessGrantsResponse.accessGrantsList().parallelStream().filter(accessGrant -> validateIfAccessGrantMatches(s3ControlClient,
-                                                                                                                                    accessGrant,
-                                                                                                                                    accessGrantsInstanceLocationId,
-                                                                                                                                    permission,
-                                                                                                                                    s3prefix,
-                                                                                                                                    accountId)
-                    ).collect(Collectors.toList());
+                        listAccessGrantsResponse.accessGrantsList().parallelStream().filter(accessGrant -> validateIfAccessGrantMatches(s3ControlClient,
+                                accessGrant,
+                                accessGrantsInstanceLocationId,
+                                permission,
+                                s3prefix,
+                                accountId)
+                        ).collect(Collectors.toList());
                 return listAccessGrantEntries.get(0).accessGrantId();
 
             }
@@ -328,24 +323,24 @@ public class S3AccessGrantsIntegrationTestsUtils {
                                                         String s3prefix,
                                                         String accountId) {
         GetAccessGrantRequest getAccessGrantRequest =
-            GetAccessGrantRequest.builder().accountId(accountId)
-                                 .accessGrantId(accessGrant.accessGrantId())
-                                 .build();
+                GetAccessGrantRequest.builder().accountId(accountId)
+                        .accessGrantId(accessGrant.accessGrantId())
+                        .build();
 
         GetAccessGrantResponse getAccessGrantResponse = s3ControlClient.getAccessGrant(getAccessGrantRequest);
 
         return getAccessGrantResponse.accessGrantsLocationId().equals(accessGrantsInstanceLocationId)
-               && getAccessGrantResponse.permission().equals(permission)
-               && getAccessGrantResponse.accessGrantsLocationConfiguration() != null
-               && getAccessGrantResponse.accessGrantsLocationConfiguration().s3SubPrefix().equals(s3prefix);
+                && getAccessGrantResponse.permission().equals(permission)
+                && getAccessGrantResponse.accessGrantsLocationConfiguration() != null
+                && getAccessGrantResponse.accessGrantsLocationConfiguration().s3SubPrefix().equals(s3prefix);
     }
 
     public static String createS3AccessGrantsIAMPolicy(IamClient iamClient, String policyName, String policyStatement,
-                                                        String accountId) {
+                                                       String accountId) {
 
         try {
             CreatePolicyRequest createPolicyRequest =
-                CreatePolicyRequest.builder().policyDocument(policyStatement).policyName(policyName).build();
+                    CreatePolicyRequest.builder().policyDocument(policyStatement).policyName(policyName).build();
 
             return iamClient.createPolicy(createPolicyRequest).policy().arn();
         } catch (EntityAlreadyExistsException e) {
@@ -359,13 +354,13 @@ public class S3AccessGrantsIntegrationTestsUtils {
         try {
 
             CreateRoleRequest request =
-                CreateRoleRequest.builder().roleName(roleName).assumeRolePolicyDocument(trustPolicy).build();
+                    CreateRoleRequest.builder().roleName(roleName).assumeRolePolicyDocument(trustPolicy).build();
 
             return iamClient.createRole(request).role().arn();
 
         } catch (EntityAlreadyExistsException e) {
             System.out.println("IAM role is already existing " + "arn:aws:iam::" + accountId +
-                               ":role/" + roleName);
+                    ":role/" + roleName);
             return "arn:aws:iam::" + accountId + ":role/" + roleName;
 
         }
@@ -375,9 +370,9 @@ public class S3AccessGrantsIntegrationTestsUtils {
     public static void attachPolicyToRole(IamClient iamClient, String roleName, String policyArn) {
 
         AttachRolePolicyRequest rolePolicyRequest = AttachRolePolicyRequest.builder()
-                                                                           .roleName(roleName)
-                                                                           .policyArn(policyArn)
-                                                                           .build();
+                .roleName(roleName)
+                .policyArn(policyArn)
+                .build();
 
         iamClient.attachRolePolicy(rolePolicyRequest);
 
@@ -389,7 +384,7 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
             System.out.println("deleting access grants id "+ accessGrantId);
             DeleteAccessGrantRequest deleteAccessGrantRequest =
-                DeleteAccessGrantRequest.builder().accessGrantId(accessGrantId).accountId(accountId).build();
+                    DeleteAccessGrantRequest.builder().accessGrantId(accessGrantId).accountId(accountId).build();
             s3ControlClient.deleteAccessGrant(deleteAccessGrantRequest);
 
             System.out.println("successfully deleted the access grants during test teardown!");
@@ -401,8 +396,8 @@ public class S3AccessGrantsIntegrationTestsUtils {
     public static void deleteAccessGrantLocation(S3ControlClient s3ControlClient, String accessGrantsInstanceLocationId) {
         try {
             DeleteAccessGrantsLocationRequest deleteAccessGrantsLocationRequest =
-                DeleteAccessGrantsLocationRequest.builder().accessGrantsLocationId(accessGrantsInstanceLocationId).accountId(S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT)
-                                                 .build();
+                    DeleteAccessGrantsLocationRequest.builder().accessGrantsLocationId(accessGrantsInstanceLocationId).accountId(S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT)
+                            .build();
 
             s3ControlClient.deleteAccessGrantsLocation(deleteAccessGrantsLocationRequest);
             System.out.println("successfully deleted the access grants location during test teardown!");
@@ -415,7 +410,7 @@ public class S3AccessGrantsIntegrationTestsUtils {
                                                   String accountId) {
         try {
             DeleteAccessGrantsInstanceRequest deleteAccessGrantsInstanceRequest =
-                DeleteAccessGrantsInstanceRequest.builder().accountId(accountId).build();
+                    DeleteAccessGrantsInstanceRequest.builder().accountId(accountId).build();
             s3ControlClient.deleteAccessGrantsInstance(deleteAccessGrantsInstanceRequest);
 
             System.out.println("successfully deleted the access grants instance during test teardown!");
@@ -427,11 +422,11 @@ public class S3AccessGrantsIntegrationTestsUtils {
     public static void deleteObject(S3Client s3Client, String bucketName, String bucketKey) {
         try {
             DeleteObjectRequest deleteObjectRequest =
-                DeleteObjectRequest
-                    .builder()
-                    .bucket(bucketName)
-                    .key(bucketKey)
-                    .build();
+                    DeleteObjectRequest
+                            .builder()
+                            .bucket(bucketName)
+                            .key(bucketKey)
+                            .build();
 
             s3Client.deleteObject(deleteObjectRequest);
 
@@ -442,14 +437,16 @@ public class S3AccessGrantsIntegrationTestsUtils {
         }
     }
 
-    public static void deleteBucket(S3Client s3Client, String bucketName) {
+    public static DeleteBucketResponse deleteBucket(S3Client s3Client, String bucketName) {
         try {
             DeleteBucketRequest deleteBucketRequest =
-                DeleteBucketRequest.builder().bucket(bucketName).build();
-            s3Client.deleteBucket(deleteBucketRequest);
+                    DeleteBucketRequest.builder().bucket(bucketName).build();
+            DeleteBucketResponse deleteBucketResponse = s3Client.deleteBucket(deleteBucketRequest);
             System.out.println("successfully deleted the bucket during test teardown!");
+            return deleteBucketResponse;
         } catch (Exception e) {
             System.out.println("bucket cannot be deleted during test teardown! "+ e.getMessage());
+            throw e;
         }
     }
 
@@ -467,7 +464,7 @@ public class S3AccessGrantsIntegrationTestsUtils {
     private static void deleteRole(IamClient iamClient, String roleName) {
         try {
             DeleteRoleRequest deleteRoleRequest =
-                DeleteRoleRequest.builder().roleName(roleName).build();
+                    DeleteRoleRequest.builder().roleName(roleName).build();
             iamClient.deleteRole(deleteRoleRequest);
             System.out.println("successfully deleted the role during test teardown!");
         } catch (Exception e) {
@@ -478,9 +475,9 @@ public class S3AccessGrantsIntegrationTestsUtils {
     private static void detachPolicy(IamClient iamClient, String policyArn, String roleName) {
         try {
             DetachRolePolicyRequest detachRolePolicyRequest =
-                DetachRolePolicyRequest.builder().roleName(roleName)
-                                       .policyArn(policyArn)
-                                       .build();
+                    DetachRolePolicyRequest.builder().roleName(roleName)
+                            .policyArn(policyArn)
+                            .build();
 
             iamClient.detachRolePolicy(detachRolePolicyRequest);
             System.out.println("successfully deleted the role policy during test teardown!");
