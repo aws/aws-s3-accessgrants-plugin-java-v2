@@ -116,7 +116,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
             return isCacheEnabled ? getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId) : getCredentialsFromAccessGrants(createDataAccessRequest(accountId, S3Prefix, permission, privilege));
         } catch(SdkServiceException e) {
-            // catch in case the operation is not supported or access is denied
+
             if(shouldFallbackToDefaultCredentialsForThisCase(e.statusCode(), e.getCause())) {
                 return userCredentials;
             }
