@@ -9,11 +9,11 @@ import software.amazon.awssdk.services.s3.S3ServiceClientConfiguration;
 import software.amazon.awssdk.services.sts.StsAsyncClient;
 import software.amazon.awssdk.utils.builder.ToCopyableBuilder;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
-import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils;
 import software.amazon.awssdk.utils.Validate;
 
-import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.DEFAULT_CACHE_SETTING;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.DEFAULT_PRIVILEGE_FOR_PLUGIN;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.DEFAULT_CACHE_SETTING;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.DEFAULT_FALLBACK_SETTING;
 
 /**
  * Access Grants Plugin that can be configured on S3 Clients
@@ -21,8 +21,9 @@ import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGran
  */
 public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Builder, S3AccessGrantsPlugin> {
 
+    private boolean enableFallback;
     S3AccessGrantsPlugin(BuilderImpl builder) {
-
+        this.enableFallback = builder.enableFallback;
     }
 
     public static Builder builder() {
@@ -31,6 +32,10 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
     public static Builder builder(S3AccessGrantsPlugin plugin) {
         return new BuilderImpl(plugin);
+    }
+
+    boolean enableFallback() {
+       return this.enableFallback;
     }
 
     /**
@@ -66,7 +71,8 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
                 DEFAULT_PRIVILEGE_FOR_PLUGIN,
                 DEFAULT_CACHE_SETTING,
                 s3ControlAsyncClient,
-                cache
+                cache,
+                enableFallback
                 ));
 
     }
@@ -85,13 +91,13 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
     }
 
     public static final class BuilderImpl implements Builder{
-
+        private boolean enableFallback;
         BuilderImpl() {
-
+            this.enableFallback = DEFAULT_FALLBACK_SETTING;
         }
 
         BuilderImpl(S3AccessGrantsPlugin plugin) {
-
+            this.enableFallback = plugin.enableFallback;
         }
 
         @Override
@@ -99,6 +105,11 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
             return new S3AccessGrantsPlugin(this);
         }
 
+        @Override
+        public Builder enableFallback(@NotNull Boolean choice) {
+           this.enableFallback = choice == null ? DEFAULT_FALLBACK_SETTING: choice;
+           return this;
+        }
     }
 }
 
