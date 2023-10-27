@@ -31,6 +31,7 @@ import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.model.Credentials;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
+import software.amazon.awssdk.services.s3control.model.GetDataAccessResponse;
 import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.s3control.model.Privilege;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
@@ -46,7 +47,7 @@ public class S3AccessGrantsCache {
     private int maxCacheSize;
     private final S3AccessGrantsCachedAccountIdResolver s3AccessGrantsCachedAccountIdResolver;
     private final int cacheExpirationTimePercentage;
-    private static final Logger logger = Logger.loggerFor(S3AccessGrantsCache.class);
+    private static final Logger logger = S3AccessGrantsCachedCredentialsProviderImpl.logger;
 
     private S3AccessGrantsCache (@NotNull S3ControlAsyncClient s3ControlAsyncClient,
                                  S3AccessGrantsCachedAccountIdResolver resolver, int maxCacheSize, int cacheExpirationTimePercentage) {
@@ -57,8 +58,7 @@ public class S3AccessGrantsCache {
         this.s3AccessGrantsCachedAccountIdResolver = resolver;
         this.cacheExpirationTimePercentage = cacheExpirationTimePercentage;
         this.maxCacheSize = maxCacheSize;
-        this.cache = Caffeine.newBuilder()
-                                          .maximumSize(maxCacheSize)
+        this.cache = Caffeine.newBuilder().maximumSize(maxCacheSize)
                                           .expireAfter(new CustomCacheExpiry<>())
                                           .recordStats()
                                           .buildAsync();
@@ -140,22 +140,31 @@ public class S3AccessGrantsCache {
                                                   S3AccessGrantsAccessDeniedCache s3AccessGrantsAccessDeniedCache) throws S3ControlException {
 
         logger.debug(()->"Fetching credentials from Access Grants for s3Prefix: " + cacheKey.s3Prefix);
-        CompletableFuture<AwsCredentialsIdentity> credentials = searchKeyInCache(cacheKey);
+        CompletableFuture<AwsCredentialsIdentity> credentials = searchKeyInCacheAtPrefixLevel(cacheKey);
         if (credentials == null &&
             (cacheKey.permission == Permission.READ ||
              cacheKey.permission == Permission.WRITE)) {
-            credentials = searchKeyInCache(cacheKey.toBuilder().permission(Permission.READWRITE).build());
+            credentials = searchKeyInCacheAtPrefixLevel(cacheKey.toBuilder().permission(Permission.READWRITE).build());
+        }
+
+        if (credentials == null) {
+            credentials = searchKeyInCacheAtCharacterLevel(cacheKey);
         }
 
         if (credentials == null) {
             try {
                 logger.debug(()->"Credentials not available in the cache. Fetching credentials from Access Grants service.");
-                credentials = getCredentialsFromService(cacheKey,accountId).thenApply(accessGrantsCredentials -> {
+                credentials = getCredentialsFromService(cacheKey,accountId).thenApply(getDataAccessResponse -> {
+                    Credentials accessGrantsCredentials = getDataAccessResponse.credentials();
                     long duration = getTTL(accessGrantsCredentials.expiration());
                     AwsSessionCredentials sessionCredentials = AwsSessionCredentials.builder().accessKeyId(accessGrantsCredentials.accessKeyId())
                                                                                     .secretAccessKey(accessGrantsCredentials.secretAccessKey())
                                                                                     .sessionToken(accessGrantsCredentials.sessionToken()).build();
-                    putValueInCache(cacheKey, CompletableFuture.supplyAsync(()-> sessionCredentials), duration);
+                    String accessGrantsTarget = getDataAccessResponse.matchedGrantTarget();
+                    if (accessGrantsTarget.endsWith("*")) {
+                        putValueInCache(cacheKey.toBuilder().s3Prefix(processMatchedGrantTarget(accessGrantsTarget)).build(),
+                                        CompletableFuture.supplyAsync(()-> sessionCredentials), duration);
+                    }
                     logger.debug(()->"Successfully retrieved the credentials from Access Grants service");
                     return sessionCredentials;
                 });
@@ -190,7 +199,7 @@ public class S3AccessGrantsCache {
      * @return Access Grants Credentials.
      * @throws S3ControlException throws Exception received from service.
      */
-    private CompletableFuture<Credentials> getCredentialsFromService(CacheKey cacheKey, String accountId) throws S3ControlException{
+    private CompletableFuture<GetDataAccessResponse> getCredentialsFromService(CacheKey cacheKey, String accountId) throws S3ControlException{
         String resolvedAccountId = s3AccessGrantsCachedAccountIdResolver.resolve(accountId, cacheKey.s3Prefix);
         logger.debug(()->"Fetching credentials from Access Grants for accountId: " + resolvedAccountId + ", s3Prefix: " + cacheKey.s3Prefix +
                          ", permission: " + cacheKey.permission + ", privilege: " + Privilege.DEFAULT);
@@ -201,7 +210,7 @@ public class S3AccessGrantsCache {
                                                                      .privilege(Privilege.DEFAULT)
                                                                      .build();
 
-        return s3ControlAsyncClient.getDataAccess(dataAccessRequest).thenApply(dataAccessResponse -> dataAccessResponse.credentials());
+        return s3ControlAsyncClient.getDataAccess(dataAccessRequest);
     }
 
     /**
@@ -210,17 +219,37 @@ public class S3AccessGrantsCache {
      * @param cacheKey CacheKey consists of AwsCredentialsIdentity, Permission, and S3Prefix.
      * @return cached Access Grants credentials.
      */
-    private CompletableFuture<AwsCredentialsIdentity> searchKeyInCache (CacheKey cacheKey) {
+    private CompletableFuture<AwsCredentialsIdentity> searchKeyInCacheAtPrefixLevel (CacheKey cacheKey) {
 
         CompletableFuture<AwsCredentialsIdentity> cacheValue;
         String prefix = cacheKey.s3Prefix;
-        while (!prefix.equals("s3:/")){
+        while (!prefix.equals("s3:")){
             cacheValue = cache.getIfPresent(cacheKey.toBuilder().s3Prefix(prefix).build());
             if (cacheValue != null){
                 logger.debug(()->"Successfully retrieved credentials from the cache");
                 return cacheValue;
             }
             prefix = getNextPrefix(prefix);
+        }
+        return null;
+    }
+
+    /**
+     * This method looks for grants present in the cache of type "s3://bucketname/foo*"
+     * @param cacheKey CacheKey consists of AwsCredentialsIdentity, Permission, and S3Prefix.
+     * @return cached Access Grants credentials.
+     */
+     private CompletableFuture<AwsCredentialsIdentity> searchKeyInCacheAtCharacterLevel (CacheKey cacheKey) {
+
+        CompletableFuture<AwsCredentialsIdentity> cacheValue;
+        String prefix = cacheKey.s3Prefix;
+        while (!prefix.equals("s3://")){
+            cacheValue = cache.getIfPresent(cacheKey.toBuilder().s3Prefix(prefix + "*").build());
+            if (cacheValue != null){
+                logger.debug(()->"Successfully retrieved credentials from the cache");
+                return cacheValue;
+            }
+            prefix = getPrefix(prefix);
         }
         return null;
     }
@@ -243,8 +272,27 @@ public class S3AccessGrantsCache {
      * This method splits S3Prefix on last "/" and returns the first part.
      */
     private String getNextPrefix(String prefix){
-
         return prefix.substring(0, prefix.lastIndexOf("/"));
+    }
+
+    /**
+     * This methods returns a substring of the string with last character removed.
+     */
+    private String getPrefix(String prefix){
+        return prefix.substring(0, prefix.length()-1);
+    }
+
+    /**
+     * This method removes '/*' from matchedGrantTarget if present
+     * @param matchedGrantTarget from Access Grants response
+     * @return a clean version of matchedGrantTarget
+     */
+    @VisibleForTesting
+    String processMatchedGrantTarget(String matchedGrantTarget){
+        if (matchedGrantTarget.substring(matchedGrantTarget.length() - 2).equals("/*")) {
+            return matchedGrantTarget.substring(0, matchedGrantTarget.length() - 2);
+        }
+        return matchedGrantTarget;
     }
 
     /***

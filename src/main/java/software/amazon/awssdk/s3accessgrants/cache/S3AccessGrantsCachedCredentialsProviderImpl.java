@@ -38,7 +38,8 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
     private final S3AccessGrantsCache accessGrantsCache;
     private final S3AccessGrantsAccessDeniedCache s3AccessGrantsAccessDeniedCache;
     DefaultMetricCollector collector = new DefaultMetricCollector("AccessGrantsMetrics");
-    private static final Logger logger = Logger.loggerFor(S3AccessGrantsCachedCredentialsProviderImpl.class);
+    public static final Logger logger =
+        Logger.loggerFor(software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProviderImpl.class);
 
     private S3AccessGrantsCachedCredentialsProviderImpl(S3ControlAsyncClient S3ControlAsyncClient, int maxCacheSize, int cacheExpirationTimePercentage) {
 
