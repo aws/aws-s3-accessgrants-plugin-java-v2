@@ -10,7 +10,7 @@ import software.amazon.awssdk.utils.Validate;
  * */
 public class S3AccessGrantsUtils {
 
-    public static Logger logger = Logger.loggerFor("S3Access Grants Plugin");
+    public static Logger logger = Logger.loggerFor("software.amazon.awssdk.s3accessgrants");
     public static final IdentityProperty PREFIX_PROPERTY = IdentityProperty.create(String.class, "S3Prefix");
     public static final IdentityProperty OPERATION_PROPERTY = IdentityProperty.create(String.class,"Operation");
 
