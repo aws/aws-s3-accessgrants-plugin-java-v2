@@ -44,7 +44,7 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
     private final S3ControlAsyncClient S3ControlAsyncClient;
     private int maxCacheSize;
     private int expireCacheAfterWriteSeconds;
-    private static final Logger logger = S3AccessGrantsCachedCredentialsProviderImpl.logger;
+    private static final Logger logger = Logger.loggerFor(S3AccessGrantsCachedAccountIdResolver.class);
 
     private Cache<String, String> cache;
 

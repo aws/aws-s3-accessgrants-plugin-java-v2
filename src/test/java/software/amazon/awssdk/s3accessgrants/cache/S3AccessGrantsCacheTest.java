@@ -294,7 +294,6 @@ public class S3AccessGrantsCacheTest {
     public void accessGrantsCache_testGrantPresentForLocation() {
         // Given
         CompletableFuture<GetDataAccessResponse> getDataAccessResponse = getDataAccessResponseSetUp("s3://bucket/foo");
-
         CacheKey key1 = CacheKey.builder()
                                 .credentials(AWS_BASIC_CREDENTIALS)
                                 .permission(Permission.READ)
@@ -314,23 +313,26 @@ public class S3AccessGrantsCacheTest {
     }
     @Test
     public void accessGrantsCache_testGrantWithPrefix() {
+        // Given
         CacheKey key1 = CacheKey.builder()
                                 .credentials(AWS_BASIC_CREDENTIALS)
-                                .permission(Permission.READ)
+                                .permission(Permission.READWRITE)
                                 .s3Prefix("s3://bucket2/foo*").build();
-
         CacheKey key2 = CacheKey.builder()
                                 .credentials(AWS_BASIC_CREDENTIALS)
                                 .permission(Permission.READ)
                                 .s3Prefix("s3://bucket2/foo/text.txt").build();
         cache.putValueInCache(key1, CompletableFuture.supplyAsync(() -> S3_ACCESS_GRANTS_CREDENTIALS), 2);
+        // When
         AwsCredentialsIdentity cacheValue1 = cache.getCredentials(key2, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache).join();
+        // Then
         assertThat(cacheValue1).isEqualTo(S3_ACCESS_GRANTS_CREDENTIALS);
         verify(s3ControlAsyncClient, times(0)).getDataAccess(any(GetDataAccessRequest.class));
     }
 
     @Test
-    public void accessGrantsCache_testPutValueInCache() {
+    public void accessGrantsCache_testPutValueInCacheForObjectLevelGrant() {
+        // When
         Instant ttl  = Instant.now().plus(Duration.ofMinutes(1));
         Credentials creds = Credentials.builder()
                                        .accessKeyId(ACCESS_KEY_ID)
@@ -341,16 +343,16 @@ public class S3AccessGrantsCacheTest {
             CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder()
                                                                      .credentials(creds)
                                                                      .matchedGrantTarget("s3://bucket/foo").build());
-
         CacheKey key = CacheKey.builder()
                                 .credentials(AWS_BASIC_CREDENTIALS)
                                 .permission(Permission.READ)
                                 .s3Prefix("s3://bucket/foo/bar/text.txt").build();
-
+        // When
         when(mockResolver.resolve(any(String.class), any(String.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
         when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
         cacheWithMockedAccountIdResolver.getCredentials(key, TEST_S3_ACCESSGRANTS_ACCOUNT,accessDeniedCache);
         cacheWithMockedAccountIdResolver.getCredentials(key, TEST_S3_ACCESSGRANTS_ACCOUNT,accessDeniedCache);
+        // Then
         verify(s3ControlAsyncClient, times(2)).getDataAccess(any(GetDataAccessRequest.class));
 
     }

@@ -34,10 +34,14 @@ public interface S3AccessGrantsCachedCredentialsProvider {
                                                              String accountId) throws Exception;
 
     /**
-     * *
-     * @return metrics collected during
+     * @return metrics collected by access grants cache jar
      */
     MetricCollector getAccessGrantsMetrics();
+
+    /**
+     * @return cache related metrics
+     */
+    MetricCollector getAccessGrantsCacheMetrics();
 
 }
 
