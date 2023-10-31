@@ -37,8 +37,8 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
 
     private final S3AccessGrantsCache accessGrantsCache;
     private final S3AccessGrantsAccessDeniedCache s3AccessGrantsAccessDeniedCache;
-    DefaultMetricCollector collector = new DefaultMetricCollector("AccessGrantsMetrics");
-    private static final Logger logger = Logger.loggerFor(S3AccessGrantsCachedCredentialsProviderImpl.class);
+    DefaultMetricCollector collector = new DefaultMetricCollector("AccessGrantsMetricsCollector");
+    public static final Logger logger = Logger.loggerFor(S3AccessGrantsCachedCredentialsProviderImpl.class);
 
     private S3AccessGrantsCachedCredentialsProviderImpl(S3ControlAsyncClient S3ControlAsyncClient, int maxCacheSize, int cacheExpirationTimePercentage) {
 
@@ -175,7 +175,11 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
     public MetricCollector getAccessGrantsMetrics() {
         collectMetrics();
         return collector;
+    }
 
+    @Override
+    public MetricCollector getAccessGrantsCacheMetrics() {
+        return accessGrantsCache.getMetricsCollector();
     }
 
 }

@@ -65,6 +65,12 @@ public class MetricsCollector {
     public static final SdkMetric<Duration> LATENCY =
         SdkMetric.create("Latency", Duration.class, MetricLevel.INFO, MetricCategory.CUSTOM);
 
+    public static final SdkMetric<Duration> searchKeyInCacheAtCharacterLevel_CacheHit_Latency =
+        SdkMetric.create("searchKeyInCacheAtCharacterLevel_CacheHit_Latency", Duration.class, MetricLevel.INFO, MetricCategory.CUSTOM);
+
+    public static final SdkMetric<Duration> searchKeyInCacheAtCharacterLevel_CacheMiss_Latency =
+        SdkMetric.create("searchKeyInCacheAtCharacterLevel_CacheMiss_Latency", Duration.class, MetricLevel.INFO, MetricCategory.CUSTOM);
+
     public static void getMetricsForAccessGrantsCache (CacheStats stats, DefaultMetricCollector collector) {
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_HIT_RATE, stats.hitRate());
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_HIT_COUNT, stats.hitCount());
