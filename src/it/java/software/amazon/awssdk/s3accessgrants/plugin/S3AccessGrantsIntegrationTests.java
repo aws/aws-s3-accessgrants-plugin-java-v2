@@ -39,11 +39,7 @@ import software.amazon.awssdk.http.auth.spi.scheme.AuthSchemeOption;
 import software.amazon.awssdk.identity.spi.ResolveIdentityRequest;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeParams;
-import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
-import software.amazon.awssdk.services.s3.model.DeleteBucketResponse;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectResponse;
-import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
@@ -640,7 +636,7 @@ public class S3AccessGrantsIntegrationTests {
 
         ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
 
-        S3AccessGrantsPlugin accessGrantsPlugin = spy(S3AccessGrantsPlugin.builder().enableFallback(true).build());
+        S3AccessGrantsPlugin accessGrantsPlugin = spy(S3AccessGrantsPlugin.builder().enableFallback(false).build());
 
         S3Client s3Client =
                 S3Client.builder()
@@ -757,6 +753,28 @@ public class S3AccessGrantsIntegrationTests {
         Assertions.assertThat(S3AccessGrantsIntegrationTestsUtils.getFileContentFromGetResponse(responseInputStream)).isEqualTo("access grants test content in file1!");
 
         Assertions.assertThat(S3AccessGrantsIntegrationTestsUtils.getStatusCodeFromGetResponse(responseInputStream)).isEqualTo(200);
+
+    }
+
+    @Test
+    public void call_s3_bucket_level_action_supported_by_access_grants() {
+
+        ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
+
+        S3AccessGrantsPlugin accessGrantsPlugin =
+                spy(S3AccessGrantsPlugin.builder().build());
+
+        S3Client s3Client =
+                S3Client.builder()
+                        .credentialsProvider(credentialsProvider)
+                        .addPlugin(accessGrantsPlugin)
+                        .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
+                        .build();
+
+        ListObjectsV2Request listObjectsV2Request = ListObjectsV2Request.builder().bucket( S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE).build();
+        Assertions.assertThat(s3Client.listObjectsV2(listObjectsV2Request).keyCount()).isEqualTo(1);
+        //verify if the request actually made through the S3 access grants plugin
+        verify(accessGrantsPlugin, times(1)).configureClient(any());
 
     }
 }
