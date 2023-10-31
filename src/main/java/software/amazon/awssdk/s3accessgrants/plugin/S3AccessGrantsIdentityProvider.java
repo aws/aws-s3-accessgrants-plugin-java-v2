@@ -113,12 +113,14 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
             String S3Prefix = resolveIdentityRequest.property(PREFIX_PROPERTY).toString();
             String operation = resolveIdentityRequest.property(OPERATION_PROPERTY).toString();
-            Permission permission = permissionMapper.getPermission(operation);
 
             logger.debug(() -> " Call access grants with the following request params! ");
             logger.debug(() -> " S3Prefix : " + S3Prefix);
             logger.debug(() -> " caller accountID : " + accountId);
             logger.debug(() -> " operation : " + operation);
+
+            Permission permission = permissionMapper.getPermission(operation);
+
             logger.debug(() -> " permission : " + permission);
 
             return isCacheEnabled ? getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId) : getCredentialsFromAccessGrants(createDataAccessRequest(accountId, S3Prefix, permission, privilege));

@@ -11,6 +11,7 @@ public class S3AccessGrantsStaticOperationToPermissionMapper implements S3Access
     private static final HashMap<String, Permission> supportedAccessGrantsOperations =  new HashMap<>();
 
     static {
+        supportedAccessGrantsOperations.put("HEADOBJECT", Permission.READ);
         supportedAccessGrantsOperations.put("GETOBJECT", Permission.READ);
         supportedAccessGrantsOperations.put("GETOBJECTACL", Permission.READ);
         supportedAccessGrantsOperations.put("LISTMULTIPARTUPLOADS", Permission.READ);
@@ -21,6 +22,12 @@ public class S3AccessGrantsStaticOperationToPermissionMapper implements S3Access
         supportedAccessGrantsOperations.put("PUTOBJECTACL", Permission.WRITE);
         supportedAccessGrantsOperations.put("DELETEOBJECT", Permission.WRITE);
         supportedAccessGrantsOperations.put("ABORTMULTIPARTUPLOAD", Permission.WRITE);
+        supportedAccessGrantsOperations.put("CREATEMULTIPARTUPLOAD", Permission.WRITE);
+        supportedAccessGrantsOperations.put("UPLOADPART", Permission.WRITE);
+        supportedAccessGrantsOperations.put("COMPLETEMULTIPARTUPLOAD", Permission.WRITE);
+
+        supportedAccessGrantsOperations.put("UPLOADPARTCOPY", Permission.READWRITE);
+        supportedAccessGrantsOperations.put("COPYOBJECT", Permission.READWRITE);
 
         supportedAccessGrantsOperations.put("DECRYPT", Permission.READ);
         supportedAccessGrantsOperations.put("GENERATEDATAKEY", Permission.WRITE);
