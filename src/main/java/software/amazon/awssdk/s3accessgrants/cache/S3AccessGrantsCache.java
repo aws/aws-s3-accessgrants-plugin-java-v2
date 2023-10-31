@@ -183,7 +183,6 @@ public class S3AccessGrantsCache {
                 throw s3ControlException;
             }
         }
-        logger.debug(()->"Successfully retrieved the credentials.");
         return credentials;
     }
 
@@ -232,7 +231,7 @@ public class S3AccessGrantsCache {
         while (!prefix.equals("s3:")){
             cacheValue = cache.getIfPresent(cacheKey.toBuilder().s3Prefix(prefix).build());
             if (cacheValue != null){
-                logger.debug(()->"Successfully retrieved credentials from the cache");
+                logger.debug(()->"Successfully retrieved credentials from the cache.");
                 return cacheValue;
             }
             prefix = getNextPrefix(prefix);
@@ -252,7 +251,7 @@ public class S3AccessGrantsCache {
         while (!prefix.equals("s3://")){
             cacheValue = cache.getIfPresent(cacheKey.toBuilder().s3Prefix(prefix + "*").build());
             if (cacheValue != null){
-                logger.debug(()->"Successfully retrieved credentials from the cache");
+                logger.debug(()->"Successfully retrieved credentials from the cache.");
                 collector.reportMetric(MetricsCollector.searchKeyInCacheAtCharacterLevel_CacheHit_Latency, Duration.between(start,
                                                                                                                     Instant.now()));
                 return cacheValue;
