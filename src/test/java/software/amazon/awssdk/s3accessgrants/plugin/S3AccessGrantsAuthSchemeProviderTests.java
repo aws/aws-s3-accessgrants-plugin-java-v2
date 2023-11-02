@@ -91,7 +91,7 @@ public class S3AccessGrantsAuthSchemeProviderTests {
 
         List<AuthSchemeOption> accessGrantsAuthSchemeResult = accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams);
 
-        Assertions.assertThat(accessGrantsAuthSchemeResult.get(0).identityProperty(PREFIX_PROPERTY)).isEqualTo("s3://test-bucket/");
+        Assertions.assertThat(accessGrantsAuthSchemeResult.get(0).identityProperty(PREFIX_PROPERTY)).isEqualTo("s3://test-bucket/*");
         Assertions.assertThat(accessGrantsAuthSchemeResult.get(0).identityProperty(OPERATION_PROPERTY)).isEqualTo(OPERATION);
     }
 

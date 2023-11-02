@@ -74,6 +74,8 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
     public static final String TEST_BUCKET_NAME_NOT_REGISTERED = "access-grants-sdk-test-bucket-not-registered";
 
+    public static final String TEST_BUCKET_READWRITE = "access-grants-sdk-test-bucket-readwrite";
+
     public static final String TEST_LOCATION_1 = "PrefixA/prefixB/";
 
     public static final String TEST_LOCATION_2 = "PrefixA/";
