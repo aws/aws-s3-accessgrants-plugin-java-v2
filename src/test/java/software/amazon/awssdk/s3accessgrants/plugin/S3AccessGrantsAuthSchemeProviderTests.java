@@ -134,4 +134,18 @@ public class S3AccessGrantsAuthSchemeProviderTests {
         Assertions.assertThat(accessGrantsAuthSchemeResult.get(0).identityProperty(OPERATION_PROPERTY)).isEqualTo(OPERATION);
     }
 
+    @Test
+    public void call_authSchemeProvider_with_valid_params_captures_all_params_with_prefix_as_object_key_on_auth_scheme() {
+        S3AuthSchemeProvider authSchemeProvider = mock(S3AuthSchemeProvider.class);
+        S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider);
+        S3AuthSchemeParams authSchemeParams = S3AuthSchemeParams.builder().bucket(BUCKET_NAME).prefix(KEY).operation(OPERATION).build();
+
+        when(authSchemeProvider.resolveAuthScheme(authSchemeParams)).thenReturn(authSchemeResolverResult);
+
+        List<AuthSchemeOption> accessGrantsAuthSchemeResult = accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams);
+
+        Assertions.assertThat(accessGrantsAuthSchemeResult.get(0).identityProperty(PREFIX_PROPERTY)).isEqualTo("s3://test-bucket/test-key");
+        Assertions.assertThat(accessGrantsAuthSchemeResult.get(0).identityProperty(OPERATION_PROPERTY)).isEqualTo(OPERATION);
+    }
+
 }

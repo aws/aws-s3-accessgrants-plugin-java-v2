@@ -52,7 +52,16 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
     }
 
     private String getKeyIfExists(S3AuthSchemeParams authSchemeParams) {
-        if(authSchemeParams.key() == null || authSchemeParams.key().isEmpty()) logger.debug(() -> "no object key was specified for the operation!");
-        return authSchemeParams.key() == null || authSchemeParams.key().isEmpty() ? "*" : authSchemeParams.key();
+
+        Boolean keyDoesNotExists = (authSchemeParams.key() == null || authSchemeParams.key().isEmpty())
+                && (authSchemeParams.prefix() == null || authSchemeParams.prefix().isEmpty());
+
+        String validKey = !(authSchemeParams.key() == null || authSchemeParams.key().isEmpty()) ? authSchemeParams.key() :
+                          !(authSchemeParams.prefix() == null || authSchemeParams.prefix().isEmpty()) ? authSchemeParams.prefix() : null;
+
+        if(keyDoesNotExists) logger.debug(() -> "no object key was specified for the operation!");
+
+        return keyDoesNotExists ? "*" : validKey;
+
     }
 }
