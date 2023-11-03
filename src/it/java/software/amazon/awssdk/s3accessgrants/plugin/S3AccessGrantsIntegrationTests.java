@@ -230,7 +230,9 @@ public class S3AccessGrantsIntegrationTests {
                 .secretAccessKey(TEST_SECRET_KEY)
                 .sessionToken(TEST_SESSION_TOKEN)
                 .expiration(Instant.now().plusMillis(3000))
-                .build()).build());
+                .build())
+                .matchedGrantTarget("s3://test-bucket/*")
+                .build());
         CompletableFuture<GetAccessGrantsInstanceForPrefixResponse>  getAccessGrantsInstanceForPrefixResponse = CompletableFuture.supplyAsync(() -> GetAccessGrantsInstanceForPrefixResponse.builder()
                 .accessGrantsInstanceArn(S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_INSTANCE_ARN)
                 .accessGrantsInstanceId(S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_INSTANCE_ID).build());
@@ -776,7 +778,7 @@ public class S3AccessGrantsIntegrationTests {
                         .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
                         .build();
 
-        ListObjectsV2Request listObjectsV2Request = ListObjectsV2Request.builder().bucket( S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE).build();
+        ListObjectsV2Request listObjectsV2Request = ListObjectsV2Request.builder().bucket( S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE).prefix("PrefixA/").build();
         Assertions.assertThat(s3Client.listObjectsV2(listObjectsV2Request).keyCount()).isEqualTo(1);
         //verify if the request actually made through the S3 access grants plugin
         verify(accessGrantsPlugin, times(1)).configureClient(any());

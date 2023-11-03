@@ -113,7 +113,7 @@ public class S3AccessGrantsInstanceSetUpUtils {
                                                                                            S3AccessGrantsIntegrationTestsUtils.ALLOWED_BUCKET_PREFIX2, Permission.WRITE, iamRoleArn, S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT, accessGrantsInstanceLocationId));
 
         registeredAccessGrants.add(S3AccessGrantsIntegrationTestsUtils.registerAccessGrant(s3ControlClient,
-                "*", Permission.READWRITE, iamRoleArn, S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT, accessGrantsInstanceLocationIdReadWriteBucket));
+                "PrefixA/*", Permission.READWRITE, iamRoleArn, S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT, accessGrantsInstanceLocationIdReadWriteBucket));
 
         S3AccessGrantsIntegrationTestsUtils.PutObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
                                                       S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT1,
