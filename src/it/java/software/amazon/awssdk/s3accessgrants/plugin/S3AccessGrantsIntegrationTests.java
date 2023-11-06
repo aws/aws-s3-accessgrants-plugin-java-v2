@@ -134,7 +134,7 @@ public class S3AccessGrantsIntegrationTests {
     @AfterClass
     public static void tearDown() {
         if (!S3AccessGrantsIntegrationTestsUtils.DISABLE_TEAR_DOWN) {
-//            S3AccessGrantsInstanceSetUpUtils.tearDown();
+            S3AccessGrantsInstanceSetUpUtils.tearDown();
         }
     }
 
@@ -803,15 +803,22 @@ public class S3AccessGrantsIntegrationTests {
     }
 
     @Test
-    public void create_s3_client_without_metrics_publisher() {
+    public void create_s3_client_with_metrics_publisher_request_success() throws IOException {
         S3AccessGrantsPlugin accessGrantsPlugin =
                 spy(S3AccessGrantsPlugin.builder().build());
-        S3Client.builder()
+        S3Client s3Client = S3Client.builder()
                 .credentialsProvider(credentialsProvider)
                 .addPlugin(accessGrantsPlugin)
                 .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
                 .overrideConfiguration(config -> config.addMetricPublisher(metricPublisher))
                 .build();
+        ResponseInputStream<GetObjectResponse> responseInputStream = S3AccessGrantsIntegrationTestsUtils.GetObject(s3Client,
+                S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
+                S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT1);
+
+        Assertions.assertThat(S3AccessGrantsIntegrationTestsUtils.getFileContentFromGetResponse(responseInputStream)).isEqualTo("access grants test content in file1!");
+
+        Assertions.assertThat(S3AccessGrantsIntegrationTestsUtils.getStatusCodeFromGetResponse(responseInputStream)).isEqualTo(200);
 
     }
 }
