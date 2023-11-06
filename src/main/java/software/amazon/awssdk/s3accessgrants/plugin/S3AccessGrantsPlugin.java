@@ -3,6 +3,7 @@ package software.amazon.awssdk.s3accessgrants.plugin;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.core.SdkPlugin;
 import software.amazon.awssdk.core.SdkServiceClientConfiguration;
+import software.amazon.awssdk.metrics.MetricPublisher;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProviderImpl;
 import software.amazon.awssdk.services.s3.S3ServiceClientConfiguration;
@@ -72,6 +73,8 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
                 .region(serviceClientConfiguration.region())
                 .build();
 
+        MetricPublisher metricPublisher = config.overrideConfiguration() != null? (config.overrideConfiguration().metricPublishers() != null ? (config.overrideConfiguration().metricPublishers().size() > 0 ? config.overrideConfiguration().metricPublishers().get(0) : null) : null) : null;
+
         serviceClientConfiguration.credentialsProvider(new S3AccessGrantsIdentityProvider(serviceClientConfiguration.credentialsProvider(),
                 serviceClientConfiguration.region(),
                 stsClient,
@@ -79,7 +82,8 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
                 DEFAULT_CACHE_SETTING,
                 s3ControlAsyncClient,
                 cache,
-                enableFallback
+                enableFallback,
+                metricPublisher
                 ));
 
         logger.debug(() -> "Completed configuring S3 Clients to use S3 Access Grants as a permission layer!");

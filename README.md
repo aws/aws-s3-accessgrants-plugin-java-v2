@@ -19,6 +19,25 @@ The recommended way to use the S3 ACCESS GRANTS PLUGIN or Java in your project i
   </dependency>
 ```
 
+### Turn on metrics
+
+The plugin integrates with the Metrics publisher specified on the S3 Clients and does not require any separate metrics publisher to be defined during the plugin creation.
+
+example metrics publisher configuration on the S3 Client
+
+```
+
+MetricPublisher metricPublisher = CloudWatchMetricPublisher.builder().namespace("access-grants-plugin").cloudWatchClient(CloudWatchAsyncClient.builder().region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION).credentialsProvider(credentialsProvider).build()).build();
+
+S3Client.builder()
+                .credentialsProvider(credentialsProvider)
+                .addPlugin(accessGrantsPlugin)
+                .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
+                .overrideConfiguration(config -> config.addMetricPublisher(metricPublisher))
+                .build();
+            
+```
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.

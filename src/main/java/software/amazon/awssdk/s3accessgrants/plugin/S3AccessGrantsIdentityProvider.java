@@ -9,6 +9,8 @@ import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.identity.spi.IdentityProvider;
 import software.amazon.awssdk.identity.spi.ResolveIdentityRequest;
+import software.amazon.awssdk.metrics.MetricPublisher;
+import software.amazon.awssdk.metrics.publishers.cloudwatch.CloudWatchMetricPublisher;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
 import software.amazon.awssdk.services.s3control.model.*;
@@ -47,6 +49,8 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     private final boolean enableFallback;
 
+    private final MetricPublisher metricsPublisher;
+
     private String CONTACT_TEAM_MESSAGE_TEMPLATE = "An internal exception has occurred. Valid %s was not passed to the %s. Please contact S3 access grants plugin team!";
 
     public S3AccessGrantsIdentityProvider(@NotNull IdentityProvider<? extends AwsCredentialsIdentity> credentialsProvider,
@@ -56,7 +60,8 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
                                           @NotNull Boolean isCacheEnabled,
                                           @NotNull S3ControlAsyncClient s3ControlAsyncClient,
                                           @NotNull S3AccessGrantsCachedCredentialsProvider cache,
-                                          @NotNull boolean enableFallback) {
+                                          @NotNull boolean enableFallback,
+                                          @NotNull MetricPublisher metricsPublisher) {
         S3AccessGrantsUtils.argumentNotNull(credentialsProvider, "Expecting an Identity Provider to be specified while configuring S3Clients!");
         S3AccessGrantsUtils.argumentNotNull(region, "Expecting a region to be configured on the S3Clients!");
         S3AccessGrantsUtils.argumentNotNull(stsAsyncClient, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "sts client", "identity provider"));
@@ -69,6 +74,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
         this.permissionMapper = new S3AccessGrantsStaticOperationToPermissionMapper();
         this.cache = cache;
         this.enableFallback = enableFallback;
+        this.metricsPublisher = metricsPublisher;
     }
 
     /**
@@ -188,8 +194,16 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
             SdkServiceException throwableException = unwrapAndBuildException(e);
             if (shouldFallbackToDefaultCredentialsForThisCase(throwableException.statusCode(), throwableException)) return CompletableFuture.supplyAsync(() -> credentials);
             throw throwableException;
+        } finally {
+            if (metricsPublisher != null) publishMetrics();
         }
 
+    }
+
+    private void publishMetrics() {
+        metricsPublisher.publish(cache.getAccessGrantsMetrics().collect());
+        metricsPublisher.publish(cache.getAccessGrantsCacheMetrics().collect());
+        metricsPublisher.close();
     }
 
     private void validateRequestParameters(ResolveIdentityRequest resolveIdentityRequest, String accountId, Privilege privilege, Boolean isCacheEnabled) {
