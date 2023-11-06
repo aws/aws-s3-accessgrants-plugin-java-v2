@@ -127,7 +127,7 @@ public class S3AccessGrantsIntegrationTests {
                 .credentialsProvider(credentialsProvider)
                 .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
                 .build();
-        metricPublisher = CloudWatchMetricPublisher.builder().namespace("access-grants-plugin").cloudWatchClient(CloudWatchAsyncClient.builder().region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION).credentialsProvider(credentialsProvider).build()).build();
+        metricPublisher = CloudWatchMetricPublisher.builder().namespace("S3AccessGrantsPlugin").cloudWatchClient(CloudWatchAsyncClient.builder().region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION).credentialsProvider(credentialsProvider).build()).build();
 
     }
 
@@ -804,6 +804,7 @@ public class S3AccessGrantsIntegrationTests {
 
     @Test
     public void create_s3_client_with_metrics_publisher_request_success() throws IOException {
+
         S3AccessGrantsPlugin accessGrantsPlugin =
                 spy(S3AccessGrantsPlugin.builder().build());
         S3Client s3Client = S3Client.builder()
@@ -812,6 +813,7 @@ public class S3AccessGrantsIntegrationTests {
                 .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
                 .overrideConfiguration(config -> config.addMetricPublisher(metricPublisher))
                 .build();
+
         ResponseInputStream<GetObjectResponse> responseInputStream = S3AccessGrantsIntegrationTestsUtils.GetObject(s3Client,
                 S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
                 S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT1);

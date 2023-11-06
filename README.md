@@ -27,7 +27,7 @@ example metrics publisher configuration on the S3 Client
 
 ```
 
-MetricPublisher metricPublisher = CloudWatchMetricPublisher.builder().namespace("access-grants-plugin").cloudWatchClient(CloudWatchAsyncClient.builder().region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION).credentialsProvider(credentialsProvider).build()).build();
+MetricPublisher metricPublisher = CloudWatchMetricPublisher.builder().namespace("S3AccessGrantsPlugin").cloudWatchClient(CloudWatchAsyncClient.builder().region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION).credentialsProvider(credentialsProvider).build()).build();
 
 S3Client.builder()
                 .credentialsProvider(credentialsProvider)
@@ -36,6 +36,15 @@ S3Client.builder()
                 .overrideConfiguration(config -> config.addMetricPublisher(metricPublisher))
                 .build();
             
+```
+
+### Change logging level
+
+Turning on the AWS SDK level logging should turn on the logging for the S3 Access grants plugin. You can also control the logging for the plugin specifically by adding the below config to your log4j.properties file.
+
+```
+logger.s3accessgrants.name = software.amazon.awssdk.s3accessgrants
+logger.s3accessgrants.level = debug
 ```
 
 ## Security
