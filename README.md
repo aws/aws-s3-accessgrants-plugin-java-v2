@@ -19,6 +19,34 @@ The recommended way to use the S3 ACCESS GRANTS PLUGIN or Java in your project i
   </dependency>
 ```
 
+### Turn on metrics
+
+The plugin integrates with the Metrics publisher specified on the S3 Clients and does not require any separate metrics publisher to be defined during the plugin creation.
+
+example metrics publisher configuration on the S3 Client
+
+```
+
+MetricPublisher metricPublisher = CloudWatchMetricPublisher.builder().namespace("S3AccessGrantsPlugin").cloudWatchClient(CloudWatchAsyncClient.builder().region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION).credentialsProvider(credentialsProvider).build()).build();
+
+S3Client.builder()
+                .credentialsProvider(credentialsProvider)
+                .addPlugin(accessGrantsPlugin)
+                .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
+                .overrideConfiguration(config -> config.addMetricPublisher(metricPublisher))
+                .build();
+            
+```
+
+### Change logging level
+
+Turning on the AWS SDK level logging should turn on the logging for the S3 Access grants plugin. You can also control the logging for the plugin specifically by adding the below config to your log4j.properties file.
+
+```
+logger.s3accessgrants.name = software.amazon.awssdk.s3accessgrants
+logger.s3accessgrants.level = debug
+```
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.

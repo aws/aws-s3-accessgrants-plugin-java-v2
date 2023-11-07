@@ -109,4 +109,5 @@ public class S3AccessGrantsPluginTests {
                 .hasMessage("Expecting a region to be configured on the S3Clients!");
 
     }
+
 }
