@@ -19,22 +19,42 @@ The recommended way to use the S3 ACCESS GRANTS PLUGIN or Java in your project i
   </dependency>
 ```
 
+Create a S3AccessGrantsPlugin object and choose if you want to enable fallback.
+1.  If enableFallback option is set to false we will fallback only in case the operation/API is not supported by Access Grants.
+2.  If enableFallback is set to true then we will fall back every time we are not able to get the credentials from Access Grants, no matter the reason.
+
+
+```
+S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().enableFallback(true).build();
+```
+
+While building S3 client you have to provide a credentialsProvider object which contains credentials that have access to get credentials from Access Grants.
+
+````
+S3Client s3Client = S3Client.builder()
+                    .addPlugin(accessGrantsPlugin)
+                    .credentialsProvider(credentialsProvider)
+                    .region(REGION)
+                    .build();
+````
+
+Using this S3Client to make API calls, you should be able to use Access Grants to get access to your resources.
+
 ### Turn on metrics
 
 The plugin integrates with the Metrics publisher specified on the S3 Clients and does not require any separate metrics publisher to be defined during the plugin creation.
 
-example metrics publisher configuration on the S3 Client
 
 ```
 
 MetricPublisher metricPublisher = CloudWatchMetricPublisher.builder().namespace("S3AccessGrantsPlugin").cloudWatchClient(CloudWatchAsyncClient.builder().region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION).credentialsProvider(credentialsProvider).build()).build();
 
-S3Client.builder()
-                .credentialsProvider(credentialsProvider)
-                .addPlugin(accessGrantsPlugin)
-                .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
-                .overrideConfiguration(config -> config.addMetricPublisher(metricPublisher))
-                .build();
+S3Client s3Client = S3Client.builder()
+                    .credentialsProvider(credentialsProvider)
+                    .addPlugin(accessGrantsPlugin)
+                    .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
+                    .overrideConfiguration(config -> config.addMetricPublisher(metricPublisher))
+                    .build();
             
 ```
 

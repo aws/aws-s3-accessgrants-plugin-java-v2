@@ -115,7 +115,6 @@ public class S3AccessGrantsIdentityProviderTests {
         when(cache.getDataAccess(any(), any(), any(), any())).thenReturn(cacheResponse);
         when(stsAsyncClient.getCallerIdentity()).thenReturn(callerIdentityResponse);
         when(cache.getAccessGrantsMetrics()).thenReturn(metricsCollector);
-        when(cache.getAccessGrantsCacheMetrics()).thenReturn(metricsCollector);
         when(metricsCollector.collect()).thenReturn(mock(MetricCollection.class));
     }
 
@@ -214,7 +213,6 @@ public class S3AccessGrantsIdentityProviderTests {
 
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> null));
         when(testCache.getAccessGrantsMetrics()).thenReturn(testMetricCollector);
-        when(testCache.getAccessGrantsCacheMetrics()).thenReturn(testMetricCollector);
         when(testMetricCollector.collect()).thenReturn(mock(MetricCollection.class));
         when(testCache.getDataAccess(any(), any(), any(), any())).thenReturn(cacheResponse);
 
@@ -301,7 +299,6 @@ public class S3AccessGrantsIdentityProviderTests {
         when(testCache.getDataAccess(any(), any(), any(), any())).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied for the user").build());
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build()));
         when(testCache.getAccessGrantsMetrics()).thenReturn(testMetricCollector);
-        when(testCache.getAccessGrantsCacheMetrics()).thenReturn(testMetricCollector);
         when(testMetricCollector.collect()).thenReturn(mock(MetricCollection.class));
 
         AwsCredentialsIdentity credentialsIdentity = accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join();
@@ -326,7 +323,6 @@ public class S3AccessGrantsIdentityProviderTests {
         when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().build()).whenComplete((r,e) -> { throw S3ControlException.builder().statusCode(403).build(); }));
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build()));
         when(testCache.getAccessGrantsMetrics()).thenReturn(testMetricCollector);
-        when(testCache.getAccessGrantsCacheMetrics()).thenReturn(testMetricCollector);
         when(testMetricCollector.collect()).thenReturn(mock(MetricCollection.class));
 
         AwsCredentialsIdentity credentialsIdentity = accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join();
@@ -377,7 +373,6 @@ public class S3AccessGrantsIdentityProviderTests {
             return credentials;
         }));
         when(testCache.getAccessGrantsMetrics()).thenReturn(testMetricCollector);
-        when(testCache.getAccessGrantsCacheMetrics()).thenReturn(testMetricCollector);
         when(testMetricCollector.collect()).thenReturn(mock(MetricCollection.class));
 
         Assertions.assertThatNoException().isThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join());
@@ -409,7 +404,6 @@ public class S3AccessGrantsIdentityProviderTests {
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> credentials));
 
         AwsCredentialsIdentity credentialsIdentity = accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join();
-        // invalid request should still return the default user credentials
         Assertions.assertThat(credentialsIdentity.accessKeyId()).isEqualTo(credentials.accessKeyId());
         Assertions.assertThat(credentialsIdentity.secretAccessKey()).isEqualTo(credentials.secretAccessKey());
         verify(testMetricPublisher, times(2)).publish(any());
