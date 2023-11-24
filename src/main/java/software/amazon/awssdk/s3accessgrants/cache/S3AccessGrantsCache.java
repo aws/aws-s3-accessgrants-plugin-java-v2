@@ -21,7 +21,6 @@ import com.github.benmanes.caffeine.cache.AsyncCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Expiry;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -29,7 +28,6 @@ import org.assertj.core.util.VisibleForTesting;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
-import software.amazon.awssdk.metrics.internal.DefaultMetricCollector;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.model.Credentials;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
@@ -50,7 +48,6 @@ public class S3AccessGrantsCache {
     private final S3AccessGrantsCachedAccountIdResolver s3AccessGrantsCachedAccountIdResolver;
     private final int cacheExpirationTimePercentage;
     private static final Logger logger = Logger.loggerFor(S3AccessGrantsCache.class);
-    DefaultMetricCollector collector = new DefaultMetricCollector("AccessGrantsCacheMetricsCollector");
 
     private S3AccessGrantsCache (@NotNull S3ControlAsyncClient s3ControlAsyncClient,
                                  S3AccessGrantsCachedAccountIdResolver resolver, int maxCacheSize, int cacheExpirationTimePercentage) {
@@ -245,21 +242,16 @@ public class S3AccessGrantsCache {
      * @return cached Access Grants credentials.
      */
      private CompletableFuture<AwsCredentialsIdentity> searchKeyInCacheAtCharacterLevel (CacheKey cacheKey) {
-        Instant start = Instant.now();
         CompletableFuture<AwsCredentialsIdentity> cacheValue;
         String prefix = cacheKey.s3Prefix;
         while (!prefix.equals("s3://")){
             cacheValue = cache.getIfPresent(cacheKey.toBuilder().s3Prefix(prefix + "*").build());
             if (cacheValue != null){
                 logger.debug(()->"Successfully retrieved credentials from the cache.");
-                collector.reportMetric(MetricsCollector.searchKeyInCacheAtCharacterLevel_CacheHit_Latency, Duration.between(start,
-                                                                                                                    Instant.now()));
                 return cacheValue;
             }
             prefix = getNextPrefixByChar(prefix);
         }
-        collector.reportMetric(MetricsCollector.searchKeyInCacheAtCharacterLevel_CacheMiss_Latency, Duration.between(start,
-                                                                                                            Instant.now()));
         return null;
     }
 
@@ -308,13 +300,6 @@ public class S3AccessGrantsCache {
      * @return metrics captured by the cache
      */
     protected CacheStats getCacheStats() { return cache.synchronous().stats();}
-
-    /**
-     * @return metrics captured by this class
-     */
-    protected DefaultMetricCollector getMetricsCollector() {
-        return collector;
-    }
 
     /**
      * Invalidates the cache.

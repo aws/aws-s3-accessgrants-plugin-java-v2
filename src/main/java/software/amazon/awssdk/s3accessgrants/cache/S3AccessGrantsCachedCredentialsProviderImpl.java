@@ -177,9 +177,4 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
         return collector;
     }
 
-    @Override
-    public MetricCollector getAccessGrantsCacheMetrics() {
-        return accessGrantsCache.getMetricsCollector();
-    }
-
 }

@@ -38,10 +38,5 @@ public interface S3AccessGrantsCachedCredentialsProvider {
      */
     MetricCollector getAccessGrantsMetrics();
 
-    /**
-     * @return cache related metrics
-     */
-    MetricCollector getAccessGrantsCacheMetrics();
-
 }
 
