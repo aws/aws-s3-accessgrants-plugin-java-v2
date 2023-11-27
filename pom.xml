@@ -4,23 +4,14 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>software.amazon.awssdk</groupId>
+    <groupId>software.amazon.s3.accessgrants</groupId>
     <artifactId>aws-s3-accessgrants-java-plugin</artifactId>
-    <version>0.1.3-SNAPSHOT</version>
-
-    <repositories>
-        <repository>
-            <id>maven-s3-accessgrants-snapshot-repo</id>
-            <name>S3 Access Grants Snapshot Repository</name>
-            <url>s3://repository.s3accessgrantssdk.internal/snapshots</url>
-        </repository>
-    </repositories>
+    <version>1.0</version>
 
     <distributionManagement>
         <snapshotRepository>
-            <id>maven-s3-accessgrants-snapshot-repo</id>
-            <name>S3 Access Grants Snapshot Repository</name>
-            <url>s3://repository.s3accessgrantssdk.internal/snapshots</url>
+            <id>ossrh</id>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
         </snapshotRepository>
     </distributionManagement>
 
@@ -34,20 +25,17 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>
-            <version>2.21.0-SNAPSHOT</version>
-            <scope>provided</scope>
+            <version>2.21.30</version>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>http-auth-spi</artifactId>
-            <version>2.21.0-SNAPSHOT</version>
-            <scope>provided</scope>
+            <version>2.21.30</version>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>identity-spi</artifactId>
-            <version>2.21.0-SNAPSHOT</version>
-            <scope>provided</scope>
+            <version>2.21.30</version>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
@@ -65,7 +53,6 @@
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j-impl</artifactId>
             <version>2.20.0</version>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
@@ -76,74 +63,82 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3control</artifactId>
-            <version>2.21.0-SNAPSHOT</version>
-            <scope>provided</scope>
+            <version>2.21.30</version>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>iam</artifactId>
-            <version>2.21.0-SNAPSHOT</version>
-            <scope>provided</scope>
+            <version>2.21.30</version>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sts</artifactId>
-            <version>2.21.0-SNAPSHOT</version>
-            <scope>provided</scope>
+            <version>2.21.30</version>
         </dependency>
         <dependency>
-            <groupId>software.amazon.awssdk</groupId>
+            <groupId>software.amazon.s3.accessgrants</groupId>
             <artifactId>aws-s3-accessgrants-cache-java-v2</artifactId>
-            <version>0.1.1-SNAPSHOT</version>
+            <version>1.0</version>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>cloudwatch-metric-publisher</artifactId>
-            <version>2.14.0</version>
-        </dependency>
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>aws-s3-accessgrants-cache-java-v2</artifactId>
-            <version>0.1.1-SNAPSHOT</version>
+            <version>2.21.30</version>
         </dependency>
     </dependencies>
 
     <build>
-        <extensions>
-            <extension>
-                <groupId>com.allogy.maven.wagon</groupId>
-                <artifactId>maven-s3-wagon</artifactId>
-                <version>1.2.0</version>
-            </extension>
-        </extensions>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.0</version>
-                <configuration>
-                    <relocations>
-                        <relocation>
-                            <pattern>org.slf4j</pattern>
-                            <shadedPattern>software.amazon.awssdk.thirdparty.org.slf4j</shadedPattern>
-                        </relocation>
-                    </relocations>
-                    <shadedArtifactAttached>false</shadedArtifactAttached>
-                    <createDependencyReducedPom>true</createDependencyReducedPom>
-                    <dependencyReducedPomLocation>${project.build.directory}/dependency-reduced-pom.xml
-                    </dependencyReducedPomLocation>
-                    <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
+    <plugins>
+        <plugin>
+            <groupId>org.sonatype.plugins</groupId>
+            <artifactId>nexus-staging-maven-plugin</artifactId>
+            <version>1.6.13</version>
+            <extensions>true</extensions>
+            <configuration>
+                <serverId>ossrh</serverId>
+                <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
+                <autoReleaseAfterClose>false</autoReleaseAfterClose>
+            </configuration>
+        </plugin>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>3.1.0</version>
+            <executions>
+                <execution>
+                    <id>sign-artifacts</id>
+                    <phase>verify</phase>
+                    <goals>
+                        <goal>sign</goal>
+                    </goals>
+                    <configuration>
+                        <keyname>s3-user-security</keyname>
+                        <passphraseServerId>s3-user-security</passphraseServerId>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <version>3.5.1</version>
+            <executions>
+                <execution>
+                    <phase>package</phase>
+                    <goals>
+                        <goal>shade</goal>
+                    </goals>
+                    <configuration>
+                        <artifactSet>
+                            <includes>
+                                <include>software.amazon.s3.accessgrants:*</include>
+                            </includes>
+                        </artifactSet>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins>
     </build>
 
 </project>
