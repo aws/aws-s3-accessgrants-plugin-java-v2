@@ -205,7 +205,6 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
     private void publishMetrics() {
         try {
             metricsPublisher.publish(cache.getAccessGrantsMetrics().collect());
-            metricsPublisher.publish(cache.getAccessGrantsCacheMetrics().collect());
             metricsPublisher.close();
         } catch (Exception e) {
             logger.warn(() -> "Something went wrong while publishing metrics using the metrics publisher. Please contact S3 access grants plugin team!");
