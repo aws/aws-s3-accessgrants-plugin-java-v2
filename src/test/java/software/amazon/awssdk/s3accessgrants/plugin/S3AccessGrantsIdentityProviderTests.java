@@ -1,3 +1,18 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *  http://aws.amazon.com/apache2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 package software.amazon.awssdk.s3accessgrants.plugin;
 
 import java.nio.file.AccessDeniedException;
@@ -218,7 +233,7 @@ public class S3AccessGrantsIdentityProviderTests {
 
         Assertions.assertThatNoException().isThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest));
         verify(credentialsProvider, times(1)).resolveIdentity(resolveIdentityRequest);
-        verify(testMetricPublisher, times(2)).publish(any());
+        verify(testMetricPublisher, times(1)).publish(any());
     }
 
     @Test
@@ -304,7 +319,7 @@ public class S3AccessGrantsIdentityProviderTests {
         AwsCredentialsIdentity credentialsIdentity = accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join();
         Assertions.assertThat(credentialsIdentity.accessKeyId()).isEqualTo(TEST_ACCESS_KEY);
         Assertions.assertThat(credentialsIdentity.secretAccessKey()).isEqualTo(TEST_SECRET_KEY);
-        verify(testMetricPublisher, times(2)).publish(any());
+        verify(testMetricPublisher, times(1)).publish(any());
     }
 
     @Test
@@ -329,7 +344,7 @@ public class S3AccessGrantsIdentityProviderTests {
 
         Assertions.assertThat(credentialsIdentity.accessKeyId()).isEqualTo(TEST_ACCESS_KEY);
         Assertions.assertThat(credentialsIdentity.secretAccessKey()).isEqualTo(TEST_SECRET_KEY);
-        verify(testMetricPublisher, times(2)).publish(any());
+        verify(testMetricPublisher, times(1)).publish(any());
     }
 
     @Test
@@ -377,7 +392,7 @@ public class S3AccessGrantsIdentityProviderTests {
 
         Assertions.assertThatNoException().isThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join());
         verify(testCache, times(1)).getDataAccess(any(), any(), any(), any());
-        verify(testMetricPublisher, times(2)).publish(any());
+        verify(testMetricPublisher, times(1)).publish(any());
     }
 
     @Test
@@ -406,7 +421,7 @@ public class S3AccessGrantsIdentityProviderTests {
         AwsCredentialsIdentity credentialsIdentity = accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join();
         Assertions.assertThat(credentialsIdentity.accessKeyId()).isEqualTo(credentials.accessKeyId());
         Assertions.assertThat(credentialsIdentity.secretAccessKey()).isEqualTo(credentials.secretAccessKey());
-        verify(testMetricPublisher, times(2)).publish(any());
+        verify(testMetricPublisher, times(1)).publish(any());
     }
 
     @Test
@@ -433,7 +448,7 @@ public class S3AccessGrantsIdentityProviderTests {
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> credentials));
 
         Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join()).isInstanceOf(CompletionException.class).getCause().isInstanceOf(SdkServiceException.class).getCause().isInstanceOf(InvalidRequestException.class);
-        verify(testMetricPublisher, times(2)).publish(any());
+        verify(testMetricPublisher, times(1)).publish(any());
     }
 
     @Test
