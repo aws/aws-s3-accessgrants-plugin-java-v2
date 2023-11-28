@@ -43,6 +43,11 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <scm>
+        <connection>scm:git:git://github.com/aws/aws-s3-accessgrants-plugin-java-v2.git</connection>
+        <url>https://github.com/aws/aws-s3-accessgrants-plugin-java-v2.git</url>
+    </scm>
+
     <dependencies>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
