@@ -19,17 +19,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>software.amazon.awssdk</groupId>
+    <groupId>software.amazon.s3.accessgrants</groupId>
     <artifactId>aws-s3-accessgrants-cache-java-v2</artifactId>
-    <version>0.1.1-SNAPSHOT</version>
-
-    <distributionManagement>
-        <snapshotRepository>
-            <id>maven-s3-accessgrants-snapshot-repo</id>
-            <name>S3 Access Grants Snapshot Repository</name>
-            <url>s3://repository.s3accessgrantssdk.internal/snapshots</url>
-        </snapshotRepository>
-    </distributionManagement>
+    <version>1.0</version>
 
     <build>
         <plugins>
@@ -42,13 +34,6 @@
                 </configuration>
             </plugin>
         </plugins>
-        <extensions>
-            <extension>
-                <groupId>com.allogy.maven.wagon</groupId>
-                <artifactId>maven-s3-wagon</artifactId>
-                <version>1.2.0</version>
-            </extension>
-        </extensions>
     </build>
 
     <dependencies>
