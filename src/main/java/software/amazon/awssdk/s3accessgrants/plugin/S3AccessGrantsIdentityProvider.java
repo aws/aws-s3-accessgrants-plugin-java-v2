@@ -119,7 +119,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
      * @throws S3ControlException for any service failures
      */
     @Override
-    public CompletableFuture<? extends AwsCredentialsIdentity> resolveIdentity(ResolveIdentityRequest resolveIdentityRequest) throws NullPointerException, S3ControlException, CompletionException {
+    public CompletableFuture<? extends AwsCredentialsIdentity> resolveIdentity(ResolveIdentityRequest resolveIdentityRequest) {
 
         CompletableFuture<? extends AwsCredentialsIdentity> userCredentials = null;
 
