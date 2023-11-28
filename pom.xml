@@ -8,10 +8,32 @@
     <artifactId>aws-s3-accessgrants-java-plugin</artifactId>
     <version>1.0</version>
 
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>The Amazon Web Services Plugin for S3 Access Grants. The plugin allows customers to integrate S3 Access grants as an additional permission layer on top of S3 calls.</description>
+    <url>https://github.com/aws/aws-s3-accessgrants-plugin-java-v2</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://aws.amazon.com/apache2.0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <id>amazonwebservices</id>
+            <organization>Amazon Web Services</organization>
+            <organizationUrl>https://aws.amazon.com</organizationUrl>
+            <roles>
+                <role>developer</role>
+            </roles>
+        </developer>
+    </developers>
+
     <distributionManagement>
         <snapshotRepository>
             <id>ossrh</id>
-            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+            <url>https://aws.oss.sonatype.org/content/repositories/snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
 
@@ -31,6 +53,11 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>http-auth-spi</artifactId>
             <version>2.21.30</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>2.9.3</version>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
@@ -86,85 +113,88 @@
             <version>2.21.30</version>
         </dependency>
     </dependencies>
-
-    <build>
-    <plugins>
-        <plugin>
-            <groupId>org.sonatype.plugins</groupId>
-            <artifactId>nexus-staging-maven-plugin</artifactId>
-            <version>1.6.13</version>
-            <extensions>true</extensions>
-            <configuration>
-                <serverId>ossrh</serverId>
-                <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
-                <autoReleaseAfterClose>false</autoReleaseAfterClose>
-            </configuration>
-        </plugin>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-gpg-plugin</artifactId>
-            <version>3.1.0</version>
-            <executions>
-                <execution>
-                    <id>sign-artifacts</id>
-                    <phase>verify</phase>
-                    <goals>
-                        <goal>sign</goal>
-                    </goals>
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+            <plugins>
+                <plugin>
+                    <groupId>org.sonatype.plugins</groupId>
+                    <artifactId>nexus-staging-maven-plugin</artifactId>
+                    <version>1.6.13</version>
+                    <extensions>true</extensions>
                     <configuration>
-                        <keyname>s3-user-security</keyname>
-                        <passphraseServerId>s3-user-security</passphraseServerId>
+                        <serverId>ossrh</serverId>
+                        <nexusUrl>https://aws.oss.sonatype.org/</nexusUrl>
+                        <autoReleaseAfterClose>false</autoReleaseAfterClose>
                     </configuration>
-                </execution>
-            </executions>
-        </plugin>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-shade-plugin</artifactId>
-            <version>3.5.1</version>
-            <executions>
-                <execution>
-                    <phase>package</phase>
-                    <goals>
-                        <goal>shade</goal>
-                    </goals>
-                    <configuration>
-                        <artifactSet>
-                            <includes>
-                                <include>software.amazon.s3.accessgrants:*</include>
-                            </includes>
-                        </artifactSet>
-                    </configuration>
-                </execution>
-            </executions>
-        </plugin>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-source-plugin</artifactId>
-            <version>2.2.1</version>
-            <executions>
-                <execution>
-                    <id>attach-sources</id>
-                    <goals>
-                        <goal>jar-no-fork</goal>
-                    </goals>
-                </execution>
-            </executions>
-        </plugin>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
-            <version>2.9.1</version>
-            <executions>
-                <execution>
-                    <id>attach-javadocs</id>
-                    <goals>
-                        <goal>jar</goal>
-                    </goals>
-                </execution>
-            </executions>
-        </plugin>
-    </plugins>
-    </build>
-
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>3.1.0</version>
+                    <executions>
+                        <execution>
+                            <id>sign-artifacts</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>sign</goal>
+                            </goals>
+                            <configuration>
+                                <keyname>s3-user-security</keyname>
+                                <passphraseServerId>s3-user-security</passphraseServerId>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>3.5.1</version>
+                    <executions>
+                        <execution>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>shade</goal>
+                            </goals>
+                            <configuration>
+                                <artifactSet>
+                                    <includes>
+                                        <include>software.amazon.s3.accessgrants:*</include>
+                                    </includes>
+                                </artifactSet>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>2.2.1</version>
+                    <executions>
+                        <execution>
+                            <id>attach-sources</id>
+                            <goals>
+                                <goal>jar-no-fork</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>2.9.1</version>
+                    <executions>
+                        <execution>
+                            <id>attach-javadocs</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

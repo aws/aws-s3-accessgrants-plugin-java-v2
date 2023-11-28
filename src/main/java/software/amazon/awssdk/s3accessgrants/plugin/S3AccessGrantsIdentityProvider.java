@@ -113,11 +113,10 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
      * This method uses cache to store credentials to reduce requests sent to S3 access grant APIs
      * This method Will throw an exception if the necessary grant is not available to the requester.
      * </p>
-     * @param resolveIdentityRequest The request to resolve an Identity.
-     * @return a completable future that will resolve to the credentials registered within a grant.
-     * @throws {@link NullPointerException}
-     * @throws {@link S3ControlException}
-     * @throws {@link CompletionException}
+     * @param resolveIdentityRequest The request to resolve an Identity
+     * @return a completable future that will resolve to the credentials registered within a grant
+     * @throws NullPointerException if a null pointer is encountered in the execution path
+     * @throws S3ControlException for any service failures
      */
     @Override
     public CompletableFuture<? extends AwsCredentialsIdentity> resolveIdentity(ResolveIdentityRequest resolveIdentityRequest) {
