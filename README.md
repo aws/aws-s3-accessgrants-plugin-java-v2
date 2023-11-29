@@ -4,19 +4,43 @@ AWS S3 ACCESS GRANTS PLUGIN provides the functionality to enable S3 customers to
 
 S3 ACCESS GRANTS is a feature from S3 that allows its customers to configure fine-grained access permissions for the data in their buckets.
 
+### Things to Know
+
+---
+
+* AWS SDK Java 2.0 is built on Java 8
+* [maven] is used as the build and dependency management system
+
+### Development Environment Setup
+
+---
+#### Set up IntelliJ project
+* Set up [connecting to github with ssh](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
+* Check out team repos IntelliJ IDEA
+    - File → New → Project from Version Control ...
+      ```
+      Version control: Git
+      URL: git@github.com:aws/aws-s3-accessgrants-plugin-java-v2.git
+      Directory: {Your-Local-Workplace-Dir}/aws-s3-accessgrants-plugin-java-v2
+      ```
+* Use [GitHub flow](https://docs.github.com/en/get-started/quickstart/github-flow) to commit/review/collaborate on changes
+* After a PR is approved/merged, please delete the PR branch both remotely and locally
+
+
+
 ### USING THE PLUGIN
 
 ---
 
-The recommended way to use the S3 ACCESS GRANTS PLUGIN or Java in your project is to consume it from Maven Central
+The recommended way to use the S3 ACCESS GRANTS PLUGIN for Java in your project is to consume it from Maven Central
 
 
 ```
  <dependency>
-    <groupId>software.amazon.awssdk</groupId>
+    <groupId>software.amazon.s3.accessgrants</groupId>
     <artifactId>aws-s3-accessgrants-java-plugin</artifactId>
-    <version>latest version</version>
-  </dependency>
+    <version>replace with latest version</version>
+</dependency>
 ```
 
 Create a S3AccessGrantsPlugin object and choose if you want to enable fallback.
