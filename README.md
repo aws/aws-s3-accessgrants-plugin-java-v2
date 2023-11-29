@@ -11,23 +11,24 @@ S3 ACCESS GRANTS is a feature from S3 that allows its customers to configure fin
 * AWS SDK Java 2.0 is built on Java 8
 * [maven] is used as the build and dependency management system
 
-### Development Environment Setup
+### Contributions
 
 ---
-#### Set up IntelliJ project
-* Set up [connecting to github with ssh](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
-* Check out team repos IntelliJ IDEA
-    - File → New → Project from Version Control ...
-      ```
-      Version control: Git
-      URL: git@github.com:aws/aws-s3-accessgrants-plugin-java-v2.git
-      Directory: {Your-Local-Workplace-Dir}/aws-s3-accessgrants-plugin-java-v2
-      ```
 * Use [GitHub flow](https://docs.github.com/en/get-started/quickstart/github-flow) to commit/review/collaborate on changes
 * After a PR is approved/merged, please delete the PR branch both remotely and locally
 
+### Building From Source
 
+---
+Once you check out the code from GitHub, you can build it using the following commands.
 
+Linux:
+
+```./mvnw clean install```
+
+Windows:
+
+```./mvnw.cmd clean install```
 ### USING THE PLUGIN
 
 ---
