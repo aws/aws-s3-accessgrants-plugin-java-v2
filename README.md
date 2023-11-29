@@ -2,7 +2,7 @@
 
 The **AWS S3 AccessGrants Caching Java 2.0** is a library that provides client side caching capability on temporary data access credentials.
 
-There are three caches to improve performance:
+We implemented three caches to enhance S3 Access Grants Plugin performance. These caches act as loading caches which means if the entry is not available in cache, we get the value from the service and load it in the cache.
 1. **Access Grants Cache** : To cache all the credentials returned by Access Grants except for object level credentials. The cache size is 30,000. The TTL of this cache is 90% of the duration returned by getDataAccess.
 2. **Access Denied Cache** : To cache Access Denied responses from Access Grants. The cache size of Access Denied cache is 3,000 and the TTL is 5 mins.
 3. **Account Id Resolver Cache** : To cache account Id of the bucket owner. The cache size of this cache is 1000 and TTL is one day.
