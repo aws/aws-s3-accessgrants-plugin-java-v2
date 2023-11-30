@@ -1,1 +1,13 @@
+aws-s3-access-grants-plugin-java-v2
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+This product includes software developed by
+Amazon Technologies, Inc (http://www.amazon.com/).
+
+**********************
+THIRD PARTY COMPONENTS
+**********************
+This software includes third party software subject to the following copyrights:
+- Caffeine - https://github.com/ben-manes/caffeine/ - Copyright 2014 - 2023 Ben Manes
+
+The licenses for these third party components are included in THIRD-PARTY-LICENSE.txt
