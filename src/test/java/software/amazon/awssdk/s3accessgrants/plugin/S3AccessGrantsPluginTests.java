@@ -121,7 +121,7 @@ public class S3AccessGrantsPluginTests {
         System.out.println("the region being used for invalid config ");
 
         try {
-            accessGrantsPlugin.configureClient(sdkServiceClientConfiguration)
+            accessGrantsPlugin.configureClient(sdkServiceClientConfiguration);
         } catch(Exception e) {
            e.printStackTrace();
         }
