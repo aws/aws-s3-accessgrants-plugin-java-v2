@@ -70,7 +70,7 @@ public class S3AccessGrantsPluginTests {
         SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
                .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
                .credentialsProvider(DefaultCredentialsProvider.create())
-               .region(Region.US_EAST_2);
+               .region(Region.US_EAST_1);
 
 
        Assertions.assertThatNoException().isThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration));
@@ -84,7 +84,7 @@ public class S3AccessGrantsPluginTests {
         SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
                 .authSchemeProvider(null)
                 .credentialsProvider(DefaultCredentialsProvider.create())
-                .region(Region.US_EAST_2);
+                .region(Region.US_EAST_1);
 
 
         Assertions.assertThatThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration))
@@ -100,7 +100,7 @@ public class S3AccessGrantsPluginTests {
         SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
                 .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
                 .credentialsProvider(null)
-                .region(Region.US_EAST_2);
+                .region(Region.US_EAST_1);
 
 
         Assertions.assertThatThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration))
@@ -117,6 +117,7 @@ public class S3AccessGrantsPluginTests {
                 .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .region(null);
+
 
 
         Assertions.assertThatThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration))
