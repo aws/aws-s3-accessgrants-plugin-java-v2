@@ -190,7 +190,7 @@ public class S3AccessGrantsCacheTest {
         Thread.sleep(3000);
         when(mockResolver.resolve(any(String.class), any(String.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
         when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponseSetUp("s3://bucket2/foo/bar"));
-        cacheWithMockedAccountIdResolver.getCredentials(key1, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache);
+        cacheWithMockedAccountIdResolver.getCredentials(key1, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache).join();
         // Then
         verify(s3ControlAsyncClient, atLeastOnce()).getDataAccess(any(GetDataAccessRequest.class));
     }
@@ -208,7 +208,7 @@ public class S3AccessGrantsCacheTest {
         when(mockResolver.resolve(any(String.class), any(String.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
         when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
         // When
-        cacheWithMockedAccountIdResolver.getCredentials(key, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache);
+        cacheWithMockedAccountIdResolver.getCredentials(key, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache).join();
         // Then
         verify(s3ControlAsyncClient, atLeastOnce()).getDataAccess(any(GetDataAccessRequest.class));
     }
@@ -232,7 +232,7 @@ public class S3AccessGrantsCacheTest {
         when(mockResolver.resolve(any(String.class), any(String.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
         when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
         // When
-        cacheWithMockedAccountIdResolver.getCredentials(key2, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache);
+        cacheWithMockedAccountIdResolver.getCredentials(key2, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache).join();
         // Then
         verify(s3ControlAsyncClient, atLeastOnce()).getDataAccess(any(GetDataAccessRequest.class));
 
@@ -262,7 +262,7 @@ public class S3AccessGrantsCacheTest {
         when(s3ControlException.statusCode()).thenReturn(403);
         // When
         try {
-            cacheWithMockedAccountIdResolver.getCredentials(key1, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache);
+            cacheWithMockedAccountIdResolver.getCredentials(key1, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache).join();
         }catch (S3ControlException e){}
         // Then
         assertThat(accessDeniedCache.getValueFromCache(key1)).isInstanceOf(S3ControlException.class);
@@ -299,13 +299,13 @@ public class S3AccessGrantsCacheTest {
 
         when(mockResolver.resolve(any(String.class), any(String.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
         when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
-        cacheWithMockedAccountIdResolver.getCredentials(key1, TEST_S3_ACCESSGRANTS_ACCOUNT,accessDeniedCache);
+        cacheWithMockedAccountIdResolver.getCredentials(key1, TEST_S3_ACCESSGRANTS_ACCOUNT,accessDeniedCache).join();
         // When
         CacheKey key2 = CacheKey.builder()
                                 .credentials(AWS_BASIC_CREDENTIALS)
                                 .permission(Permission.READ)
                                 .s3Prefix("s3://bucket/foo/log/text.txt").build();
-        cacheWithMockedAccountIdResolver.getCredentials(key2, TEST_S3_ACCESSGRANTS_ACCOUNT,accessDeniedCache);
+        cacheWithMockedAccountIdResolver.getCredentials(key2, TEST_S3_ACCESSGRANTS_ACCOUNT,accessDeniedCache).join();
         // Then
         verify(s3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
     }
@@ -348,8 +348,8 @@ public class S3AccessGrantsCacheTest {
         // When
         when(mockResolver.resolve(any(String.class), any(String.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
         when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
-        cacheWithMockedAccountIdResolver.getCredentials(key, TEST_S3_ACCESSGRANTS_ACCOUNT,accessDeniedCache);
-        cacheWithMockedAccountIdResolver.getCredentials(key, TEST_S3_ACCESSGRANTS_ACCOUNT,accessDeniedCache);
+        cacheWithMockedAccountIdResolver.getCredentials(key, TEST_S3_ACCESSGRANTS_ACCOUNT,accessDeniedCache).join();
+        cacheWithMockedAccountIdResolver.getCredentials(key, TEST_S3_ACCESSGRANTS_ACCOUNT,accessDeniedCache).join();
         // Then
         verify(s3ControlAsyncClient, times(2)).getDataAccess(any(GetDataAccessRequest.class));
 
