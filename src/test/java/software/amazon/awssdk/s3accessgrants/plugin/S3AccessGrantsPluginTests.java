@@ -18,6 +18,7 @@ package software.amazon.awssdk.s3accessgrants.plugin;
 import org.junit.Test;
 import org.assertj.core.api.Assertions;
 import software.amazon.awssdk.core.SdkServiceClientConfiguration;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3ServiceClientConfiguration;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -118,17 +119,10 @@ public class S3AccessGrantsPluginTests {
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .region(null);
 
-        System.out.println("the region being used for invalid config ");
-
-        try {
-            accessGrantsPlugin.configureClient(sdkServiceClientConfiguration);
-        } catch(Exception e) {
-           e.printStackTrace();
-        }
 
         Assertions.assertThatThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Expecting a region to be configured on the S3Clients!");
+                .isInstanceOf(SdkClientException.class)
+                .hasMessage("Unable to load region from any of the providers in the chain");
 
     }
 
