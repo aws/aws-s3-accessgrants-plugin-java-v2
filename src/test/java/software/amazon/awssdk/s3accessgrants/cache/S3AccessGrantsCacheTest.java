@@ -23,6 +23,8 @@ import java.time.Instant;
 
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -289,7 +291,7 @@ public class S3AccessGrantsCacheTest {
     }
 
     @Test
-    public void accessGrantsCache_testGrantPresentForLocation() {
+    public void accessGrantsCache_testGrantPresentForLocation() throws ExecutionException, InterruptedException {
         // Given
         CompletableFuture<GetDataAccessResponse> getDataAccessResponse = getDataAccessResponseSetUp("s3://bucket/foo");
         CacheKey key1 = CacheKey.builder()
