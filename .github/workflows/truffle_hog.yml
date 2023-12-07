@@ -17,8 +17,11 @@ jobs:
       - name: TruffleHog secrets scanning
         uses: trufflesecurity/trufflehog@main
         with:
-            path: /
+            path: ./
             base: main
             extra_args: --debug --only-verified
+      - name: Scan Results Status
+        if: steps.trufflehog.outcome == 'failure'
+        run: exit 1
 
 
