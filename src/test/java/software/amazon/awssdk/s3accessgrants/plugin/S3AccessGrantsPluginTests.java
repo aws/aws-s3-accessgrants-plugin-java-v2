@@ -121,8 +121,9 @@ public class S3AccessGrantsPluginTests {
 
 
         Assertions.assertThatThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration))
-                .isInstanceOf(SdkClientException.class)
-                .hasMessage("Unable to load region from any of the providers in the chain");
+                .isInstanceOf(SdkClientException.class);
+        // SDK supports default values for the plugin as well, which bypasses the custom validation.
+        // SDK will throw SdkClientException when it attempts to look for the credentials in the environment config and does not find any.
 
     }
 
