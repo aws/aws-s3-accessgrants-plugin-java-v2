@@ -118,7 +118,7 @@ public class S3AccessGrantsPluginTests {
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .region(null);
 
-
+        System.out.println("the region being used for invalid config ");
 
         Assertions.assertThatThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration))
                 .isInstanceOf(IllegalArgumentException.class)

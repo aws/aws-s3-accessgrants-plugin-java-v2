@@ -299,6 +299,7 @@ public class S3AccessGrantsCacheTest {
                                 .permission(Permission.READ)
                                 .s3Prefix("s3://bucket/foo/bar/text.txt").build();
 
+
         when(mockResolver.resolve(any(String.class), any(String.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
         when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
         cacheWithMockedAccountIdResolver.getCredentials(key1, TEST_S3_ACCESSGRANTS_ACCOUNT,accessDeniedCache).get();
