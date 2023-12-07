@@ -83,6 +83,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
         S3AccessGrantsUtils.argumentNotNull(credentialsProvider, "Expecting an Identity Provider to be specified while configuring S3Clients!");
         S3AccessGrantsUtils.argumentNotNull(region, "Expecting a region to be configured on the S3Clients!");
         S3AccessGrantsUtils.argumentNotNull(stsAsyncClient, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "sts client", "identity provider"));
+        logger.error(() -> "region is "+ region);
         this.credentialsProvider = credentialsProvider;
         this.region = region;
         this.stsAsyncClient = stsAsyncClient;
