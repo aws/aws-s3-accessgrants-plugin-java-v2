@@ -83,7 +83,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         S3AccessGrantsCachedCredentialsProvider cache = createAccessGrantsCache(s3ControlAsyncClient);
 
-        logger.info(() -> "region in plugin is "+ serviceClientConfiguration.region());
+        logger.error(() -> "region in plugin is "+ serviceClientConfiguration.region());
 
         StsAsyncClient stsClient = StsAsyncClient.builder()
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider())
