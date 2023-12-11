@@ -1,0 +1,27 @@
+name: secrets scanning
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: "*"
+
+jobs:
+  TruffleHog:
+    runs-on: [ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+              fetch-depth: 0
+      - name: TruffleHog secrets scanning
+        uses: trufflesecurity/trufflehog@main
+        with:
+            path: ./
+            base: main
+            extra_args: --debug --only-verified
+      - name: Scan Results Status
+        if: steps.trufflehog.outcome == 'failure'
+        run: exit 1
+
+

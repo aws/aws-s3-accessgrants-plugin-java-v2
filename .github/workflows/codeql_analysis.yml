@@ -1,0 +1,32 @@
+name: Code QL scanning
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: "*"
+  schedule:
+    - cron: '00 06 * * 1'
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: [ubuntu-latest]
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'java' ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          queries: security-and-quality
+          languages: ${{ matrix.language }}
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2

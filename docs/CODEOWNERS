@@ -4,4 +4,4 @@
 
 # default ownership: all the code in the package is owned by S3 Access Grants team.
 # please do not submit any requests to change the ownership unless you are a member of S3 Access Grants team.
-* @aws/s3-access-grants-sdk
+* @aws/s3-access-grants-sdk-team
