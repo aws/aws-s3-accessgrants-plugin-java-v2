@@ -54,6 +54,7 @@ S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().enableF
 ```
 
 While building S3 client you have to provide a credentialsProvider object which contains credentials that have access to get credentials from Access Grants.
+Note - We only support IAM credentials with this release.
 
 ````
 S3Client s3Client = S3Client.builder()
