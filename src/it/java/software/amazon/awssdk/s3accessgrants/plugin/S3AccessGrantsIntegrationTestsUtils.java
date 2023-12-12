@@ -17,6 +17,7 @@ package software.amazon.awssdk.s3accessgrants.plugin;
 
 import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.iam.model.*;
+import software.amazon.awssdk.utils.Logger;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -108,6 +109,8 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
     public static String ACCESS_GRANTS_INSTANCE_ID;
 
+    private static final Logger logger = Logger.loggerFor(S3AccessGrantsIntegrationTestsUtils.class);
+
     public static S3Client s3clientBuilder(S3AuthSchemeProvider authSchemeProvider,
                                            IdentityProvider<AwsCredentialsIdentity> identityProvider,
                                            Region region
@@ -168,7 +171,7 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
             return s3Client.putObject(putObjectRequest, RequestBody.fromString(content));
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            logger.info(() -> e.getMessage());
             throw e;
         }
 
@@ -289,7 +292,7 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
         } catch (S3ControlException e) {
             if(e.statusCode() == 409) {
-                System.out.println("The grant has already been registered with the access grants location id!");
+                logger.info( () -> "The grant has already been registered with the access grants location id!");
 
                 // fetch the grant and return the id.
                 ListAccessGrantsRequest listAccessGrantsRequest =
@@ -361,7 +364,7 @@ public class S3AccessGrantsIntegrationTestsUtils {
             return iamClient.createRole(request).role().arn();
 
         } catch (EntityAlreadyExistsException e) {
-            System.out.println("IAM role is already existing " + "arn:aws:iam::" + accountId +
+            logger.info(() ->"IAM role is already existing " + "arn:aws:iam::" + accountId +
                     ":role/" + roleName);
             return "arn:aws:iam::" + accountId + ":role/" + roleName;
 
@@ -384,14 +387,14 @@ public class S3AccessGrantsIntegrationTestsUtils {
                                          String accountId) {
         try {
 
-            System.out.println("deleting access grants id "+ accessGrantId);
+            logger.info(() -> "deleting access grants id "+ accessGrantId);
             DeleteAccessGrantRequest deleteAccessGrantRequest =
                     DeleteAccessGrantRequest.builder().accessGrantId(accessGrantId).accountId(accountId).build();
             s3ControlClient.deleteAccessGrant(deleteAccessGrantRequest);
 
-            System.out.println("successfully deleted the access grants during test teardown!");
+            logger.info(() -> "successfully deleted the access grants during test teardown!");
         } catch (Exception e) {
-            System.out.println("Access Grants cannot be deleted during test setup teardown! "+ e.getMessage());
+            logger.info(() -> "Access Grants cannot be deleted during test setup teardown! "+ e.getMessage());
         }
     }
 
@@ -402,9 +405,9 @@ public class S3AccessGrantsIntegrationTestsUtils {
                             .build();
 
             s3ControlClient.deleteAccessGrantsLocation(deleteAccessGrantsLocationRequest);
-            System.out.println("successfully deleted the access grants location during test teardown!");
+            logger.info(() -> "successfully deleted the access grants location during test teardown!");
         } catch (Exception e) {
-            System.out.println("Access Grants Location cannot be deleted during test setup teardown! "+ e.getMessage());
+            logger.info(() -> "Access Grants Location cannot be deleted during test setup teardown! "+ e.getMessage());
         }
     }
 
@@ -415,9 +418,9 @@ public class S3AccessGrantsIntegrationTestsUtils {
                     DeleteAccessGrantsInstanceRequest.builder().accountId(accountId).build();
             s3ControlClient.deleteAccessGrantsInstance(deleteAccessGrantsInstanceRequest);
 
-            System.out.println("successfully deleted the access grants instance during test teardown!");
+            logger.info(() -> "successfully deleted the access grants instance during test teardown!");
         } catch (Exception e) {
-            System.out.println("Access Grants Instance cannot be deleted during test setup teardown! "+ e.getMessage());
+           logger.info(() -> "Access Grants Instance cannot be deleted during test setup teardown! "+ e.getMessage());
         }
     }
 
@@ -432,10 +435,10 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
             s3Client.deleteObject(deleteObjectRequest);
 
-            System.out.println("successfully deleted the object " + bucketKey + " during test teardown!");
+            logger.info(() -> "successfully deleted the object " + bucketKey + " during test teardown!");
 
         } catch (Exception e) {
-            System.out.println("Object cannot be deleted during test teardown! "+ e.getMessage());
+            logger.info(() -> "Object cannot be deleted during test teardown! "+ e.getMessage());
         }
     }
 
@@ -444,10 +447,10 @@ public class S3AccessGrantsIntegrationTestsUtils {
             DeleteBucketRequest deleteBucketRequest =
                     DeleteBucketRequest.builder().bucket(bucketName).build();
             DeleteBucketResponse deleteBucketResponse = s3Client.deleteBucket(deleteBucketRequest);
-            System.out.println("successfully deleted the bucket during test teardown!");
+            logger.info(() -> "successfully deleted the bucket during test teardown!");
             return deleteBucketResponse;
         } catch (Exception e) {
-            System.out.println("bucket cannot be deleted during test teardown! "+ e.getMessage());
+            logger.info(() -> "bucket cannot be deleted during test teardown! "+ e.getMessage());
             throw e;
         }
     }
@@ -457,9 +460,9 @@ public class S3AccessGrantsIntegrationTestsUtils {
             DeletePolicyRequest deletePolicyRequest = DeletePolicyRequest.builder().policyArn(policyArn).build();
 
             iamClient.deletePolicy(deletePolicyRequest);
-            System.out.println("successfully deleted the policy during test teardown!");
+            logger.info(() -> "successfully deleted the policy during test teardown!");
         } catch (Exception e) {
-            System.out.println("Policy cannot be deleted during test teardown! "+ e.getMessage());
+            logger.info(() -> "Policy cannot be deleted during test teardown! "+ e.getMessage());
         }
     }
 
@@ -468,9 +471,9 @@ public class S3AccessGrantsIntegrationTestsUtils {
             DeleteRoleRequest deleteRoleRequest =
                     DeleteRoleRequest.builder().roleName(roleName).build();
             iamClient.deleteRole(deleteRoleRequest);
-            System.out.println("successfully deleted the role during test teardown!");
+            logger.info(() -> "successfully deleted the role during test teardown!");
         } catch (Exception e) {
-            System.out.println("role cannot be deleted during test teardown! "+ e.getMessage());
+            logger.info(() -> "role cannot be deleted during test teardown! "+ e.getMessage());
         }
     }
 
@@ -482,9 +485,9 @@ public class S3AccessGrantsIntegrationTestsUtils {
                             .build();
 
             iamClient.detachRolePolicy(detachRolePolicyRequest);
-            System.out.println("successfully deleted the role policy during test teardown!");
+            logger.info(() -> "successfully deleted the role policy during test teardown!");
         } catch (Exception e) {
-            System.out.println("policy cannot be detached form the role during test teardown! "+e.getMessage());
+            logger.info(() -> "policy cannot be detached form the role during test teardown! "+e.getMessage());
         }
     }
 

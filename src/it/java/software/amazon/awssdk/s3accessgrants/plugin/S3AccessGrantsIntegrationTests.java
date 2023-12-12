@@ -655,7 +655,6 @@ public class S3AccessGrantsIntegrationTests {
 
             verify(cache, never()).getDataAccess(any(), any(), any(), any());
         }
-
     }
 
     @Test
