@@ -74,7 +74,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
                         "Expecting the plugin to be only "
                                 + "configured on s3 clients");
 
-        System.out.println("Before initializing control client..");
+
         S3ControlAsyncClient s3ControlAsyncClient = S3ControlAsyncClient.builder()
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider())
                 .region(serviceClientConfiguration.region())
@@ -84,6 +84,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         S3AccessGrantsCachedCredentialsProvider cache = createAccessGrantsCache(s3ControlAsyncClient);
 
+        System.out.println("Before initializing control client..");
         StsAsyncClient stsClient = StsAsyncClient.builder()
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider())
                 .region(serviceClientConfiguration.region())
