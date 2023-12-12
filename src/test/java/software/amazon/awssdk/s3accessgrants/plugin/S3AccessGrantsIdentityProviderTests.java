@@ -264,6 +264,14 @@ public class S3AccessGrantsIdentityProviderTests {
     }
 
     @Test
+    public void call_resolve_identity_with_invalid_request_params_bucket_in_prefix() {
+
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher);
+        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.verifyIfValidBucket("s3://null/*"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     public void call_get_data_access_with_invalid_response_without_cache() {
         IdentityProvider credentialsProvider = mock(IdentityProvider.class);
         S3ControlAsyncClient localS3ControlClient = mock(S3ControlAsyncClient.class);

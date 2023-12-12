@@ -140,6 +140,8 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
             Permission permission = permissionMapper.getPermission(operation);
 
+            verifyIfValidBucket(S3Prefix);
+
             logger.debug(() -> " permission : " + permission);
 
             return isCacheEnabled ? getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId) : getCredentialsFromAccessGrants(createDataAccessRequest(accountId, S3Prefix, permission, privilege));
@@ -149,6 +151,15 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
                 return userCredentials;
             }
             throw e;
+        }
+    }
+
+    /**
+     * This method verifies if the user has specified a valid bucket for the operations supported by S3 Access Grants.
+     */
+    protected void verifyIfValidBucket(String prefix) {
+        if(prefix.split("/")[2].equals("null")) {
+            throw new IllegalArgumentException("Please specify a valid bucket name for the operation!");
         }
     }
 
