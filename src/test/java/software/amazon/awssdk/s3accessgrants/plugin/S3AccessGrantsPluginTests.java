@@ -118,7 +118,7 @@ public class S3AccessGrantsPluginTests {
         S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
         SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
                 .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
-                .credentialsProvider(ProfileCredentialsProvider.create())
+                .credentialsProvider(ProfileCredentialsProvider.create("dummy-account"))
                 .region(null);
 
         System.out.println("calling configuration within invalid region config");
