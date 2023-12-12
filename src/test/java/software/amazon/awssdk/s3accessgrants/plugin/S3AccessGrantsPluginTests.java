@@ -113,6 +113,7 @@ public class S3AccessGrantsPluginTests {
     @Test
     public void call_configure_client_with_invalid_region_in_config() {
 
+
         S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
         SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
                 .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
