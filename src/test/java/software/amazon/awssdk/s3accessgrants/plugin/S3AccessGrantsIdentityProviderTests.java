@@ -272,7 +272,7 @@ public class S3AccessGrantsIdentityProviderTests {
         when(localResolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://null/*");
         when(localResolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn("GetObject");
 
-        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(localResolveIdentityRequest).join()).isInstanceOf(IllegalArgumentException.class);
+        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(localResolveIdentityRequest)).isInstanceOf(IllegalArgumentException.class);
     }
 
 

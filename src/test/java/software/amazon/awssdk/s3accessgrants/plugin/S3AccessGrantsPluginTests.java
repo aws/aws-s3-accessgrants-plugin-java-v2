@@ -113,13 +113,14 @@ public class S3AccessGrantsPluginTests {
     @Test
     public void call_configure_client_with_invalid_region_in_config() {
 
+
         S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
         SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
                 .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .region(null);
 
-
+        System.out.println("calling configuration within invalid region config");
         Assertions.assertThatThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration))
                 .isInstanceOf(IllegalArgumentException.class);
         // SDK supports default values for the plugin as well, which bypasses the custom validation.
