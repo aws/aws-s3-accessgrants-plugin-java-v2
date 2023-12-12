@@ -52,7 +52,7 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
     public List<AuthSchemeOption> resolveAuthScheme(@NotNull S3AuthSchemeParams authSchemeParams) {
         S3AccessGrantsUtils.argumentNotNull(authSchemeParams,
                 "An internal exception has occurred. Valid auth scheme params were not passed to the Auth Scheme Provider. Please contact the S3 Access Grants plugin team!");
-        S3AccessGrantsUtils.argumentNotNull(authSchemeParams.bucket(), "An internal exception has occurred. expecting bucket name to be specified for the request. Please contact the S3 Access Grants plugin team!");
+
         List<AuthSchemeOption> availableAuthSchemes = authSchemeProvider.resolveAuthScheme(authSchemeParams);
         String S3Prefix = "s3://"+authSchemeParams.bucket()+"/"+getKeyIfExists(authSchemeParams);
 

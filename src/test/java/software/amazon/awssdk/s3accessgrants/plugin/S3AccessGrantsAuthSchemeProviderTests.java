@@ -73,19 +73,6 @@ public class S3AccessGrantsAuthSchemeProviderTests {
     }
 
     @Test
-    public void call_authSchemeProvider_with_invalid_params_null_bucket() {
-        S3AuthSchemeProvider authSchemeProvider = mock(S3AuthSchemeProvider.class);
-        S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider);
-        S3AuthSchemeParams authSchemeParams = S3AuthSchemeParams.builder().bucket(null).key(KEY).operation(OPERATION).build();
-
-        when(authSchemeProvider.resolveAuthScheme(authSchemeParams)).thenReturn(authSchemeResolverResult);
-
-        Assertions.assertThatThrownBy(()->accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams)).isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("An internal exception has occurred. expecting bucket name to be specified for the request. Please contact the S3 Access Grants plugin team!");
-        verify(authSchemeProvider, never()).resolveAuthScheme(authSchemeParams);
-    }
-
-    @Test
     public void call_authSchemeProvider_with_valid_params_valid_bucket() {
         S3AuthSchemeProvider authSchemeProvider = mock(S3AuthSchemeProvider.class);
         S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider);
