@@ -15,11 +15,12 @@
 
 package software.amazon.awssdk.s3accessgrants.plugin;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.assertj.core.api.Assertions;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.core.SdkServiceClientConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3ServiceClientConfiguration;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -28,6 +29,11 @@ import software.amazon.awssdk.regions.Region;
 public class S3AccessGrantsPluginTests {
 
     private final String TEST_ACCOUNT = "123450013912";
+
+    @BeforeClass
+    public static void setUp() {
+        System.setProperty("aws.region", "us-east-2");
+    }
 
     @Test
     public void create_access_grants_plugin() {
@@ -114,17 +120,16 @@ public class S3AccessGrantsPluginTests {
     @Test
     public void call_configure_client_with_invalid_region_in_config() {
 
+        System.out.println(DefaultAwsRegionProviderChain.builder().build().getRegion());
 
         S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
         SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
                 .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
+                .credentialsProvider(DefaultCredentialsProvider.create())
                 .region(null);
 
-        System.out.println("calling configuration within invalid region config");
         Assertions.assertThatThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration))
                 .isInstanceOf(IllegalArgumentException.class);
-        // SDK supports default values for the plugin as well, which bypasses the custom validation.
-        // SDK will throw SdkClientException when it attempts to look for the credentials in the environment config and does not find any.
 
     }
 
