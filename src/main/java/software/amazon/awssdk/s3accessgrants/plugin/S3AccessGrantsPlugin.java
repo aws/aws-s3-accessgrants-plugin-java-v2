@@ -90,6 +90,8 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         MetricPublisher metricPublisher = config.overrideConfiguration() != null? (config.overrideConfiguration().metricPublishers() != null ? (config.overrideConfiguration().metricPublishers().size() > 0 ? config.overrideConfiguration().metricPublishers().get(0) : null) : null) : null;
 
+        logger.error(() -> "within the configuration"+ serviceClientConfiguration.region());
+
         serviceClientConfiguration.credentialsProvider(new S3AccessGrantsIdentityProvider(serviceClientConfiguration.credentialsProvider(),
                 serviceClientConfiguration.region(),
                 stsClient,
