@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -57,6 +58,7 @@ import software.amazon.awssdk.services.sts.StsAsyncClient;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessResponse;
 import software.amazon.awssdk.services.s3control.model.Credentials;
 import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixRequest;
+import software.amazon.awssdk.services.sts.model.StsException;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -750,6 +752,9 @@ public class S3AccessGrantsIntegrationTests {
 
             Assert.fail("Expected an exception to occur as as a valid credentials is not provided to talk to access grants!");
         } catch (IllegalArgumentException e) {
+            verify(accessGrantsPlugin, times(1)).configureClient(any());
+        } catch (CompletionException e) {
+            Assertions.assertThat(e.getCause()).isInstanceOf(StsException.class);
             verify(accessGrantsPlugin, times(1)).configureClient(any());
         }
     }
