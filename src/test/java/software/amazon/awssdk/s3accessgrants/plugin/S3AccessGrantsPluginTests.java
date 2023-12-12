@@ -17,6 +17,7 @@ package software.amazon.awssdk.s3accessgrants.plugin;
 
 import org.junit.Test;
 import org.assertj.core.api.Assertions;
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.core.SdkServiceClientConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3ServiceClientConfiguration;
@@ -117,7 +118,7 @@ public class S3AccessGrantsPluginTests {
         S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
         SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
                 .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
-                .credentialsProvider(DefaultCredentialsProvider.create())
+                .credentialsProvider(ProfileCredentialsProvider.create())
                 .region(null);
 
         System.out.println("calling configuration within invalid region config");
