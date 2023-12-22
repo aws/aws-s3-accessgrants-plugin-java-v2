@@ -17,15 +17,29 @@ package software.amazon.awssdk.s3accessgrants.plugin;
 
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.assertj.core.api.Assertions;
 import software.amazon.awssdk.annotations.NotNull;
+import software.amazon.awssdk.core.exception.SdkServiceException;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsOperationToPermissionMapper;
+import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsStaticOperationToPermissionMapper;
 import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils;
 import software.amazon.awssdk.http.auth.spi.scheme.AuthSchemeOption;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeParams;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
+import software.amazon.awssdk.services.s3control.model.Permission;
 
-import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.OPERATION_PROPERTY;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PERMISSION_PROPERTY;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PREFIX_PROPERTY;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.BUCKET_LOCATION_PROPERTY;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.logger;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.CONTACT_TEAM_MESSAGE_TEMPLATE;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.DEFAULT_CROSS_REGION_ACCESS_SETTING;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.AUTH_EXCEPTIONS_PROPERTY;
 
 
 /**
@@ -37,10 +51,20 @@ import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGran
 public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
 
     private final S3AuthSchemeProvider authSchemeProvider;
-    S3AccessGrantsAuthSchemeProvider(@NotNull S3AuthSchemeProvider authSchemeProvider) {
+    private final S3Client s3Client;
+
+    private final Boolean isCrossRegionAccessEnabled;
+
+    private final S3AccessGrantsOperationToPermissionMapper permissionMapper;
+
+    S3AccessGrantsAuthSchemeProvider(@NotNull S3AuthSchemeProvider authSchemeProvider, S3Client s3Client, Boolean isCrossRegionEnabled) {
         S3AccessGrantsUtils.argumentNotNull(authSchemeProvider,
                 "Expecting an Auth Scheme Provider to be specified while configuring S3Clients!");
+        S3AccessGrantsUtils.argumentNotNull(s3Client, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "S3 Client", "Plugin"));
         this.authSchemeProvider = authSchemeProvider;
+        this.s3Client = s3Client;
+        this.isCrossRegionAccessEnabled = isCrossRegionEnabled == null ? DEFAULT_CROSS_REGION_ACCESS_SETTING : isCrossRegionEnabled;
+        this.permissionMapper = new S3AccessGrantsStaticOperationToPermissionMapper();
     }
 
     /**
@@ -54,16 +78,33 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
                 "An internal exception has occurred. Valid auth scheme params were not passed to the Auth Scheme Provider. Please contact the S3 Access Grants plugin team!");
 
         List<AuthSchemeOption> availableAuthSchemes = authSchemeProvider.resolveAuthScheme(authSchemeParams);
-        String S3Prefix = "s3://"+authSchemeParams.bucket()+"/"+getKeyIfExists(authSchemeParams);
 
-        return availableAuthSchemes.stream()
-                .map(authScheme -> authScheme.toBuilder().putIdentityProperty(OPERATION_PROPERTY,
-                                authSchemeParams.operation())
-                        .putIdentityProperty(PREFIX_PROPERTY,
-                                S3Prefix)
-                        .build()
-                )
-                .collect(Collectors.toList());
+        try {
+            final Permission permission = permissionMapper.getPermission(authSchemeParams.operation());
+
+            S3AccessGrantsUtils.argumentNotNull(authSchemeParams.bucket(), "Please specify a valid bucket name for the operation!");
+
+            final Region destinationRegion = getBucketLocation(authSchemeParams.bucket());
+
+            logger.debug(() -> "Access Grants requests will be sent to the region "+destinationRegion);
+            logger.debug(() -> "operation : " + authSchemeParams.operation());
+
+            String S3Prefix = "s3://"+authSchemeParams.bucket()+"/"+getKeyIfExists(authSchemeParams);
+
+            return availableAuthSchemes.stream()
+                    .map(authScheme -> authScheme.toBuilder()
+                            .putIdentityProperty(PREFIX_PROPERTY,
+                                    S3Prefix)
+                            .putIdentityProperty(BUCKET_LOCATION_PROPERTY, destinationRegion)
+                            .putIdentityProperty(PERMISSION_PROPERTY, permission)
+                            .build()
+                    )
+                    .collect(Collectors.toList());
+        } catch (SdkServiceException e) {
+            return availableAuthSchemes.stream()
+                    .map(authScheme -> authScheme.toBuilder().putIdentityProperty(AUTH_EXCEPTIONS_PROPERTY, e).build())
+                    .collect(Collectors.toList());
+        }
     }
 
     private String getKeyIfExists(S3AuthSchemeParams authSchemeParams) {
@@ -79,4 +120,21 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
         return keyDoesNotExists ? "*" : validKey;
 
     }
+
+    /**
+     * Fetch the location where the bucket is created.
+     * This is to ensure that the Access Grants requests are made to the correct region.
+     * @param bucketName bucket name in the users request
+     * @return Region where the S3 bucket exists
+     */
+    private Region getBucketLocation(String bucketName) {
+        if(isCrossRegionAccessEnabled) {
+            HeadBucketRequest bucketLocationRequest = HeadBucketRequest.builder().bucket(bucketName).build();
+            HeadBucketResponse headBucketResponse = s3Client.headBucket(bucketLocationRequest);
+            return Region.of(headBucketResponse.bucketRegion());
+        }
+        S3AccessGrantsUtils.argumentNotNull(s3Client.serviceClientConfiguration().region(), "Expecting a region to be configured on the S3Clients!");
+        return s3Client.serviceClientConfiguration().region();
+    }
+
 }

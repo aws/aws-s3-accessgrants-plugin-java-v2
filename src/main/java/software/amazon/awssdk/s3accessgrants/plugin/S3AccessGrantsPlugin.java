@@ -21,9 +21,10 @@ import software.amazon.awssdk.core.SdkServiceClientConfiguration;
 import software.amazon.awssdk.metrics.MetricPublisher;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProviderImpl;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ServiceClientConfiguration;
+import software.amazon.awssdk.services.s3control.S3ControlAsyncClientBuilder;
 import software.amazon.awssdk.services.sts.StsAsyncClient;
-import software.amazon.awssdk.utils.Logger;
 import software.amazon.awssdk.utils.builder.ToCopyableBuilder;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.utils.Validate;
@@ -32,6 +33,7 @@ import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGran
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.DEFAULT_CACHE_SETTING;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.DEFAULT_FALLBACK_SETTING;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.logger;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.DEFAULT_CROSS_REGION_ACCESS_SETTING;
 
 /**
  * Access Grants Plugin that can be configured on S3 Clients
@@ -40,8 +42,11 @@ import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGran
 public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Builder, S3AccessGrantsPlugin> {
 
     private boolean enableFallback;
+    private boolean enableCrossRegionAccess;
+
     S3AccessGrantsPlugin(BuilderImpl builder) {
         this.enableFallback = builder.enableFallback;
+        this.enableCrossRegionAccess = builder.enableCrossRegionAccess;
     }
 
     public static Builder builder() {
@@ -54,6 +59,10 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
     boolean enableFallback() {
        return this.enableFallback;
+    }
+
+    boolean enableCrossRegionAccess() {
+        return this.enableCrossRegionAccess;
     }
 
     /**
@@ -74,14 +83,18 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
                         "Expecting the plugin to be only "
                                 + "configured on s3 clients");
 
-        S3ControlAsyncClient s3ControlAsyncClient = S3ControlAsyncClient.builder()
+        S3ControlAsyncClientBuilder s3ControlAsyncClientBuilder = S3ControlAsyncClient.builder()
+                .credentialsProvider(serviceClientConfiguration.credentialsProvider());
+
+        S3Client s3Client = S3Client
+                .builder()
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider())
                 .region(serviceClientConfiguration.region())
                 .build();
 
-        serviceClientConfiguration.authSchemeProvider(new S3AccessGrantsAuthSchemeProvider(serviceClientConfiguration.authSchemeProvider()));
+        serviceClientConfiguration.authSchemeProvider(new S3AccessGrantsAuthSchemeProvider(serviceClientConfiguration.authSchemeProvider(), s3Client, enableCrossRegionAccess));
 
-        S3AccessGrantsCachedCredentialsProvider cache = createAccessGrantsCache(s3ControlAsyncClient);
+        S3AccessGrantsCachedCredentialsProvider cache = createAccessGrantsCache();
 
         StsAsyncClient stsClient = StsAsyncClient.builder()
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider())
@@ -91,11 +104,10 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
         MetricPublisher metricPublisher = config.overrideConfiguration() != null? (config.overrideConfiguration().metricPublishers() != null ? (config.overrideConfiguration().metricPublishers().size() > 0 ? config.overrideConfiguration().metricPublishers().get(0) : null) : null) : null;
 
         serviceClientConfiguration.credentialsProvider(new S3AccessGrantsIdentityProvider(serviceClientConfiguration.credentialsProvider(),
-                serviceClientConfiguration.region(),
                 stsClient,
                 DEFAULT_PRIVILEGE_FOR_PLUGIN,
                 DEFAULT_CACHE_SETTING,
-                s3ControlAsyncClient,
+                s3ControlAsyncClientBuilder,
                 cache,
                 enableFallback,
                 metricPublisher
@@ -105,11 +117,9 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
     }
 
-    private S3AccessGrantsCachedCredentialsProvider createAccessGrantsCache(S3ControlAsyncClient s3ControlAsyncClient) {
+    private S3AccessGrantsCachedCredentialsProvider createAccessGrantsCache() {
 
-        return S3AccessGrantsCachedCredentialsProviderImpl.builder()
-                .S3ControlAsyncClient(s3ControlAsyncClient)
-                .build();
+        return S3AccessGrantsCachedCredentialsProviderImpl.builder().build();
 
     }
 
@@ -120,12 +130,15 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
     public static final class BuilderImpl implements Builder{
         private boolean enableFallback;
+        private boolean enableCrossRegionAccess;
         BuilderImpl() {
             this.enableFallback = DEFAULT_FALLBACK_SETTING;
+            this.enableCrossRegionAccess = DEFAULT_CROSS_REGION_ACCESS_SETTING;
         }
 
         BuilderImpl(S3AccessGrantsPlugin plugin) {
             this.enableFallback = plugin.enableFallback;
+            this.enableCrossRegionAccess = plugin.enableCrossRegionAccess;
         }
 
         @Override
@@ -137,6 +150,12 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
         public Builder enableFallback(@NotNull Boolean choice) {
            this.enableFallback = choice == null ? DEFAULT_FALLBACK_SETTING: choice;
            return this;
+        }
+
+        @Override
+        public Builder enableCrossRegionAccess(@NotNull Boolean choice) {
+            this.enableCrossRegionAccess = choice == null ? DEFAULT_CROSS_REGION_ACCESS_SETTING: choice;
+            return this;
         }
     }
 }
