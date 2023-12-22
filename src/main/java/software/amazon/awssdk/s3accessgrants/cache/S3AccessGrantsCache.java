@@ -43,18 +43,14 @@ import software.amazon.awssdk.utils.Logger;
 public class S3AccessGrantsCache {
 
     private AsyncCache<CacheKey, AwsCredentialsIdentity> cache;
-    private final S3ControlAsyncClient s3ControlAsyncClient;
+    private S3ControlAsyncClient s3ControlAsyncClient;
     private int maxCacheSize;
     private final S3AccessGrantsCachedAccountIdResolver s3AccessGrantsCachedAccountIdResolver;
     private final int cacheExpirationTimePercentage;
     private static final Logger logger = Logger.loggerFor(S3AccessGrantsCache.class);
 
-    private S3AccessGrantsCache (@NotNull S3ControlAsyncClient s3ControlAsyncClient,
-                                 S3AccessGrantsCachedAccountIdResolver resolver, int maxCacheSize, int cacheExpirationTimePercentage) {
-        if (s3ControlAsyncClient == null) {
-            throw new IllegalArgumentException("S3ControlAsyncClient is required");
-        }
-        this.s3ControlAsyncClient = s3ControlAsyncClient;
+    private S3AccessGrantsCache (@NotNull S3AccessGrantsCachedAccountIdResolver resolver, int maxCacheSize, int cacheExpirationTimePercentage) {
+
         this.s3AccessGrantsCachedAccountIdResolver = resolver;
         this.cacheExpirationTimePercentage = cacheExpirationTimePercentage;
         this.maxCacheSize = maxCacheSize;
@@ -93,13 +89,13 @@ public class S3AccessGrantsCache {
         @Override
         public S3AccessGrantsCache build() {
             S3AccessGrantsCachedAccountIdResolver s3AccessGrantsCachedAccountIdResolver =
-                S3AccessGrantsCachedAccountIdResolver.builder().S3ControlAsyncClient(s3ControlAsyncClient).build();
-            return new S3AccessGrantsCache(s3ControlAsyncClient, s3AccessGrantsCachedAccountIdResolver, maxCacheSize, cacheExpirationTimePercentage);
+                S3AccessGrantsCachedAccountIdResolver.builder().build();
+            return new S3AccessGrantsCache(s3AccessGrantsCachedAccountIdResolver, maxCacheSize, cacheExpirationTimePercentage);
         }
 
         @Override
         public S3AccessGrantsCache buildWithAccountIdResolver() {
-                    return new S3AccessGrantsCache(s3ControlAsyncClient, s3AccessGrantsCachedAccountIdResolver, maxCacheSize,
+                    return new S3AccessGrantsCache(s3AccessGrantsCachedAccountIdResolver, maxCacheSize,
                                                    cacheExpirationTimePercentage);
                 }
 
@@ -134,12 +130,14 @@ public class S3AccessGrantsCache {
      * @param cacheKey CacheKey consists of AwsCredentialsIdentity, Permission, and S3Prefix.
      * @param accountId Account Id of the requester
      * @param s3AccessGrantsAccessDeniedCache instance of S3AccessGrantsAccessDeniedCache
+     * @param s3ControlAsyncClient S3ControlAsyncClient that will be used for making the requests
      * @return cached Access Grants credentials.
      */
     protected CompletableFuture<AwsCredentialsIdentity> getCredentials (CacheKey cacheKey, String accountId,
-                                                  S3AccessGrantsAccessDeniedCache s3AccessGrantsAccessDeniedCache) throws S3ControlException {
+                                                  S3AccessGrantsAccessDeniedCache s3AccessGrantsAccessDeniedCache, S3ControlAsyncClient s3ControlAsyncClient) throws S3ControlException {
 
         logger.debug(()->"Fetching credentials from Access Grants for s3Prefix: " + cacheKey.s3Prefix);
+        this.s3ControlAsyncClient = s3ControlAsyncClient;
         CompletableFuture<AwsCredentialsIdentity> credentials = searchKeyInCacheAtPrefixLevel(cacheKey);
         if (credentials == null &&
             (cacheKey.permission == Permission.READ ||
@@ -157,6 +155,9 @@ public class S3AccessGrantsCache {
         if (credentials == null) {
             try {
                 logger.debug(()->"Credentials not available in the cache. Fetching credentials from Access Grants service.");
+                if (s3ControlAsyncClient == null) {
+                    throw new IllegalArgumentException("S3ControlAsyncClient is required");
+                }
                 credentials = getCredentialsFromService(cacheKey,accountId).thenApply(getDataAccessResponse -> {
                     Credentials accessGrantsCredentials = getDataAccessResponse.credentials();
                     long duration = getTTL(accessGrantsCredentials.expiration());
@@ -202,7 +203,7 @@ public class S3AccessGrantsCache {
      * @throws S3ControlException throws Exception received from service.
      */
     private CompletableFuture<GetDataAccessResponse> getCredentialsFromService(CacheKey cacheKey, String accountId) throws S3ControlException{
-        String resolvedAccountId = s3AccessGrantsCachedAccountIdResolver.resolve(accountId, cacheKey.s3Prefix);
+        String resolvedAccountId = s3AccessGrantsCachedAccountIdResolver.resolve(accountId, cacheKey.s3Prefix, this.s3ControlAsyncClient);
         logger.debug(()->"Fetching credentials from Access Grants for accountId: " + resolvedAccountId + ", s3Prefix: " + cacheKey.s3Prefix +
                          ", permission: " + cacheKey.permission + ", privilege: " + Privilege.DEFAULT);
         GetDataAccessRequest dataAccessRequest = GetDataAccessRequest.builder()
