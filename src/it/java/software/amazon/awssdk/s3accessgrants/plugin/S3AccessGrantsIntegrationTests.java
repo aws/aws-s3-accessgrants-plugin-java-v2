@@ -136,7 +136,7 @@ public class S3AccessGrantsIntegrationTests {
     @AfterClass
     public static void tearDown() {
         if (!S3AccessGrantsIntegrationTestsUtils.DISABLE_TEAR_DOWN) {
-//            S3AccessGrantsInstanceSetUpUtils.tearDown();
+            S3AccessGrantsInstanceSetUpUtils.tearDown();
         }
     }
 

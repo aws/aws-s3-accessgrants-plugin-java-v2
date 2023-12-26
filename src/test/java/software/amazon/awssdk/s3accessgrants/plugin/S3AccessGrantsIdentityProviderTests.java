@@ -22,8 +22,8 @@ import java.util.concurrent.CompletionException;
 import org.junit.AfterClass;
 import org.junit.Test;
 import org.assertj.core.api.Assertions;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.identity.spi.IdentityProvider;
@@ -31,12 +31,19 @@ import software.amazon.awssdk.identity.spi.ResolveIdentityRequest;
 import software.amazon.awssdk.metrics.MetricCollection;
 import software.amazon.awssdk.metrics.MetricCollector;
 import software.amazon.awssdk.metrics.MetricPublisher;
-import software.amazon.awssdk.metrics.publishers.cloudwatch.CloudWatchMetricPublisher;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProviderImpl;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClientBuilder;
-import software.amazon.awssdk.services.s3control.model.*;
+import software.amazon.awssdk.services.s3control.model.Credentials;
+import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
+import software.amazon.awssdk.services.s3control.model.GetDataAccessResponse;
+import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixRequest;
+import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixResponse;
+import software.amazon.awssdk.services.s3control.model.InvalidRequestException;
+import software.amazon.awssdk.services.s3control.model.Permission;
+import software.amazon.awssdk.services.s3control.model.Privilege;
+import software.amazon.awssdk.services.s3control.model.S3ControlException;
 
 
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
@@ -52,7 +59,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.spy;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.*;
 
 public class S3AccessGrantsIdentityProviderTests {
@@ -75,7 +81,7 @@ public class S3AccessGrantsIdentityProviderTests {
     private final Boolean TEST_FALLBACK_ENABLED = false;
 
     private static final String TEST_ACCOUNT = "12345028312";
-    private static DefaultCredentialsProvider credentialsProvider;
+    private static AwsCredentialsProvider credentialsProvider;
 
     private static S3ControlAsyncClientBuilder s3ControlAsyncClientBuilder;
 
@@ -96,7 +102,7 @@ public class S3AccessGrantsIdentityProviderTests {
         s3ControlAsyncClientBuilder = mock(S3ControlAsyncClientBuilder.class);
         s3ControlClient = mock(S3ControlAsyncClient.class);
         cache = mock(S3AccessGrantsCachedCredentialsProvider.class);
-        credentialsProvider = DefaultCredentialsProvider.create();
+        credentialsProvider = mock(AwsCredentialsProvider.class);
         stsAsyncClient = mock(StsAsyncClient.class);
         metricsPublisher = mock(MetricPublisher.class);
         metricsCollector = mock(MetricCollector.class);
@@ -129,7 +135,9 @@ public class S3AccessGrantsIdentityProviderTests {
         when(stsAsyncClient.getCallerIdentity()).thenReturn(callerIdentityResponse);
         when(cache.getAccessGrantsMetrics()).thenReturn(metricsCollector);
         when(metricsCollector.collect()).thenReturn(mock(MetricCollection.class));
+        when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> credentials));
     }
+
 
     @AfterClass
     public static void runAfterAllTests() {
