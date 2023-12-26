@@ -88,6 +88,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         S3Client s3Client = S3Client
                 .builder()
+                .crossRegionAccessEnabled(true)
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider())
                 .region(serviceClientConfiguration.region())
                 .build();

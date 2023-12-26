@@ -29,8 +29,9 @@ import software.amazon.awssdk.http.auth.spi.scheme.AuthSchemeOption;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeParams;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
-import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3control.model.Permission;
 
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PERMISSION_PROPERTY;
@@ -128,11 +129,19 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
      * @return Region where the S3 bucket exists
      */
     private Region getBucketLocation(String bucketName) {
-        if(isCrossRegionAccessEnabled) {
-            HeadBucketRequest bucketLocationRequest = HeadBucketRequest.builder().bucket(bucketName).build();
-            HeadBucketResponse headBucketResponse = s3Client.headBucket(bucketLocationRequest);
-            return Region.of(headBucketResponse.bucketRegion());
-        }
+      try {
+          if (isCrossRegionAccessEnabled) {
+              HeadBucketRequest bucketLocationRequest = HeadBucketRequest.builder().bucket(bucketName).build();
+              HeadBucketResponse headBucketResponse = s3Client.headBucket(bucketLocationRequest);
+              return Region.of(headBucketResponse.bucketRegion());
+          }
+      } catch (S3Exception e) {
+          if (e.statusCode() == 301) {
+              // A fallback in case S3 Clients are not able to re-direct the head bucket requests to the correct region.
+              String bucketRegion = e.awsErrorDetails().sdkHttpResponse().headers().get("x-amz-bucket-region").get(0);
+              return Region.of(bucketRegion);
+          }
+      }
         S3AccessGrantsUtils.argumentNotNull(s3Client.serviceClientConfiguration().region(), "Expecting a region to be configured on the S3Clients!");
         return s3Client.serviceClientConfiguration().region();
     }

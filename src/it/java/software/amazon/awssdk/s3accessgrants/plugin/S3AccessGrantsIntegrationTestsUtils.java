@@ -15,8 +15,10 @@
 
 package software.amazon.awssdk.s3accessgrants.plugin;
 
+import software.amazon.awssdk.identity.spi.IdentityProperty;
 import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.iam.model.*;
+import software.amazon.awssdk.services.s3control.S3ControlAsyncClientBuilder;
 import software.amazon.awssdk.utils.Logger;
 
 import java.io.FileInputStream;
@@ -67,6 +69,8 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
     public static Region TEST_REGION;
 
+    public static Region TEST_REGION_2;
+
     public static String TEST_CREDENTIALS_PROFILE_NAME;
 
     public static String TEST_ACCOUNT;
@@ -76,6 +80,8 @@ public class S3AccessGrantsIntegrationTestsUtils {
     public static final String TEST_BUCKET_NAME_NOT_REGISTERED = "access-grants-sdk-test-bucket-not-registered";
 
     public static final String TEST_BUCKET_READWRITE = "access-grants-sdk-test-bucket-readwrite";
+
+    public static final String TEST_BUCKET_READWRITE_CROSS_REGION = "access-grants-sdk-test-bucket-readwrite-cross-region";
 
     public static final String TEST_LOCATION_1 = "PrefixA/prefixB/";
 
@@ -133,9 +139,18 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
     }
 
-    public static S3ControlAsyncClient s3ControlAsyncClientBuilder(IdentityProvider<AwsCredentialsIdentity> identityProvider,
-                                                                   Region region) {
+    public static S3ControlAsyncClientBuilder s3ControlAsyncClientBuilder(IdentityProvider<AwsCredentialsIdentity> identityProvider,
+                                                                          Region region) {
         return S3ControlAsyncClient.builder()
+                .region(region)
+                .credentialsProvider(identityProvider);
+
+    }
+
+    public static S3Client s3ClientBuilder(IdentityProvider<AwsCredentialsIdentity> identityProvider,
+                                           Region region) {
+
+        return S3Client.builder()
                 .region(region)
                 .credentialsProvider(identityProvider)
                 .build();

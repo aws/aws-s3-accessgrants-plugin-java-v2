@@ -141,6 +141,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
             logger.debug(() -> " S3Prefix : " + S3Prefix);
             logger.debug(() -> " caller accountID : " + accountId);
             logger.debug(() -> " permission : " + permission);
+            logger.debug(() -> " bucket region : " + destinationRegion);
 
             return getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId, s3ControlAsyncClient);
         } catch(SdkServiceException e) {

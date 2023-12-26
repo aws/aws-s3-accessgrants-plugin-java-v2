@@ -135,8 +135,7 @@ public class S3AccessGrantsPluginTests {
                 .region(null);
 
 
-        Assertions.assertThatThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration))
-                .isInstanceOf(IllegalArgumentException.class);
+        Assertions.assertThatNoException().isThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration));
 
     }
 

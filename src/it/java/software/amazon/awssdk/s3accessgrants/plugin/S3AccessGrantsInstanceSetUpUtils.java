@@ -35,19 +35,29 @@ public class S3AccessGrantsInstanceSetUpUtils {
 
     private static S3Client s3Client = null;
 
+    private static S3Client s3ClientForCrossRegion = null;
+
     private static S3ControlClient s3ControlClient = null;
+
+    private static S3ControlClient s3ControlClientForCrossRegion = null;
 
     private static IamClient iamClient = null;
 
     private static String accessGrantsInstanceLocationId = null;
 
+    private static String accessGrantsInstanceLocationIdForCrossRegion = null;
+
     private static String accessGrantsInstanceLocationIdReadWriteBucket = null;
 
     private static String accessGrantsArn = null;
 
+    private static String accessGrantsArnCrossRegion = null;
+
     private static String iamRoleArn = null;
 
     private static List<String> registeredAccessGrants = new ArrayList<>();
+
+    private static List<String> registeredAccessGrantsForCrossRegion = new ArrayList<>();
 
     public static void setUpAccessGrantsInstanceForTests() throws IOException {
         String defaultPropertiesFilePath = System.getProperty("user.dir")+"/default.properties";
@@ -56,6 +66,7 @@ public class S3AccessGrantsInstanceSetUpUtils {
         S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME = testProps.getProperty("credentialsProfile").trim();
         S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_IAM_ROLE_NAME = testProps.getProperty("IamRoleName").trim();
         S3AccessGrantsIntegrationTestsUtils.TEST_REGION = Region.of(testProps.getProperty("region").trim());
+        S3AccessGrantsIntegrationTestsUtils.TEST_REGION_2 = Region.of(testProps.getProperty("cross_region").trim());
         S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT = testProps.getProperty("accountId").trim();
         S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_INSTANCE_ARN = "arn:aws:s3:"+S3AccessGrantsIntegrationTestsUtils.TEST_REGION+":"+ S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT+":access-grants/default";
         S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_INSTANCE_ID = "default";
@@ -67,12 +78,20 @@ public class S3AccessGrantsInstanceSetUpUtils {
 
         s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, profileCredentialsProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
+        s3ClientForCrossRegion = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, profileCredentialsProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION_2);
+
         s3ControlClient = S3AccessGrantsIntegrationTestsUtils.s3ControlClientBuilder(profileCredentialsProvider,
                                                                                      S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
+
+        s3ControlClientForCrossRegion = S3AccessGrantsIntegrationTestsUtils.s3ControlClientBuilder(profileCredentialsProvider,
+                S3AccessGrantsIntegrationTestsUtils.TEST_REGION_2);
 
         accessGrantsArn =
             S3AccessGrantsIntegrationTestsUtils.createAccessGrantsInstance(s3ControlClient,
                                                                            S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT);
+
+        accessGrantsArnCrossRegion  =  S3AccessGrantsIntegrationTestsUtils.createAccessGrantsInstance(s3ControlClientForCrossRegion,
+                S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT);
 
         iamClient =
             S3AccessGrantsIntegrationTestsUtils.iamClientBuilder(profileCredentialsProvider,
@@ -83,11 +102,14 @@ public class S3AccessGrantsInstanceSetUpUtils {
                                                                                      createS3AccessGrantsIAMTrustRelationship(),
                                                                                      S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT);
 
-        CreateAccessGrantsBucket(S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME);
+        CreateAccessGrantsBucket(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME);
 
-        CreateAccessGrantsBucket(S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME_NOT_REGISTERED);
+        CreateAccessGrantsBucket(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME_NOT_REGISTERED);
 
-        CreateAccessGrantsBucket(S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE);
+        CreateAccessGrantsBucket(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE);
+
+        CreateAccessGrantsBucket(s3ClientForCrossRegion, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE_CROSS_REGION);
+
 
         accessGrantsInstanceLocationId = S3AccessGrantsIntegrationTestsUtils.createS3AccessGrantsLocation(s3ControlClient,
                                                                       "s3://" + S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
@@ -96,6 +118,11 @@ public class S3AccessGrantsInstanceSetUpUtils {
 
         accessGrantsInstanceLocationIdReadWriteBucket = S3AccessGrantsIntegrationTestsUtils.createS3AccessGrantsLocation(s3ControlClient,
                 "s3://" + S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE,
+                S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
+                iamRoleArn);
+
+        accessGrantsInstanceLocationIdForCrossRegion = S3AccessGrantsIntegrationTestsUtils.createS3AccessGrantsLocation(s3ControlClientForCrossRegion,
+                "s3://" + S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE_CROSS_REGION,
                 S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT,
                 iamRoleArn);
 
@@ -115,6 +142,11 @@ public class S3AccessGrantsInstanceSetUpUtils {
         registeredAccessGrants.add(S3AccessGrantsIntegrationTestsUtils.registerAccessGrant(s3ControlClient,
                 "PrefixA/*", Permission.READWRITE, iamRoleArn, S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT, accessGrantsInstanceLocationIdReadWriteBucket));
 
+        registeredAccessGrantsForCrossRegion.add(S3AccessGrantsIntegrationTestsUtils.registerAccessGrant(s3ControlClientForCrossRegion,
+                S3AccessGrantsIntegrationTestsUtils.ALLOWED_BUCKET_PREFIX,
+                Permission.READWRITE, iamRoleArn,
+                S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT, accessGrantsInstanceLocationIdForCrossRegion));
+
         S3AccessGrantsIntegrationTestsUtils.PutObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
                                                       S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT1,
                                                       S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT_1_CONTENTS);
@@ -126,6 +158,11 @@ public class S3AccessGrantsInstanceSetUpUtils {
         S3AccessGrantsIntegrationTestsUtils.PutObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE,
                 S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT2,
                 S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT_2_CONTENTS);
+
+
+        S3AccessGrantsIntegrationTestsUtils.PutObject(s3ClientForCrossRegion, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE_CROSS_REGION,
+                S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT1,
+                S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT_1_CONTENTS);
 
     }
 
@@ -206,7 +243,7 @@ public class S3AccessGrantsInstanceSetUpUtils {
                + "}";
     }
 
-    public static void CreateAccessGrantsBucket(String bucketName) {
+    public static void CreateAccessGrantsBucket(S3Client s3Client, String bucketName) {
         try {
             S3AccessGrantsIntegrationTestsUtils.CreateBucket(s3Client, bucketName);
         } catch (software.amazon.awssdk.services.s3.model.BucketAlreadyOwnedByYouException e) {
@@ -217,33 +254,48 @@ public class S3AccessGrantsInstanceSetUpUtils {
 
     public static void tearDown() {
 
-            registeredAccessGrants.forEach(accessGrantId -> {
+        registeredAccessGrants.forEach(accessGrantId -> {
                 S3AccessGrantsIntegrationTestsUtils.deleteAccessGrant( s3ControlClient, accessGrantId,
                                                                     S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT);
-            });
+        });
 
-            S3AccessGrantsIntegrationTestsUtils.deleteAccessGrantLocation(s3ControlClient, accessGrantsInstanceLocationId);
+        registeredAccessGrantsForCrossRegion.forEach(accessGrantId -> {
+            S3AccessGrantsIntegrationTestsUtils.deleteAccessGrant( s3ControlClientForCrossRegion, accessGrantId,
+                    S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT);
+        });
+
+        S3AccessGrantsIntegrationTestsUtils.deleteAccessGrantLocation(s3ControlClient, accessGrantsInstanceLocationId);
 
         S3AccessGrantsIntegrationTestsUtils.deleteAccessGrantLocation(s3ControlClient, accessGrantsInstanceLocationIdReadWriteBucket);
 
-           S3AccessGrantsIntegrationTestsUtils.deleteAccessGrantsInstance(s3ControlClient,
+        S3AccessGrantsIntegrationTestsUtils.deleteAccessGrantLocation(s3ControlClientForCrossRegion, accessGrantsInstanceLocationIdForCrossRegion);
+
+        S3AccessGrantsIntegrationTestsUtils.deleteAccessGrantsInstance(s3ControlClient,
                                                                           S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT );
 
+        S3AccessGrantsIntegrationTestsUtils.deleteAccessGrantsInstance(s3ControlClientForCrossRegion,
+                S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT );
 
-           S3AccessGrantsIntegrationTestsUtils.deleteObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
+
+        S3AccessGrantsIntegrationTestsUtils.deleteObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
                          S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT1);
 
-           S3AccessGrantsIntegrationTestsUtils.deleteObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
+        S3AccessGrantsIntegrationTestsUtils.deleteObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
                      S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT2);
 
         S3AccessGrantsIntegrationTestsUtils.deleteObject(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE,
                 S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT2);
 
-           S3AccessGrantsIntegrationTestsUtils.deleteBucket(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME);
+        S3AccessGrantsIntegrationTestsUtils.deleteObject(s3ClientForCrossRegion, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE_CROSS_REGION,
+                S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT1);
 
-            S3AccessGrantsIntegrationTestsUtils.deleteBucket(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME_NOT_REGISTERED);
+        S3AccessGrantsIntegrationTestsUtils.deleteBucket(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME);
+
+        S3AccessGrantsIntegrationTestsUtils.deleteBucket(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME_NOT_REGISTERED);
 
         S3AccessGrantsIntegrationTestsUtils.deleteBucket(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE);
+
+        S3AccessGrantsIntegrationTestsUtils.deleteBucket(s3ClientForCrossRegion, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE_CROSS_REGION);
 
     }
 }

@@ -37,6 +37,7 @@ import org.mockito.Mockito;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
+import software.amazon.awssdk.services.s3control.S3ControlAsyncClientBuilder;
 import software.amazon.awssdk.services.s3control.model.Credentials;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessResponse;
@@ -45,7 +46,7 @@ import software.amazon.awssdk.services.s3control.model.Permission;
 public class S3AccessGrantsCachedCredentialsProviderImplTest {
     S3AccessGrantsCachedCredentialsProviderImpl cache;
     S3AccessGrantsCachedCredentialsProviderImpl cacheWithMockedAccountIdResolver;
-    static S3ControlAsyncClient S3ControlAsyncClient = Mockito.mock(S3ControlAsyncClient.class);
+    static S3ControlAsyncClient S3ControlAsyncClient;
     static S3AccessGrantsCachedAccountIdResolver mockResolver = Mockito.mock(S3AccessGrantsCachedAccountIdResolver.class);
     static Credentials credentials;
 
@@ -78,6 +79,7 @@ public class S3AccessGrantsCachedCredentialsProviderImplTest {
     @Test
     public void cacheImpl_cacheHit() {
         // Given
+        S3ControlAsyncClient = Mockito.mock(S3ControlAsyncClient.class);
         CompletableFuture<GetDataAccessResponse> getDataAccessResponse = getDataAccessResponseSetUp("s3://bucket2/foo/*");
         when(mockResolver.resolve(any(String.class), any(String.class), any(S3ControlAsyncClient.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
         when(S3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
@@ -99,6 +101,7 @@ public class S3AccessGrantsCachedCredentialsProviderImplTest {
     @Test
     public void cacheImpl_cacheMiss() {
         // Given
+        S3ControlAsyncClient = Mockito.mock(S3ControlAsyncClient.class);
         CompletableFuture<GetDataAccessResponse> getDataAccessResponse = getDataAccessResponseSetUp("s3://bucket2/foo/bar");
         when(mockResolver.resolve(any(String.class), any(String.class), any(S3ControlAsyncClient.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
         when(S3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
