@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -53,7 +54,13 @@ import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClientBuilder;
-import software.amazon.awssdk.services.s3control.model.*;
+import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
+import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixResponse;
+import software.amazon.awssdk.services.s3control.model.S3ControlException;
+import software.amazon.awssdk.services.s3control.model.GetDataAccessResponse;
+import software.amazon.awssdk.services.s3control.model.Credentials;
+import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixRequest;
+import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.sts.StsAsyncClient;
 import software.amazon.awssdk.services.sts.model.StsException;
 
@@ -117,6 +124,8 @@ public class S3AccessGrantsIntegrationTests {
 
     private static MetricPublisher metricPublisher;
 
+    private static ConcurrentHashMap<Region, S3ControlAsyncClient> clientsCache;
+
     @BeforeClass
     public static void testsSetUp() throws IOException {
 
@@ -130,6 +139,7 @@ public class S3AccessGrantsIntegrationTests {
                 .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
                 .build();
         metricPublisher = CloudWatchMetricPublisher.builder().namespace("S3AccessGrantsPlugin").cloudWatchClient(CloudWatchAsyncClient.builder().region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION).credentialsProvider(credentialsProvider).build()).build();
+        clientsCache = new ConcurrentHashMap<>();
 
     }
 
@@ -154,7 +164,8 @@ public class S3AccessGrantsIntegrationTests {
                         s3ControlAsyncClientBuilder,
                         cache,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
-                        metricPublisher));
+                        metricPublisher,
+                        clientsCache));
 
         String bucketName = "access-grants-sdk-create-test-unsupported-operation";
 
@@ -192,7 +203,8 @@ public class S3AccessGrantsIntegrationTests {
                         s3ControlAsyncClientBuilder,
                         cache,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
-                        metricPublisher));
+                        metricPublisher,
+                        clientsCache));
 
         S3Client s3client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
@@ -218,6 +230,7 @@ public class S3AccessGrantsIntegrationTests {
         S3ControlAsyncClient s3ControlAsyncClient = mock(S3ControlAsyncClient.class);
         S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
                 .build());
+        ConcurrentHashMap<Region, S3ControlAsyncClient> mockClientsCache = new ConcurrentHashMap<Region, S3ControlAsyncClient>();
 
         S3AccessGrantsIdentityProvider identityProvider =
                 spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
@@ -227,7 +240,8 @@ public class S3AccessGrantsIntegrationTests {
                         s3ControlAsyncClientBuilder,
                         cache,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
-                        metricPublisher));
+                        metricPublisher,
+                        mockClientsCache));
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
         CompletableFuture<GetDataAccessResponse> getDataAccessResponse = CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().credentials(Credentials.builder()
                 .accessKeyId(TEST_ACCESS_KEY)
@@ -271,8 +285,8 @@ public class S3AccessGrantsIntegrationTests {
         S3ControlAsyncClientBuilder s3ControlAsyncClientBuilder = mock(S3ControlAsyncClientBuilder.class);
         S3ControlAsyncClient s3ControlAsyncClient = mock(S3ControlAsyncClient.class);
         S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
-                .S3ControlAsyncClient(s3ControlAsyncClient)
                 .build());
+        ConcurrentHashMap<Region, S3ControlAsyncClient> mockClientsCache = new ConcurrentHashMap<>();
 
         S3AccessGrantsIdentityProvider identityProvider =
                 spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
@@ -282,7 +296,8 @@ public class S3AccessGrantsIntegrationTests {
                         s3ControlAsyncClientBuilder,
                         cache,
                         !S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
-                        metricPublisher));
+                        metricPublisher,
+                        mockClientsCache));
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
         CompletableFuture<GetAccessGrantsInstanceForPrefixResponse>  getAccessGrantsInstanceForPrefixResponse = CompletableFuture.supplyAsync(() -> GetAccessGrantsInstanceForPrefixResponse.builder()
                 .accessGrantsInstanceArn(S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_INSTANCE_ARN)
@@ -319,8 +334,8 @@ public class S3AccessGrantsIntegrationTests {
         S3ControlAsyncClientBuilder s3ControlAsyncClientBuilder = mock(S3ControlAsyncClientBuilder.class);
         S3ControlAsyncClient s3ControlAsyncClient = mock(S3ControlAsyncClient.class);
         S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
-                .S3ControlAsyncClient(s3ControlAsyncClient)
                 .build());
+        ConcurrentHashMap<Region, S3ControlAsyncClient> mockClientCache = new ConcurrentHashMap<>();
 
         S3AccessGrantsIdentityProvider identityProvider =
                 spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
@@ -330,7 +345,8 @@ public class S3AccessGrantsIntegrationTests {
                         s3ControlAsyncClientBuilder,
                         cache,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
-                        metricPublisher));
+                        metricPublisher,
+                        mockClientCache));
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
         CompletableFuture<GetAccessGrantsInstanceForPrefixResponse>  getAccessGrantsInstanceForPrefixResponse = CompletableFuture.supplyAsync(() -> GetAccessGrantsInstanceForPrefixResponse.builder()
                 .accessGrantsInstanceArn(S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_INSTANCE_ARN)
@@ -371,7 +387,8 @@ public class S3AccessGrantsIntegrationTests {
                         s3ControlAsyncClientBuilder,
                         cache,
                         !S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
-                        metricPublisher));
+                        metricPublisher,
+                        clientsCache));
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
@@ -406,7 +423,8 @@ public class S3AccessGrantsIntegrationTests {
                         s3ControlAsyncClientBuilder,
                         cache,
                         !S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
-                        metricPublisher));
+                        metricPublisher,
+                        clientsCache));
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
@@ -439,7 +457,8 @@ public class S3AccessGrantsIntegrationTests {
                         s3ControlAsyncClientBuilder,
                         cache,
                         !S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
-                        metricPublisher));
+                        metricPublisher,
+                        clientsCache));
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
@@ -473,7 +492,8 @@ public class S3AccessGrantsIntegrationTests {
                         s3ControlAsyncClientBuilder,
                         cache,
                         !S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
-                        metricPublisher));
+                        metricPublisher,
+                        clientsCache));
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
@@ -525,7 +545,8 @@ public class S3AccessGrantsIntegrationTests {
                         s3ControlAsyncClientBuilder,
                         cache,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
-                        metricPublisher));
+                        metricPublisher,
+                        clientsCache));
 
         InvalidAuthSchemeProvider invalidAuthSchemeProvider = spy(new InvalidAuthSchemeProvider());
 
@@ -572,7 +593,8 @@ public class S3AccessGrantsIntegrationTests {
                         s3ControlAsyncClientBuilder,
                         cache,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
-                        metricPublisher));
+                        metricPublisher,
+                        clientsCache));
 
         InvalidAuthSchemeProvider invalidAuthSchemeProvider = spy(new InvalidAuthSchemeProvider());
 
@@ -615,7 +637,8 @@ public class S3AccessGrantsIntegrationTests {
                         s3ControlAsyncClientBuilder,
                         cache,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
-                        metricPublisher));
+                        metricPublisher,
+                        clientsCache));
 
         try {
             S3Client invalidS3Client =
@@ -805,7 +828,6 @@ public class S3AccessGrantsIntegrationTests {
     }
 
     // cross-region test
-
     @Test
     public void call_s3_with_plugin_valid_configuration_success_response_for_cross_region_access() throws IOException {
 

@@ -117,8 +117,6 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
     public interface Builder {
         S3AccessGrantsCachedAccountIdResolver build();
 
-        Builder S3ControlAsyncClient(S3ControlAsyncClient S3ControlAsyncClient);
-
         Builder maxCacheSize(int maxCacheSize);
 
         Builder expireCacheAfterWriteSeconds(int expireCacheAfterWriteSeconds);
@@ -135,12 +133,6 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
         public BuilderImpl(S3AccessGrantsCachedAccountIdResolver s3AccessGrantsCachedAccountIdResolver) {
             maxCacheSize(s3AccessGrantsCachedAccountIdResolver.maxCacheSize);
             expireCacheAfterWriteSeconds(s3AccessGrantsCachedAccountIdResolver.expireCacheAfterWriteSeconds);
-        }
-
-        @Override
-        public Builder S3ControlAsyncClient(S3ControlAsyncClient S3ControlAsyncClient) {
-            this.S3ControlAsyncClient = S3ControlAsyncClient;
-            return this;
         }
 
         public int maxCacheSize() {

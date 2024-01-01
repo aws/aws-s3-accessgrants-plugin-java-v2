@@ -17,6 +17,7 @@ package software.amazon.awssdk.s3accessgrants.plugin;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
@@ -70,6 +71,8 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     private final MetricPublisher metricsPublisher;
 
+    private final ConcurrentHashMap<Region, S3ControlAsyncClient> clientsCache;
+
     private String CONTACT_TEAM_MESSAGE_TEMPLATE = "An internal exception has occurred. Valid %s was not passed to the %s. Please contact S3 access grants plugin team!";
 
     public S3AccessGrantsIdentityProvider(@NotNull IdentityProvider<? extends AwsCredentialsIdentity> credentialsProvider,
@@ -79,9 +82,11 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
                                           @NotNull S3ControlAsyncClientBuilder s3ControlAsyncClientBuilder,
                                           @NotNull S3AccessGrantsCachedCredentialsProvider cache,
                                           @NotNull boolean enableFallback,
-                                          @NotNull MetricPublisher metricsPublisher) {
+                                          @NotNull MetricPublisher metricsPublisher,
+                                          @NotNull ConcurrentHashMap<Region, S3ControlAsyncClient> clientsCache) {
         S3AccessGrantsUtils.argumentNotNull(credentialsProvider, "Expecting an Identity Provider to be specified while configuring S3Clients!");
         S3AccessGrantsUtils.argumentNotNull(stsAsyncClient, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "sts client", "identity provider"));
+        S3AccessGrantsUtils.argumentNotNull(clientsCache, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "client cache", "identity provider"));
         this.credentialsProvider = credentialsProvider;
         this.stsAsyncClient = stsAsyncClient;
         this.privilege = privilege;
@@ -90,6 +95,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
         this.cache = cache;
         this.enableFallback = enableFallback;
         this.metricsPublisher = metricsPublisher;
+        this.clientsCache = clientsCache;
     }
 
     /**
@@ -135,7 +141,8 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
             Permission permission = Permission.fromValue(resolveIdentityRequest.property(PERMISSION_PROPERTY).toString());
             Region destinationRegion = Region.of(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY).toString());
 
-            S3ControlAsyncClient s3ControlAsyncClient = s3ControlBuilder.region(destinationRegion).build();
+            S3ControlAsyncClient s3ControlAsyncClient = null;
+            CompletableFuture<? extends AwsCredentialsIdentity> getDataAccessResponse = null;
 
             logger.debug(() -> " Call access grants with the following request params! ");
             logger.debug(() -> " S3Prefix : " + S3Prefix);
@@ -143,7 +150,16 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
             logger.debug(() -> " permission : " + permission);
             logger.debug(() -> " bucket region : " + destinationRegion);
 
-            return getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId, s3ControlAsyncClient);
+            if(clientsCache.containsKey(destinationRegion)) {
+                getDataAccessResponse = getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId,  clientsCache.get(destinationRegion));
+            } else {
+                s3ControlAsyncClient = s3ControlBuilder.region(destinationRegion).build();
+                clientsCache.put(destinationRegion, s3ControlAsyncClient);
+                getDataAccessResponse = getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId,  s3ControlAsyncClient);
+            }
+
+            return getDataAccessResponse;
+
         } catch(SdkServiceException e) {
 
             if(shouldFallbackToDefaultCredentialsForThisCase(e.statusCode(), e.getCause())) {
@@ -151,30 +167,6 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
             }
             throw e;
         }
-    }
-
-    /**
-     * This method will create a request to talk to access grants.
-     * @param accountId the accountId that contains the access grant instance with the desired bucket location registered.
-     * @param S3Prefix the resource that the requester is accessing.
-     * @param permission the permission level to access the resource. Permission is generated dynamically based on the
-     *                   operation. See {@link S3AccessGrantsStaticOperationToPermissionMapper} for operation to permission mappings.
-     * @param privilege specifies what privilege level does access grants need to use to determine if the request can be
-     *                  authorized. The default value for this is {@link Privilege} DEFAULT.
-     * @rturn the request created from the inputs.
-     * */
-    private GetDataAccessRequest createDataAccessRequest(String accountId,
-                                                         String S3Prefix,
-                                                         Permission permission,
-                                                         Privilege privilege) {
-        GetDataAccessRequest dataAccessRequest = GetDataAccessRequest.builder()
-                .accountId(accountId)
-                .target(S3Prefix)
-                .permission(permission)
-                .privilege(privilege)
-                .build();
-
-        return dataAccessRequest;
     }
 
     /**

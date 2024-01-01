@@ -58,7 +58,6 @@ public class S3AccessGrantsCachedAccountIdResolverCreationTest {
         //Then
         assertThatNoException().isThrownBy(() -> S3AccessGrantsCachedAccountIdResolver
             .builder()
-            .S3ControlAsyncClient(S3ControlAsyncClient)
             .build());
     }
 

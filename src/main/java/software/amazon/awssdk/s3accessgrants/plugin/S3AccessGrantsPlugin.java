@@ -19,6 +19,7 @@ import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.core.SdkPlugin;
 import software.amazon.awssdk.core.SdkServiceClientConfiguration;
 import software.amazon.awssdk.metrics.MetricPublisher;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProviderImpl;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -28,6 +29,8 @@ import software.amazon.awssdk.services.sts.StsAsyncClient;
 import software.amazon.awssdk.utils.builder.ToCopyableBuilder;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.utils.Validate;
+
+import java.util.concurrent.ConcurrentHashMap;
 
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.DEFAULT_PRIVILEGE_FOR_PLUGIN;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.DEFAULT_CACHE_SETTING;
@@ -97,6 +100,8 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         S3AccessGrantsCachedCredentialsProvider cache = createAccessGrantsCache();
 
+        ConcurrentHashMap<Region, S3ControlAsyncClient> clientsCache = new ConcurrentHashMap<>();
+
         StsAsyncClient stsClient = StsAsyncClient.builder()
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider())
                 .region(serviceClientConfiguration.region())
@@ -111,7 +116,8 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
                 s3ControlAsyncClientBuilder,
                 cache,
                 enableFallback,
-                metricPublisher
+                metricPublisher,
+                clientsCache
                 ));
 
         logger.debug(() -> "Completed configuring S3 Clients to use S3 Access Grants as a permission layer!");

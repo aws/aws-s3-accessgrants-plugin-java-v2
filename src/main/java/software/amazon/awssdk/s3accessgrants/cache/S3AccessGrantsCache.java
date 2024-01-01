@@ -71,7 +71,6 @@ public class S3AccessGrantsCache {
     public interface Builder {
         S3AccessGrantsCache build();
         S3AccessGrantsCache buildWithAccountIdResolver();
-        S3AccessGrantsCache.Builder s3ControlAsyncClient(S3ControlAsyncClient s3ControlAsyncClient);
         S3AccessGrantsCache.Builder maxCacheSize(int maxCacheSize);
         S3AccessGrantsCache.Builder cacheExpirationTimePercentage(int cacheExpirationTimePercentage);
         S3AccessGrantsCache.Builder s3AccessGrantsCachedAccountIdResolver(S3AccessGrantsCachedAccountIdResolver s3AccessGrantsCachedAccountIdResolver);
@@ -98,12 +97,6 @@ public class S3AccessGrantsCache {
                     return new S3AccessGrantsCache(s3AccessGrantsCachedAccountIdResolver, maxCacheSize,
                                                    cacheExpirationTimePercentage);
                 }
-
-        @Override
-        public Builder s3ControlAsyncClient(S3ControlAsyncClient s3ControlAsyncClient) {
-            this.s3ControlAsyncClient = s3ControlAsyncClient;
-            return this;
-        }
 
         @Override
         public Builder maxCacheSize(int maxCacheSize) {

@@ -239,7 +239,6 @@ public class S3AccessGrantsCacheTest {
     @Test
     public void accessGrantsCache_testNullS3ControlAsyncClientException() {
         assertThatNoException().isThrownBy(() -> S3AccessGrantsCache.builder()
-                        .s3ControlAsyncClient(null)
                         .maxCacheSize(DEFAULT_ACCESS_GRANTS_MAX_CACHE_SIZE).build());
 
     }

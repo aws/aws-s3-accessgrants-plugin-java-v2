@@ -18,7 +18,7 @@ package software.amazon.awssdk.s3accessgrants.cache;
 public class S3AccessGrantsConstants {
     public static final int DEFAULT_ACCOUNT_ID_MAX_CACHE_SIZE = 1_000;
     public static final int MAX_LIMIT_ACCOUNT_ID_MAX_CACHE_SIZE = 1_000_000;
-    public static final int DEFAULT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS = 86_400; // one day
+    public static final int DEFAULT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS = 6_00; // 10 mins
     public static final int MAX_LIMIT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS = 2_592_000; // 30 days
 
     public static final int DEFAULT_ACCESS_GRANTS_MAX_CACHE_SIZE = 30_000;
