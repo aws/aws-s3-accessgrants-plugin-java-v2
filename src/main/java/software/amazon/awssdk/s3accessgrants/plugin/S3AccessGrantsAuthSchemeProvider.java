@@ -131,6 +131,7 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
     private Region getBucketLocation(String bucketName) {
       try {
           if (isCrossRegionAccessEnabled) {
+              logger.info(() -> "making a call to determine the bucket region!");
               HeadBucketRequest bucketLocationRequest = HeadBucketRequest.builder().bucket(bucketName).build();
               HeadBucketResponse headBucketResponse = s3Client.headBucket(bucketLocationRequest);
               return Region.of(headBucketResponse.bucketRegion());

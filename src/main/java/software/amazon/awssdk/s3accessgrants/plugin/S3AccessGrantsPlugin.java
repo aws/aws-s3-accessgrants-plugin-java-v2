@@ -79,6 +79,9 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
         if(!enableFallback()) {
             logger.warn(() -> "Fallback not opted in! S3 Client will not fall back to evaluate policies if permissions are not provided through S3 Access Grants!");
         }
+        if(!enableCrossRegionAccess()) {
+            logger.warn(() -> "cross-region access not opted in! S3 Client will not be able to communicate with buckets outside the configured region!");
+        }
 
         S3ServiceClientConfiguration.Builder serviceClientConfiguration =
                 Validate.isInstanceOf(S3ServiceClientConfiguration.Builder.class,
