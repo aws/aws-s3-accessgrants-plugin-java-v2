@@ -58,13 +58,13 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
 
     private final S3AccessGrantsOperationToPermissionMapper permissionMapper;
 
-    S3AccessGrantsAuthSchemeProvider(@NotNull S3AuthSchemeProvider authSchemeProvider, S3Client s3Client, Boolean isCrossRegionEnabled) {
+    S3AccessGrantsAuthSchemeProvider(@NotNull S3AuthSchemeProvider authSchemeProvider, S3Client s3Client, Boolean isCrossRegionAccessEnabled) {
         S3AccessGrantsUtils.argumentNotNull(authSchemeProvider,
                 "Expecting an Auth Scheme Provider to be specified while configuring S3Clients!");
         S3AccessGrantsUtils.argumentNotNull(s3Client, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "S3 Client", "Plugin"));
         this.authSchemeProvider = authSchemeProvider;
         this.s3Client = s3Client;
-        this.isCrossRegionAccessEnabled = isCrossRegionEnabled == null ? DEFAULT_CROSS_REGION_ACCESS_SETTING : isCrossRegionEnabled;
+        this.isCrossRegionAccessEnabled = isCrossRegionAccessEnabled == null ? DEFAULT_CROSS_REGION_ACCESS_SETTING : isCrossRegionAccessEnabled;
         this.permissionMapper = new S3AccessGrantsStaticOperationToPermissionMapper();
     }
 

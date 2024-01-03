@@ -83,10 +83,13 @@ In order to turn on the cross-region support, please configure S3Client and Acce
                         .build();
 ```
 
+#### NOTE - 
+If cross-region access setting is turned on for either the S3 Client or the plugin (but not both), you might experience bucket region mismatch errors.
+
 ### Cross-account support
 
 The plugin makes S3 head bucket requests to determine bucket location. 
-In case of cross-account access S3 expects s3:ListBucket permission for the requesting account on the requested bucket. Please add the necessary permission if the plugin will be used for cross-region access.
+In case of cross-account access S3 expects s3:ListBucket permission for the requesting account on the requested bucket. Please add the necessary permission if the plugin will be used for cross-account access.
 
 ### Turn on metrics
 
