@@ -15,7 +15,9 @@
 
 package software.amazon.awssdk.s3accessgrants.plugin.internal;
 
+import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.identity.spi.IdentityProperty;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3control.model.Privilege;
 import software.amazon.awssdk.utils.Logger;
 import software.amazon.awssdk.utils.Validate;
@@ -28,12 +30,21 @@ public class S3AccessGrantsUtils {
     public static Logger logger = Logger.loggerFor("software.amazon.awssdk.s3accessgrants");
     public static final IdentityProperty PREFIX_PROPERTY = IdentityProperty.create(String.class, "S3Prefix");
     public static final IdentityProperty OPERATION_PROPERTY = IdentityProperty.create(String.class,"Operation");
+    public static final IdentityProperty BUCKET_LOCATION_PROPERTY = IdentityProperty.create(Region.class, "BucketLocation");
+
+    public static final IdentityProperty AUTH_EXCEPTIONS_PROPERTY = IdentityProperty.create(SdkServiceException.class, "AuthExceptions");
+
+    public static final IdentityProperty PERMISSION_PROPERTY = IdentityProperty.create(String.class, "PermissionProperty");
+
+    public static String CONTACT_TEAM_MESSAGE_TEMPLATE = "An internal exception has occurred. Valid %s was not passed to the %s. Please contact S3 access grants plugin team!";
 
     public static final Boolean DEFAULT_CACHE_SETTING = true;
 
     public static final Privilege DEFAULT_PRIVILEGE_FOR_PLUGIN = Privilege.DEFAULT;
 
     public static final Boolean DEFAULT_FALLBACK_SETTING = false;
+
+    public static final Boolean DEFAULT_CROSS_REGION_ACCESS_SETTING = false;
 
     public static void argumentNotNull(Object param, String message) {
         try{

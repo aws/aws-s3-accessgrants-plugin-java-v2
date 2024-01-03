@@ -20,4 +20,6 @@ import software.amazon.awssdk.utils.builder.CopyableBuilder;
 
 public interface Builder extends CopyableBuilder<Builder, S3AccessGrantsPlugin> {
     Builder enableFallback(Boolean choice);
+
+    Builder enableCrossRegionAccess(Boolean choice);
 }

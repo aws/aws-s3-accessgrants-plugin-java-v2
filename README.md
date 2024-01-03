@@ -48,7 +48,6 @@ Create a S3AccessGrantsPlugin object and choose if you want to enable fallback.
 1.  If enableFallback option is set to false we will fallback only in case the operation/API is not supported by Access Grants.
 2.  If enableFallback is set to true then we will fall back every time we are not able to get the credentials from Access Grants, no matter the reason.
 
-
 ```
 S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().enableFallback(true).build();
 ```
@@ -65,6 +64,32 @@ S3Client s3Client = S3Client.builder()
 ````
 
 Using this S3Client to make API calls, you should be able to use Access Grants to get access to your resources.
+
+### Turn on cross-region access
+
+The plugin by default does not support cross-region access of S3 Buckets/data. 
+In order to turn on the cross-region support, please configure S3Client and Access Grants Plugin to support cross-region access.
+
+```
+ S3AccessGrantsPlugin accessGrantsPlugin =
+                S3AccessGrantsPlugin.builder().enableCrossRegionAccess(Boolean.TRUE).build();
+
+        S3Client s3Client =
+                S3Client.builder()
+                        .crossRegionAccessEnabled(true)
+                        .credentialsProvider(credentialsProvider)
+                        .addPlugin(accessGrantsPlugin)
+                        .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
+                        .build();
+```
+
+#### NOTE - 
+If cross-region access setting is turned on for either the S3 Client or the plugin (but not both), you might experience bucket region mismatch errors.
+
+### Cross-account support
+
+The plugin makes S3 head bucket requests to determine bucket location. 
+In case of cross-account access S3 expects s3:ListBucket permission for the requesting account on the requested bucket. Please add the necessary permission if the plugin will be used for cross-account access.
 
 ### Turn on metrics
 
