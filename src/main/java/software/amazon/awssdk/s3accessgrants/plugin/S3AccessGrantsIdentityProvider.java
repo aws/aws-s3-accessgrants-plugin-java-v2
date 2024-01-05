@@ -73,6 +73,10 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     private final ConcurrentHashMap<Region, S3ControlAsyncClient> clientsCache;
 
+    private AwsCredentialsIdentity cachedCredentials;
+
+    private String cachedAccountId;
+
     private String CONTACT_TEAM_MESSAGE_TEMPLATE = "An internal exception has occurred. Valid %s was not passed to the %s. Please contact S3 access grants plugin team!";
 
     public S3AccessGrantsIdentityProvider(@NotNull IdentityProvider<? extends AwsCredentialsIdentity> credentialsProvider,
@@ -128,14 +132,13 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
         try {
 
-            userCredentials = credentialsProvider.resolveIdentity(resolveIdentityRequest);
-
             if(resolveIdentityRequest != null && resolveIdentityRequest.property(AUTH_EXCEPTIONS_PROPERTY) != null) {
                 throw (SdkServiceException) resolveIdentityRequest.property(AUTH_EXCEPTIONS_PROPERTY);
             }
 
-            String accountId = getCallerAccountID().join().account();
-            validateRequestParameters(resolveIdentityRequest, accountId, privilege, isCacheEnabled);
+            userCredentials = credentialsProvider.resolveIdentity(resolveIdentityRequest);
+            validateRequestParameters(resolveIdentityRequest, privilege, isCacheEnabled);
+            String accountId = getCallerAccountID(userCredentials);
 
             String S3Prefix = resolveIdentityRequest.property(PREFIX_PROPERTY).toString();
             Permission permission = Permission.fromValue(resolveIdentityRequest.property(PERMISSION_PROPERTY).toString());
@@ -200,10 +203,9 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
         }
     }
 
-    private void validateRequestParameters(ResolveIdentityRequest resolveIdentityRequest, String accountId, Privilege privilege, Boolean isCacheEnabled) {
+    private void validateRequestParameters(ResolveIdentityRequest resolveIdentityRequest, Privilege privilege, Boolean isCacheEnabled) {
         logger.debug(() -> "Validating the request parameters before sending a request to S3 Access grants!");
         S3AccessGrantsUtils.argumentNotNull(resolveIdentityRequest, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "request", "identity provider"));
-        S3AccessGrantsUtils.argumentNotNull(accountId, "Expecting account id to be configured on the plugin!");
         S3AccessGrantsUtils.argumentNotNull(privilege, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "privilege", "identity provider"));
         S3AccessGrantsUtils.argumentNotNull(isCacheEnabled, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "cache setting", "identity provider"));
         Pattern pattern = Pattern.compile("s3://[a-z0-9.-]*");
@@ -263,8 +265,15 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
      * Fetches the caller accountID from the requester using STS.
      * @return a completableFuture containing response from STS.
      * */
-    CompletableFuture<GetCallerIdentityResponse> getCallerAccountID() {
-        logger.debug(() -> "requesting STS to fetch caller accountID!");
-        return stsAsyncClient.getCallerIdentity();
+    String getCallerAccountID(CompletableFuture<? extends AwsCredentialsIdentity> userCredentials) {
+        AwsCredentialsIdentity credentials = userCredentials.join();
+        if(credentials.equals(cachedCredentials)) {
+            logger.debug(() -> "caller account cached, avoiding sending requests to STS");
+            return cachedAccountId;
+        }
+        logger.debug(() -> "caller account not cached, requesting STS to fetch caller accountID!");
+        cachedAccountId = stsAsyncClient.getCallerIdentity().join().account();
+        cachedCredentials = credentials;
+        return cachedAccountId;
     }
 }

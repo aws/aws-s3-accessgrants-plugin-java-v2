@@ -21,6 +21,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.Test;
 import org.assertj.core.api.Assertions;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -105,8 +106,8 @@ public class S3AccessGrantsIdentityProviderTests {
 
     private static ConcurrentHashMap<Region, S3ControlAsyncClient> clientsCache;
 
-    @BeforeClass
-    public static void setUp() throws Exception {
+    @Before
+    public void setUp() throws Exception {
         s3ControlAsyncClientBuilder = mock(S3ControlAsyncClientBuilder.class);
         s3ControlClient = mock(S3ControlAsyncClient.class);
         cache = mock(S3AccessGrantsCachedCredentialsProvider.class);
@@ -175,7 +176,6 @@ public class S3AccessGrantsIdentityProviderTests {
         S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, localAsyncStsClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
         ResolveIdentityRequest resolveIdentityRequest = null;
         Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest)).isInstanceOf(IllegalArgumentException.class);
-        verify(localAsyncStsClient, atLeast(1)).getCallerIdentity();
     }
 
     @Test
@@ -202,7 +202,48 @@ public class S3AccessGrantsIdentityProviderTests {
     @Test
     public void call_identity_provider_get_account_id() {
         S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, null, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
-        Assertions.assertThat(accessGrantsIdentityProvider.getCallerAccountID().join().account()).isEqualTo(TEST_ACCOUNT);
+        CompletableFuture<AwsSessionCredentials> localCredentials = CompletableFuture.supplyAsync(() -> AwsSessionCredentials.builder()
+                .accessKeyId(TEST_ACCESS_KEY)
+                .secretAccessKey(TEST_SECRET_KEY)
+                .sessionToken(TEST_SESSION_TOKEN)
+                .build());
+        Assertions.assertThat(accessGrantsIdentityProvider.getCallerAccountID(localCredentials)).isEqualTo(TEST_ACCOUNT);
+        verify(stsAsyncClient, times(1)).getCallerIdentity();
+    }
+
+    @Test
+    public void call_identity_provider_get_account_id_cache_test_with_same_credentials() {
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, null, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
+        CompletableFuture<AwsSessionCredentials> localCredentials = CompletableFuture.supplyAsync(() -> AwsSessionCredentials.builder()
+                .accessKeyId(TEST_ACCESS_KEY)
+                .secretAccessKey(TEST_SECRET_KEY)
+                .sessionToken(TEST_SESSION_TOKEN)
+                .build());
+        Assertions.assertThat(accessGrantsIdentityProvider.getCallerAccountID(localCredentials)).isEqualTo(TEST_ACCOUNT);
+        verify(stsAsyncClient, times(1)).getCallerIdentity();
+        Assertions.assertThat(accessGrantsIdentityProvider.getCallerAccountID(localCredentials)).isEqualTo(TEST_ACCOUNT);
+        verify(stsAsyncClient, times(1)).getCallerIdentity();
+    }
+
+    @Test
+    public void call_identity_provider_get_account_id_cache_test_with_different_credentials() {
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, null, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
+        CompletableFuture<AwsSessionCredentials> localCredentials = CompletableFuture.supplyAsync(() -> AwsSessionCredentials.builder()
+                .accessKeyId(TEST_ACCESS_KEY)
+                .secretAccessKey(TEST_SECRET_KEY)
+                .sessionToken(TEST_SESSION_TOKEN)
+                .build());
+        CompletableFuture<AwsSessionCredentials> localCredentials2 = CompletableFuture.supplyAsync(() -> AwsSessionCredentials.builder()
+                .accessKeyId(TEST_ACCESS_KEY)
+                .secretAccessKey(TEST_SECRET_KEY)
+                .sessionToken(TEST_SESSION_TOKEN+"xx")
+                .build());
+        Assertions.assertThat(accessGrantsIdentityProvider.getCallerAccountID(localCredentials)).isEqualTo(TEST_ACCOUNT);
+        verify(stsAsyncClient, times(1)).getCallerIdentity();
+        Assertions.assertThat(accessGrantsIdentityProvider.getCallerAccountID(localCredentials2)).isEqualTo(TEST_ACCOUNT);
+        verify(stsAsyncClient, times(2)).getCallerIdentity();
+        Assertions.assertThat(accessGrantsIdentityProvider.getCallerAccountID(localCredentials2)).isEqualTo(TEST_ACCOUNT);
+        verify(stsAsyncClient, times(2)).getCallerIdentity();
     }
 
     @Test
@@ -242,7 +283,7 @@ public class S3AccessGrantsIdentityProviderTests {
 
         S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, testCache, TEST_FALLBACK_ENABLED, testMetricPublisher, clientsCache);
 
-        when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> null));
+        when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> credentials));
         when(testCache.getAccessGrantsMetrics()).thenReturn(testMetricCollector);
         when(testMetricCollector.collect()).thenReturn(mock(MetricCollection.class));
         when(testCache.getDataAccess(any(), any(), any(), any(), any())).thenReturn(cacheResponse);

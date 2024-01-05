@@ -22,6 +22,7 @@ import org.assertj.core.api.Assertions;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedBucketRegionResolver;
 import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsOperationToPermissionMapper;
 import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsStaticOperationToPermissionMapper;
 import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils;
@@ -58,6 +59,8 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
 
     private final S3AccessGrantsOperationToPermissionMapper permissionMapper;
 
+    private final S3AccessGrantsCachedBucketRegionResolver bucketRegionCache;
+
     S3AccessGrantsAuthSchemeProvider(@NotNull S3AuthSchemeProvider authSchemeProvider, S3Client s3Client, Boolean isCrossRegionAccessEnabled) {
         S3AccessGrantsUtils.argumentNotNull(authSchemeProvider,
                 "Expecting an Auth Scheme Provider to be specified while configuring S3Clients!");
@@ -66,6 +69,7 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
         this.s3Client = s3Client;
         this.isCrossRegionAccessEnabled = isCrossRegionAccessEnabled == null ? DEFAULT_CROSS_REGION_ACCESS_SETTING : isCrossRegionAccessEnabled;
         this.permissionMapper = new S3AccessGrantsStaticOperationToPermissionMapper();
+        this.bucketRegionCache = S3AccessGrantsCachedBucketRegionResolver.builder().build();
     }
 
     /**
@@ -129,22 +133,14 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
      * @return Region where the S3 bucket exists
      */
     private Region getBucketLocation(String bucketName) {
-      try {
-          if (isCrossRegionAccessEnabled) {
-              logger.info(() -> "making a call to determine the bucket region!");
-              HeadBucketRequest bucketLocationRequest = HeadBucketRequest.builder().bucket(bucketName).build();
-              HeadBucketResponse headBucketResponse = s3Client.headBucket(bucketLocationRequest);
-              return Region.of(headBucketResponse.bucketRegion());
-          }
-      } catch (S3Exception e) {
-          if (e.statusCode() == 301) {
-              // A fallback in case S3 Clients are not able to re-direct the head bucket requests to the correct region.
-              String bucketRegion = e.awsErrorDetails().sdkHttpResponse().headers().get("x-amz-bucket-region").get(0);
-              return Region.of(bucketRegion);
-          }
-      }
+
+        if(isCrossRegionAccessEnabled) {
+            return bucketRegionCache.resolve(bucketName, s3Client);
+        }
+
         S3AccessGrantsUtils.argumentNotNull(s3Client.serviceClientConfiguration().region(), "Expecting a region to be configured on the S3Clients!");
         return s3Client.serviceClientConfiguration().region();
+
     }
 
 }

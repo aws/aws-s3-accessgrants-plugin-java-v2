@@ -16,6 +16,7 @@
 package software.amazon.awssdk.s3accessgrants.plugin;
 
 import org.assertj.core.api.Assertions;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import java.util.List;
@@ -50,12 +51,13 @@ public class S3AccessGrantsAuthSchemeProviderTests {
     private static List<AuthSchemeOption> authSchemeResolverResult;
     private static final String SIGNING_SCHEME = "aws.auth#sigv4";
 
-    private static final S3Client s3client = mock(S3Client.class);
+    private S3Client s3client;
 
     private static final Boolean DefaultCrossRegionAccess = false;
 
-    @BeforeClass
-    public static void setUp() {
+    @Before
+    public void setUp() {
+        s3client = mock(S3Client.class);
         authSchemeResolverResult = new ArrayList<>();
         authSchemeResolverResult.add(AuthSchemeOption.builder().schemeId(SIGNING_SCHEME).build());
         when(s3client.serviceClientConfiguration()).thenReturn(S3ServiceClientConfiguration.builder().region(Region.US_EAST_2).build());
@@ -140,6 +142,25 @@ public class S3AccessGrantsAuthSchemeProviderTests {
     }
 
     @Test
+    public void call_authSchemeProvider_with_valid_params_valid_bucket_cross_region_access_enabled_cache_test() {
+        S3AuthSchemeProvider authSchemeProvider = mock(S3AuthSchemeProvider.class);
+        S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider, s3client, !DefaultCrossRegionAccess);
+        S3AuthSchemeParams authSchemeParams = mock(S3AuthSchemeParams.class);
+
+        when(authSchemeParams.bucket()).thenReturn(BUCKET_NAME);
+        when(authSchemeParams.operation()).thenReturn("GetObject");
+        when(authSchemeProvider.resolveAuthScheme(authSchemeParams)).thenReturn(authSchemeResolverResult);
+        List<AuthSchemeOption> accessGrantsAuthSchemeResult = accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams);
+        Assertions.assertThat(accessGrantsAuthSchemeResult.get(0).identityProperty(BUCKET_LOCATION_PROPERTY)).isEqualTo(Region.US_EAST_1);
+        verify(s3client, times(1)).headBucket(any(HeadBucketRequest.class));
+        //resending the request to verify if the cache already has the bucket region
+        accessGrantsAuthSchemeResult = accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams);
+        Assertions.assertThat(accessGrantsAuthSchemeResult.get(0).identityProperty(BUCKET_LOCATION_PROPERTY)).isEqualTo(Region.US_EAST_1);
+        verify(s3client, times(1)).headBucket(any(HeadBucketRequest.class));
+
+    }
+
+    @Test
     public void call_authSchemeProvider_with_valid_params_invalid_bucket_operation_supported() {
         S3AuthSchemeProvider authSchemeProvider = mock(S3AuthSchemeProvider.class);
         S3AccessGrantsAuthSchemeProvider accessGrantsAuthSchemeProvider = new S3AccessGrantsAuthSchemeProvider(authSchemeProvider, s3client, !DefaultCrossRegionAccess);
@@ -163,6 +184,8 @@ public class S3AccessGrantsAuthSchemeProviderTests {
         List<AuthSchemeOption> accessGrantsAuthSchemeResult = accessGrantsAuthSchemeProvider.resolveAuthScheme(authSchemeParams);
         SdkServiceException e = (SdkServiceException) accessGrantsAuthSchemeResult.get(0).identityProperty(AUTH_EXCEPTIONS_PROPERTY);
         Assertions.assertThat(e.getCause()).isInstanceOf(UnsupportedOperationException.class);
+        // head bucket calls should not be made if the user has not specified valid bucket name
+        verify(s3client, never()).headBucket(any(HeadBucketRequest.class));
     }
 
     @Test
