@@ -263,6 +263,9 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     /**
      * Fetches the caller accountID from the requester using STS.
+     * For every request, if the caller credentials have been used previously, the accountID resolved for that credentials will be returned.
+     * If a new set of credentials are being used, then a request will be forwarded to STS to fetch the caller accountID and cache it.
+     * Each Identity provider is only going to cache one set of credentials/accountID at any point of time.
      * @return a completableFuture containing response from STS.
      * */
     String getCallerAccountID(CompletableFuture<? extends AwsCredentialsIdentity> userCredentials) {

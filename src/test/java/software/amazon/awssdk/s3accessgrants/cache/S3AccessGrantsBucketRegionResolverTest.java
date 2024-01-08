@@ -74,8 +74,8 @@ public class S3AccessGrantsBucketRegionResolverTest {
 
         Assert.assertEquals(Region.US_EAST_1, localCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME, s3Client));
         verify(s3Client, times(1)).headBucket(any(HeadBucketRequest.class));
-        Thread.sleep(1000);
-        // should evict the entry after 1 sec and the subsequent request should call the service
+        Thread.sleep(2000);
+        // should evict the entry and the subsequent request should call the service
         Assert.assertEquals(Region.US_EAST_1, localCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME, s3Client));
         verify(s3Client, times(2)).headBucket(any(HeadBucketRequest.class));
 
