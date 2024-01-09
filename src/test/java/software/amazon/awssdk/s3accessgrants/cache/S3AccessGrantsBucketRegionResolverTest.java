@@ -56,6 +56,7 @@ public class S3AccessGrantsBucketRegionResolverTest {
         when(localS3Client.headBucket(any(HeadBucketRequest.class))).thenReturn(headBucketResponse);
         Assertions.assertThatThrownBy(() -> localS3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME)).isInstanceOf(SdkServiceException.class);
         verify(localS3Client, times(1)).headBucket(any(HeadBucketRequest.class));
+        // since bucket region is null, cache will not store the entry
         Assertions.assertThatThrownBy(() -> localS3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME)).isInstanceOf(SdkServiceException.class);
         verify(localS3Client, times(2)).headBucket(any(HeadBucketRequest.class));
     }
@@ -120,6 +121,7 @@ public class S3AccessGrantsBucketRegionResolverTest {
         when(s3Exception.statusCode()).thenReturn(301);
         when(s3Exception.awsErrorDetails()).thenReturn(awsErrorDetails);
         when(localS3Client.headBucket(any(HeadBucketRequest.class))).thenThrow(s3Exception);
+        // resolving that exceptions are thrown when bucket region cannot be determined.
         Assertions.assertThatThrownBy(() -> localS3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME))
                 .isInstanceOf(SdkServiceException.class);
 
