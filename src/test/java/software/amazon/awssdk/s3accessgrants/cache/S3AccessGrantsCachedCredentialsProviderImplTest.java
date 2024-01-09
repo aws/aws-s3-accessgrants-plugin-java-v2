@@ -18,6 +18,7 @@ package software.amazon.awssdk.s3accessgrants.cache;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsTestConstants.ACCESS_KEY_ID;
@@ -36,6 +37,7 @@ import org.mockito.Mockito;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
+import software.amazon.awssdk.services.s3control.S3ControlAsyncClientBuilder;
 import software.amazon.awssdk.services.s3control.model.Credentials;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
 import software.amazon.awssdk.services.s3control.model.GetDataAccessResponse;
@@ -44,16 +46,14 @@ import software.amazon.awssdk.services.s3control.model.Permission;
 public class S3AccessGrantsCachedCredentialsProviderImplTest {
     S3AccessGrantsCachedCredentialsProviderImpl cache;
     S3AccessGrantsCachedCredentialsProviderImpl cacheWithMockedAccountIdResolver;
-    static S3ControlAsyncClient S3ControlAsyncClient = Mockito.mock(S3ControlAsyncClient.class);
+    static S3ControlAsyncClient S3ControlAsyncClient;
     static S3AccessGrantsCachedAccountIdResolver mockResolver = Mockito.mock(S3AccessGrantsCachedAccountIdResolver.class);
     static Credentials credentials;
 
     @Before
     public void setup() {
-        cache = S3AccessGrantsCachedCredentialsProviderImpl.builder()
-                                                           .S3ControlAsyncClient(S3ControlAsyncClient).build();
+        cache = S3AccessGrantsCachedCredentialsProviderImpl.builder().build();
         cacheWithMockedAccountIdResolver = S3AccessGrantsCachedCredentialsProviderImpl.builder()
-                                                                                      .S3ControlAsyncClient(S3ControlAsyncClient)
                                                                                       .s3AccessGrantsCachedAccountIdResolver(mockResolver)
                                                                                       .buildWithAccountIdResolver();
     }
@@ -79,10 +79,11 @@ public class S3AccessGrantsCachedCredentialsProviderImplTest {
     @Test
     public void cacheImpl_cacheHit() {
         // Given
-        CompletableFuture<GetDataAccessResponse> getDataAccessResponse = getDataAccessResponseSetUp("s3://bucket2/foo/bar");
-        when(mockResolver.resolve(any(String.class), any(String.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
+        S3ControlAsyncClient = Mockito.mock(S3ControlAsyncClient.class);
+        CompletableFuture<GetDataAccessResponse> getDataAccessResponse = getDataAccessResponseSetUp("s3://bucket2/foo/*");
+        when(mockResolver.resolve(any(String.class), any(String.class), any(S3ControlAsyncClient.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
         when(S3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
-        cacheWithMockedAccountIdResolver.getDataAccess(AWS_SESSION_CREDENTIALS, Permission.READ, "s3://bucket2/foo/bar", TEST_S3_ACCESSGRANTS_ACCOUNT);
+        cacheWithMockedAccountIdResolver.getDataAccess(AWS_SESSION_CREDENTIALS, Permission.READ, "s3://bucket2/foo/bar", TEST_S3_ACCESSGRANTS_ACCOUNT, S3ControlAsyncClient);
         AwsSessionCredentials sessionCredentials = AwsSessionCredentials.builder().accessKeyId(credentials.accessKeyId())
                                                                         .secretAccessKey(credentials.secretAccessKey())
                                                                         .sessionToken(credentials.sessionToken()).build();
@@ -90,23 +91,25 @@ public class S3AccessGrantsCachedCredentialsProviderImplTest {
         AwsCredentialsIdentity credentialsIdentity = cacheWithMockedAccountIdResolver.getDataAccess(AWS_SESSION_CREDENTIALS,
                                                                                       Permission.READ,
                                                                                      "s3://bucket2/foo/bar",
-                                                                                                    TEST_S3_ACCESSGRANTS_ACCOUNT).join();
+                                                                                                    TEST_S3_ACCESSGRANTS_ACCOUNT, S3ControlAsyncClient).join();
         // Then
         assertThat(credentialsIdentity).isEqualTo(sessionCredentials);
+        verify(S3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
 
     }
 
     @Test
     public void cacheImpl_cacheMiss() {
         // Given
+        S3ControlAsyncClient = Mockito.mock(S3ControlAsyncClient.class);
         CompletableFuture<GetDataAccessResponse> getDataAccessResponse = getDataAccessResponseSetUp("s3://bucket2/foo/bar");
-        when(mockResolver.resolve(any(String.class), any(String.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
+        when(mockResolver.resolve(any(String.class), any(String.class), any(S3ControlAsyncClient.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
         when(S3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
         // When
-        cacheWithMockedAccountIdResolver.getDataAccess(AWS_SESSION_CREDENTIALS, Permission.READ, "s3://bucket2/foo/bar", TEST_S3_ACCESSGRANTS_ACCOUNT);
+        cacheWithMockedAccountIdResolver.getDataAccess(AWS_SESSION_CREDENTIALS, Permission.READ, "s3://bucket2/foo/bar", TEST_S3_ACCESSGRANTS_ACCOUNT, S3ControlAsyncClient);
+        cacheWithMockedAccountIdResolver.getDataAccess(AWS_SESSION_CREDENTIALS, Permission.READ, "s3://bucket2/foo/bar", TEST_S3_ACCESSGRANTS_ACCOUNT, S3ControlAsyncClient);
         // Then
-        verify(S3ControlAsyncClient, atLeastOnce()).getDataAccess(any(GetDataAccessRequest.class));
+        verify(S3ControlAsyncClient, times(2)).getDataAccess(any(GetDataAccessRequest.class));
 
     }
-
 }
