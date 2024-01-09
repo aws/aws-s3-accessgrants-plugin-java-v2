@@ -18,7 +18,6 @@ package software.amazon.awssdk.s3accessgrants.plugin;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.assertj.core.api.Assertions;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.regions.Region;
@@ -30,9 +29,6 @@ import software.amazon.awssdk.http.auth.spi.scheme.AuthSchemeOption;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeParams;
 import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
-import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
-import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
-import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3control.model.Permission;
 
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PERMISSION_PROPERTY;
@@ -69,7 +65,7 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
         this.s3Client = s3Client;
         this.isCrossRegionAccessEnabled = isCrossRegionAccessEnabled == null ? DEFAULT_CROSS_REGION_ACCESS_SETTING : isCrossRegionAccessEnabled;
         this.permissionMapper = new S3AccessGrantsStaticOperationToPermissionMapper();
-        this.bucketRegionCache = S3AccessGrantsCachedBucketRegionResolver.builder().build();
+        this.bucketRegionCache = S3AccessGrantsCachedBucketRegionResolver.builder().s3Client(s3Client).build();
     }
 
     /**
@@ -135,7 +131,7 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
     private Region getBucketLocation(String bucketName) {
 
         if(isCrossRegionAccessEnabled) {
-            return bucketRegionCache.resolve(bucketName, s3Client);
+            return bucketRegionCache.resolve(bucketName);
         }
 
         S3AccessGrantsUtils.argumentNotNull(s3Client.serviceClientConfiguration().region(), "Expecting a region to be configured on the S3Clients!");

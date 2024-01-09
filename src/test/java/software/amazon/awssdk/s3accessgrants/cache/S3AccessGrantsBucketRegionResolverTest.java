@@ -31,24 +31,17 @@ public class S3AccessGrantsBucketRegionResolverTest {
     public void setUp() {
         s3Client = mock(S3Client.class);
         TEST_BUCKET_NAME = "test-bucket";
-        s3AccessGrantsCachedBucketRegionResolver = S3AccessGrantsCachedBucketRegionResolver.builder().build();
+        s3AccessGrantsCachedBucketRegionResolver = S3AccessGrantsCachedBucketRegionResolver.builder().s3Client(s3Client).build();
         HeadBucketResponse headBucketResponse = HeadBucketResponse.builder().bucketRegion(Region.US_EAST_1.toString()).build();
         when(s3Client.headBucket(any(HeadBucketRequest.class))).thenReturn(headBucketResponse);
     }
 
     @Test
-    public void call_resolve_with_invalid_s3Client() {
-        S3Client invalidS3Client = null;
-        Assertions.assertThatThrownBy(() -> s3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME, invalidS3Client))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
     public void call_resolve_should_cache_the_bucket_region() {
-        Assert.assertEquals(s3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME, s3Client), Region.US_EAST_1);
+        Assert.assertEquals(s3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME), Region.US_EAST_1);
         // initial request should be made to the service
         verify(s3Client, times(1)).headBucket(any(HeadBucketRequest.class));
-        Assert.assertEquals(s3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME, s3Client), Region.US_EAST_1);
+        Assert.assertEquals(s3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME), Region.US_EAST_1);
         // No call should be made to the service as the region is already cached
         verify(s3Client, times(1)).headBucket(any(HeadBucketRequest.class));
     }
@@ -56,11 +49,12 @@ public class S3AccessGrantsBucketRegionResolverTest {
     @Test
     public void call_resolve_should_not_cache_the_bucket_region() {
         S3Client localS3Client = mock(S3Client.class);
+        S3AccessGrantsCachedBucketRegionResolver localS3AccessGrantsCachedBucketRegionResolver = S3AccessGrantsCachedBucketRegionResolver.builder().s3Client(localS3Client).build();
         HeadBucketResponse headBucketResponse = HeadBucketResponse.builder().bucketRegion(null).build();
         when(localS3Client.headBucket(any(HeadBucketRequest.class))).thenReturn(headBucketResponse);
-        Assertions.assertThatThrownBy(() -> s3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME, localS3Client)).isInstanceOf(SdkServiceException.class);
+        Assertions.assertThatThrownBy(() -> localS3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME)).isInstanceOf(SdkServiceException.class);
         verify(localS3Client, times(1)).headBucket(any(HeadBucketRequest.class));
-        Assertions.assertThatThrownBy(() -> s3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME, localS3Client)).isInstanceOf(SdkServiceException.class);
+        Assertions.assertThatThrownBy(() -> localS3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME)).isInstanceOf(SdkServiceException.class);
         verify(localS3Client, times(2)).headBucket(any(HeadBucketRequest.class));
     }
 
@@ -69,14 +63,15 @@ public class S3AccessGrantsBucketRegionResolverTest {
 
         S3AccessGrantsCachedBucketRegionResolver localCachedBucketRegionResolver = S3AccessGrantsCachedBucketRegionResolver
                 .builder()
+                .s3Client(s3Client)
                 .expireCacheAfterWriteSeconds(1)
                 .build();
 
-        Assert.assertEquals(Region.US_EAST_1, localCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME, s3Client));
+        Assert.assertEquals(Region.US_EAST_1, localCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME));
         verify(s3Client, times(1)).headBucket(any(HeadBucketRequest.class));
         Thread.sleep(2000);
         // should evict the entry and the subsequent request should call the service
-        Assert.assertEquals(Region.US_EAST_1, localCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME, s3Client));
+        Assert.assertEquals(Region.US_EAST_1, localCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME));
         verify(s3Client, times(2)).headBucket(any(HeadBucketRequest.class));
 
     }
@@ -85,8 +80,9 @@ public class S3AccessGrantsBucketRegionResolverTest {
     public void call_bucket_region_cache_with_non_existent_bucket() throws InterruptedException {
 
         S3Client localS3Client = mock(S3Client.class);
+        S3AccessGrantsCachedBucketRegionResolver localS3AccessGrantsCachedBucketRegionResolver = S3AccessGrantsCachedBucketRegionResolver.builder().s3Client(localS3Client).build();
         when(localS3Client.headBucket(any(HeadBucketRequest.class))).thenThrow(S3Exception.builder().message("Bucket does not exist").statusCode(404).build());
-        Assertions.assertThatThrownBy(() ->  s3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME, localS3Client)).isInstanceOf(S3Exception.class);
+        Assertions.assertThatThrownBy(() ->  localS3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME)).isInstanceOf(S3Exception.class);
         verify(localS3Client, times(1)).headBucket(any(HeadBucketRequest.class));
 
     }
@@ -96,6 +92,7 @@ public class S3AccessGrantsBucketRegionResolverTest {
 
         S3Client localS3Client = mock(S3Client.class);
         AwsServiceException s3Exception = mock(S3Exception.class);
+        S3AccessGrantsCachedBucketRegionResolver localS3AccessGrantsCachedBucketRegionResolver = S3AccessGrantsCachedBucketRegionResolver.builder().s3Client(localS3Client).build();
         List<String> regionList = new ArrayList<>();
         regionList.add(Region.US_EAST_1.toString());
         SdkHttpResponse sdkHttpResponse = SdkHttpResponse.builder().putHeader("x-amz-bucket-region", regionList).build();
@@ -103,7 +100,7 @@ public class S3AccessGrantsBucketRegionResolverTest {
         when(s3Exception.statusCode()).thenReturn(301);
         when(s3Exception.awsErrorDetails()).thenReturn(awsErrorDetails);
         when(localS3Client.headBucket(any(HeadBucketRequest.class))).thenThrow(s3Exception);
-        Assert.assertEquals(Region.US_EAST_1, s3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME, localS3Client));
+        Assert.assertEquals(Region.US_EAST_1, localS3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME));
         verify(localS3Client, times(1)).headBucket(any(HeadBucketRequest.class));
 
     }
@@ -113,6 +110,7 @@ public class S3AccessGrantsBucketRegionResolverTest {
 
         S3Client localS3Client = mock(S3Client.class);
         AwsServiceException s3Exception = mock(S3Exception.class);
+        S3AccessGrantsCachedBucketRegionResolver localS3AccessGrantsCachedBucketRegionResolver = S3AccessGrantsCachedBucketRegionResolver.builder().s3Client(localS3Client).build();
         List<String> regionList = new ArrayList<>();
         regionList.add(null);
         SdkHttpResponse sdkHttpResponse = SdkHttpResponse.builder().putHeader("x-amz-bucket-region", regionList).build();
@@ -120,7 +118,7 @@ public class S3AccessGrantsBucketRegionResolverTest {
         when(s3Exception.statusCode()).thenReturn(301);
         when(s3Exception.awsErrorDetails()).thenReturn(awsErrorDetails);
         when(localS3Client.headBucket(any(HeadBucketRequest.class))).thenThrow(s3Exception);
-        Assertions.assertThatThrownBy(() -> s3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME, localS3Client))
+        Assertions.assertThatThrownBy(() -> localS3AccessGrantsCachedBucketRegionResolver.resolve(TEST_BUCKET_NAME))
                 .isInstanceOf(SdkServiceException.class);
 
     }

@@ -41,16 +41,11 @@ import software.amazon.awssdk.utils.Logger;
  */
 public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAccountIdResolver {
 
-    private S3ControlAsyncClient S3ControlAsyncClient;
     private int maxCacheSize;
     private int expireCacheAfterWriteSeconds;
     private static final Logger logger = Logger.loggerFor(S3AccessGrantsCachedAccountIdResolver.class);
 
     private Cache<String, String> cache;
-
-    public S3ControlAsyncClient S3ControlAsyncClient() {
-        return S3ControlAsyncClient;
-    }
 
     public int maxCacheSize() {
         return maxCacheSize;
@@ -79,15 +74,14 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
 
     @Override
     public String resolve(String accountId, String s3Prefix, S3ControlAsyncClient s3ControlAsyncClient) {
-        this.S3ControlAsyncClient = s3ControlAsyncClient;
         String bucketName = getBucketName(s3Prefix);
         String s3PrefixAccountId = cache.getIfPresent(bucketName);
         if (s3PrefixAccountId == null) {
             logger.debug(()->"Account Id not available in the cache. Fetching account from server.");
-            if (S3ControlAsyncClient == null) {
+            if (s3ControlAsyncClient == null) {
                 throw new IllegalArgumentException("S3ControlAsyncClient is required for the access grants instance account resolver!");
             }
-            s3PrefixAccountId = resolveFromService(accountId, s3Prefix);
+            s3PrefixAccountId = resolveFromService(accountId, s3Prefix, s3ControlAsyncClient);
             cache.put(bucketName, s3PrefixAccountId);
         }
         return s3PrefixAccountId;
@@ -98,9 +92,9 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
      * @param s3Prefix e.g., s3://bucket-name/path/to/helloworld.txt
      * @return accountId from the service response
      */
-    private String resolveFromService(String accountId, String s3Prefix) {
+    private String resolveFromService(String accountId, String s3Prefix, S3ControlAsyncClient s3ControlAsyncClient) {
         CompletableFuture<GetAccessGrantsInstanceForPrefixResponse> accessGrantsInstanceForPrefix =
-            S3ControlAsyncClient.getAccessGrantsInstanceForPrefix(GetAccessGrantsInstanceForPrefixRequest
+                s3ControlAsyncClient.getAccessGrantsInstanceForPrefix(GetAccessGrantsInstanceForPrefixRequest
                                                                  .builder()
                                                                  .accountId(accountId)
                                                                  .s3Prefix(s3Prefix)

@@ -16,11 +16,9 @@
 package software.amazon.awssdk.s3accessgrants.plugin;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import software.amazon.awssdk.annotations.NotNull;
-import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.identity.spi.IdentityProvider;
@@ -32,16 +30,11 @@ import software.amazon.awssdk.services.s3control.S3ControlAsyncClientBuilder;
 import software.amazon.awssdk.services.s3control.model.Privilege;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
 import software.amazon.awssdk.services.s3control.model.Permission;
-import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
-import software.amazon.awssdk.services.s3control.model.Credentials;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
-import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsStaticOperationToPermissionMapper;
 import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils;
 import software.amazon.awssdk.services.sts.StsAsyncClient;
-import software.amazon.awssdk.services.sts.model.GetCallerIdentityResponse;
 import software.amazon.awssdk.utils.Validate;
 
-import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.OPERATION_PROPERTY;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PREFIX_PROPERTY;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PERMISSION_PROPERTY;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.AUTH_EXCEPTIONS_PROPERTY;
@@ -266,6 +259,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
      * For every request, if the caller credentials have been used previously, the accountID resolved for that credentials will be returned.
      * If a new set of credentials are being used, then a request will be forwarded to STS to fetch the caller accountID and cache it.
      * Each Identity provider is only going to cache one set of credentials/accountID at any point of time.
+     * This should be a safe considering service clients can refer to only one set of credentials for each request.
      * @return a completableFuture containing response from STS.
      * */
     String getCallerAccountID(CompletableFuture<? extends AwsCredentialsIdentity> userCredentials) {

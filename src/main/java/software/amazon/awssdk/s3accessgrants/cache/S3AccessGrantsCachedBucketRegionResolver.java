@@ -1,3 +1,17 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *  http://aws.amazon.com/apache2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
 package software.amazon.awssdk.s3accessgrants.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
@@ -18,14 +32,18 @@ import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstant
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.MAX_BUCKET_REGION_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.MAX_BUCKET_REGION_CACHE_SIZE;
 
-public class S3AccessGrantsCachedBucketRegionResolver implements S3AccessGrantsBucketRegionResolver{
+public class S3AccessGrantsCachedBucketRegionResolver implements S3AccessGrantsBucketRegionResolver {
 
 
     private int maxCacheSize;
 
     private int expireCacheAfterWriteSeconds;
 
-    private static Cache<String, Region> cache;
+    private Cache<String, Region> cache;
+
+    private S3Client s3Client;
+
+    private static final Logger logger = Logger.loggerFor(S3AccessGrantsCachedBucketRegionResolver.class);
 
     public int getMaxCacheSize() {
         return maxCacheSize;
@@ -36,25 +54,15 @@ public class S3AccessGrantsCachedBucketRegionResolver implements S3AccessGrantsB
         return expireCacheAfterWriteSeconds;
     }
 
-    private S3Client s3Client;
-
-    private static final Logger logger = Logger.loggerFor(S3AccessGrantsCachedBucketRegionResolver.class);
+    public int expireCacheAfterWriteSeconds() {
+        return expireCacheAfterWriteSeconds;
+    }
 
     public int maxCacheSize() {
         return maxCacheSize;
     }
 
-    public int expireCacheAfterWriteSeconds() {
-        return expireCacheAfterWriteSeconds;
-    }
-
     protected CacheStats getCacheStats() { return cache.stats(); }
-
-    S3AccessGrantsCachedBucketRegionResolver() {
-        this.maxCacheSize = BUCKET_REGION_CACHE_SIZE;
-        this.expireCacheAfterWriteSeconds = BUCKET_REGION_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
-    }
-
 
     public S3AccessGrantsCachedBucketRegionResolver.Builder toBuilder() {
         return new S3AccessGrantsCachedBucketRegionResolver.BuilderImpl(this);
@@ -64,10 +72,13 @@ public class S3AccessGrantsCachedBucketRegionResolver implements S3AccessGrantsB
         return new S3AccessGrantsCachedBucketRegionResolver.BuilderImpl();
     }
 
-    @Override
-    public Region resolve(String bucket, S3Client s3Client) throws S3Exception {
+    private S3AccessGrantsCachedBucketRegionResolver() {
+        this.maxCacheSize = BUCKET_REGION_CACHE_SIZE;
+        this.expireCacheAfterWriteSeconds = BUCKET_REGION_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
+    }
 
-        this.s3Client = s3Client;
+    @Override
+    public Region resolve(String bucket) throws S3Exception {
         Region bucketRegion = cache.getIfPresent(bucket);
         if(bucketRegion == null) {
             logger.debug(() -> "bucket region not available in cache, fetching the region from the service!");
@@ -111,6 +122,8 @@ public class S3AccessGrantsCachedBucketRegionResolver implements S3AccessGrantsB
 
         S3AccessGrantsCachedBucketRegionResolver.Builder maxCacheSize(int maxCacheSize);
 
+        S3AccessGrantsCachedBucketRegionResolver.Builder s3Client(S3Client s3Client);
+
         S3AccessGrantsCachedBucketRegionResolver.Builder expireCacheAfterWriteSeconds(int expireCacheAfterWriteSeconds);
     }
 
@@ -118,16 +131,24 @@ public class S3AccessGrantsCachedBucketRegionResolver implements S3AccessGrantsB
         private int maxCacheSize = BUCKET_REGION_CACHE_SIZE;
         private int expireCacheAfterWriteSeconds = BUCKET_REGION_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
 
+        private S3Client s3Client;
+
         private BuilderImpl() {
         }
 
         public BuilderImpl(S3AccessGrantsCachedBucketRegionResolver s3AccessGrantsCachedBucketRegionResolver) {
             maxCacheSize(s3AccessGrantsCachedBucketRegionResolver.maxCacheSize);
             expireCacheAfterWriteSeconds(s3AccessGrantsCachedBucketRegionResolver.expireCacheAfterWriteSeconds);
+            s3Client(s3AccessGrantsCachedBucketRegionResolver.s3Client);
         }
 
         public int maxCacheSize() {
             return maxCacheSize;
+        }
+
+        public S3Client s3Client() {
+            if(s3Client == null) throw new IllegalArgumentException("S3 Client is required while configuring the S3 Bucket Region resolver!");
+            return s3Client;
         }
 
         @Override
@@ -137,6 +158,13 @@ public class S3AccessGrantsCachedBucketRegionResolver implements S3AccessGrantsB
                         MAX_BUCKET_REGION_CACHE_SIZE));
             }
             this.maxCacheSize = maxCacheSize;
+            return this;
+        }
+
+        @Override
+        public Builder s3Client(S3Client s3Client) {
+            if(s3Client == null) throw new IllegalArgumentException("S3 Client is required while configuring the S3 Bucket Region resolver!");
+            this.s3Client = s3Client;
             return this;
         }
 
@@ -159,6 +187,7 @@ public class S3AccessGrantsCachedBucketRegionResolver implements S3AccessGrantsB
             S3AccessGrantsCachedBucketRegionResolver resolver = new S3AccessGrantsCachedBucketRegionResolver();
             resolver.maxCacheSize = maxCacheSize();
             resolver.expireCacheAfterWriteSeconds = expireCacheAfterWriteSeconds();
+            resolver.s3Client = s3Client();
             resolver.cache = Caffeine.newBuilder()
                     .maximumSize(maxCacheSize)
                     .expireAfterWrite(Duration.ofSeconds(expireCacheAfterWriteSeconds))
