@@ -1,29 +1,31 @@
-/*
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License").
- * You may not use this file except in compliance with the License.
- * A copy of the License is located at
- *
- *  http://aws.amazon.com/apache2.0
- *
- * or in the "license" file accompanying this file. This file is distributed
- * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing
- * permissions and limitations under the License.
- */
-
+///*
+// * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// *
+// * Licensed under the Apache License, Version 2.0 (the "License").
+// * You may not use this file except in compliance with the License.
+// * A copy of the License is located at
+// *
+// *  http://aws.amazon.com/apache2.0
+// *
+// * or in the "license" file accompanying this file. This file is distributed
+// * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+// * express or implied. See the License for the specific language governing
+// * permissions and limitations under the License.
+// */
+//
 package software.amazon.awssdk.s3accessgrants.plugin;
 
 import java.nio.file.AccessDeniedException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.Test;
 import org.assertj.core.api.Assertions;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.identity.spi.IdentityProvider;
@@ -31,24 +33,22 @@ import software.amazon.awssdk.identity.spi.ResolveIdentityRequest;
 import software.amazon.awssdk.metrics.MetricCollection;
 import software.amazon.awssdk.metrics.MetricCollector;
 import software.amazon.awssdk.metrics.MetricPublisher;
-import software.amazon.awssdk.metrics.publishers.cloudwatch.CloudWatchMetricPublisher;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProviderImpl;
-import software.amazon.awssdk.services.s3control.model.Privilege;
-import software.amazon.awssdk.services.s3control.model.GetDataAccessResponse;
-import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
+import software.amazon.awssdk.services.s3control.S3ControlAsyncClientBuilder;
 import software.amazon.awssdk.services.s3control.model.Credentials;
-import software.amazon.awssdk.services.s3control.model.S3ControlException;
-import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixResponse;
+import software.amazon.awssdk.services.s3control.model.GetDataAccessRequest;
+import software.amazon.awssdk.services.s3control.model.GetDataAccessResponse;
 import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixRequest;
+import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixResponse;
 import software.amazon.awssdk.services.s3control.model.InvalidRequestException;
+import software.amazon.awssdk.services.s3control.model.Permission;
+import software.amazon.awssdk.services.s3control.model.Privilege;
+import software.amazon.awssdk.services.s3control.model.S3ControlException;
 
 
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
-
-import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.OPERATION_PROPERTY;
-import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PREFIX_PROPERTY;
 
 import org.junit.BeforeClass;
 import software.amazon.awssdk.services.sts.StsAsyncClient;
@@ -62,6 +62,11 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.spy;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PERMISSION_PROPERTY;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.PREFIX_PROPERTY;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.BUCKET_LOCATION_PROPERTY;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.AUTH_EXCEPTIONS_PROPERTY;
+
 
 public class S3AccessGrantsIdentityProviderTests {
 
@@ -83,7 +88,9 @@ public class S3AccessGrantsIdentityProviderTests {
     private final Boolean TEST_FALLBACK_ENABLED = false;
 
     private static final String TEST_ACCOUNT = "12345028312";
-    private static DefaultCredentialsProvider credentialsProvider;
+    private static AwsCredentialsProvider credentialsProvider;
+
+    private static S3ControlAsyncClientBuilder s3ControlAsyncClientBuilder;
 
     private static S3ControlAsyncClient s3ControlClient;
 
@@ -97,11 +104,14 @@ public class S3AccessGrantsIdentityProviderTests {
 
     private static MetricCollector metricsCollector;
 
-    @BeforeClass
-    public static void setUp() throws Exception {
+    private static ConcurrentHashMap<Region, S3ControlAsyncClient> clientsCache;
+
+    @Before
+    public void setUp() throws Exception {
+        s3ControlAsyncClientBuilder = mock(S3ControlAsyncClientBuilder.class);
         s3ControlClient = mock(S3ControlAsyncClient.class);
         cache = mock(S3AccessGrantsCachedCredentialsProvider.class);
-        credentialsProvider = DefaultCredentialsProvider.create();
+        credentialsProvider = mock(AwsCredentialsProvider.class);
         stsAsyncClient = mock(StsAsyncClient.class);
         metricsPublisher = mock(MetricPublisher.class);
         metricsCollector = mock(MetricCollector.class);
@@ -123,15 +133,22 @@ public class S3AccessGrantsIdentityProviderTests {
                         .account(TEST_ACCOUNT)
                         .build());
         resolveIdentityRequest = mock(ResolveIdentityRequest.class);
+        clientsCache = mock(ConcurrentHashMap.class);
 
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket/");
-        when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn("GetObject");
+        when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
+        when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
+        when(s3ControlAsyncClientBuilder.region(Region.US_EAST_2)).thenReturn(s3ControlAsyncClientBuilder);
+        when(s3ControlAsyncClientBuilder.region(Region.US_EAST_2).build()).thenReturn(s3ControlClient);
         when(s3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
-        when(cache.getDataAccess(any(), any(), any(), any())).thenReturn(cacheResponse);
+        when(cache.getDataAccess(any(), any(), any(), any(), any())).thenReturn(cacheResponse);
         when(stsAsyncClient.getCallerIdentity()).thenReturn(callerIdentityResponse);
         when(cache.getAccessGrantsMetrics()).thenReturn(metricsCollector);
         when(metricsCollector.collect()).thenReturn(mock(MetricCollection.class));
+        when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> credentials));
+        when(clientsCache.get(any(Region.class))).thenReturn(s3ControlClient);
     }
+
 
     @AfterClass
     public static void runAfterAllTests() {
@@ -140,17 +157,12 @@ public class S3AccessGrantsIdentityProviderTests {
 
     @Test
     public void create_identity_provider_without_default_identity_provider() {
-        Assertions.assertThatThrownBy(() -> new S3AccessGrantsIdentityProvider(null, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher)).isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    public void create_identity_provider_without_valid_region() {
-        Assertions.assertThatThrownBy(() -> new S3AccessGrantsIdentityProvider(credentialsProvider, null, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher)).isInstanceOf(IllegalArgumentException.class);
+        Assertions.assertThatThrownBy(() -> new S3AccessGrantsIdentityProvider(null, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     public void call_identity_type_returns_valid_result() {
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
         Assertions.assertThat(accessGrantsIdentityProvider.identityType()).isEqualTo(AwsCredentialsIdentity.class);
     }
 
@@ -161,43 +173,88 @@ public class S3AccessGrantsIdentityProviderTests {
                 GetCallerIdentityResponse.builder()
                         .account(TEST_ACCOUNT)
                         .build()));
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, localAsyncStsClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, localAsyncStsClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
         ResolveIdentityRequest resolveIdentityRequest = null;
         Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest)).isInstanceOf(IllegalArgumentException.class);
-        verify(localAsyncStsClient, atLeast(1)).getCallerIdentity();
     }
 
     @Test
     public void call_identity_provider_with_invalid_sts_client() {
-          Assertions.assertThatThrownBy(() -> new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, null, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher));
+          Assertions.assertThatThrownBy(() -> new S3AccessGrantsIdentityProvider(credentialsProvider, null, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache));
     }
 
     @Test
     public void call_identity_provider_with_invalid_privilege() {
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, null, TEST_CACHE_ENABLED, s3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, null, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
         Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     public void call_identity_provider_with_no_metrics_publisher() {
-        new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache, TEST_FALLBACK_ENABLED, null);
+        new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, null, clientsCache);
+    }
+
+    @Test
+    public void call_identity_provider_with_no_metrics_client_caching() {
+        Assertions.assertThatThrownBy(() -> new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, null)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     public void call_identity_provider_get_account_id() {
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, null, TEST_CACHE_ENABLED, s3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher);
-        Assertions.assertThat(accessGrantsIdentityProvider.getCallerAccountID().join().account()).isEqualTo(TEST_ACCOUNT);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, null, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
+        CompletableFuture<AwsSessionCredentials> localCredentials = CompletableFuture.supplyAsync(() -> AwsSessionCredentials.builder()
+                .accessKeyId(TEST_ACCESS_KEY)
+                .secretAccessKey(TEST_SECRET_KEY)
+                .sessionToken(TEST_SESSION_TOKEN)
+                .build());
+        Assertions.assertThat(accessGrantsIdentityProvider.getCallerAccountID(localCredentials)).isEqualTo(TEST_ACCOUNT);
+        verify(stsAsyncClient, times(1)).getCallerIdentity();
+    }
+
+    @Test
+    public void call_identity_provider_get_account_id_cache_test_with_same_credentials() {
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, null, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
+        CompletableFuture<AwsSessionCredentials> localCredentials = CompletableFuture.supplyAsync(() -> AwsSessionCredentials.builder()
+                .accessKeyId(TEST_ACCESS_KEY)
+                .secretAccessKey(TEST_SECRET_KEY)
+                .sessionToken(TEST_SESSION_TOKEN)
+                .build());
+        Assertions.assertThat(accessGrantsIdentityProvider.getCallerAccountID(localCredentials)).isEqualTo(TEST_ACCOUNT);
+        verify(stsAsyncClient, times(1)).getCallerIdentity();
+        Assertions.assertThat(accessGrantsIdentityProvider.getCallerAccountID(localCredentials)).isEqualTo(TEST_ACCOUNT);
+        verify(stsAsyncClient, times(1)).getCallerIdentity();
+    }
+
+    @Test
+    public void call_identity_provider_get_account_id_cache_test_with_different_credentials() {
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, null, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
+        CompletableFuture<AwsSessionCredentials> localCredentials = CompletableFuture.supplyAsync(() -> AwsSessionCredentials.builder()
+                .accessKeyId(TEST_ACCESS_KEY)
+                .secretAccessKey(TEST_SECRET_KEY)
+                .sessionToken(TEST_SESSION_TOKEN)
+                .build());
+        CompletableFuture<AwsSessionCredentials> localCredentials2 = CompletableFuture.supplyAsync(() -> AwsSessionCredentials.builder()
+                .accessKeyId(TEST_ACCESS_KEY)
+                .secretAccessKey(TEST_SECRET_KEY)
+                .sessionToken(TEST_SESSION_TOKEN+"xx")
+                .build());
+        Assertions.assertThat(accessGrantsIdentityProvider.getCallerAccountID(localCredentials)).isEqualTo(TEST_ACCOUNT);
+        verify(stsAsyncClient, times(1)).getCallerIdentity();
+        Assertions.assertThat(accessGrantsIdentityProvider.getCallerAccountID(localCredentials2)).isEqualTo(TEST_ACCOUNT);
+        verify(stsAsyncClient, times(2)).getCallerIdentity();
+        Assertions.assertThat(accessGrantsIdentityProvider.getCallerAccountID(localCredentials2)).isEqualTo(TEST_ACCOUNT);
+        verify(stsAsyncClient, times(2)).getCallerIdentity();
     }
 
     @Test
     public void call_identity_provider_with_invalid_cache_enabled_setting() {
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, null, s3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, null, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
         Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     public void call_should_fallback_with_response_codes_fallback_turned_off() {
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
         Assertions.assertThat(accessGrantsIdentityProvider.shouldFallbackToDefaultCredentialsForThisCase(404, mock(UnsupportedOperationException.class))).isTrue();
         Assertions.assertThat(accessGrantsIdentityProvider.shouldFallbackToDefaultCredentialsForThisCase(404, mock(Exception.class))).isFalse();
         Assertions.assertThat(accessGrantsIdentityProvider.shouldFallbackToDefaultCredentialsForThisCase(403, mock(AccessDeniedException.class))).isFalse();
@@ -205,7 +262,7 @@ public class S3AccessGrantsIdentityProviderTests {
 
     @Test
     public void call_should_fallback_with_response_codes_fallback_turned_on() {
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache, !TEST_FALLBACK_ENABLED, metricsPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, !TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
         Assertions.assertThat(accessGrantsIdentityProvider.shouldFallbackToDefaultCredentialsForThisCase(404, mock(UnsupportedOperationException.class))).isTrue();
         Assertions.assertThat(accessGrantsIdentityProvider.shouldFallbackToDefaultCredentialsForThisCase(404, mock(Exception.class))).isTrue();
         Assertions.assertThat(accessGrantsIdentityProvider.shouldFallbackToDefaultCredentialsForThisCase(403, mock(AccessDeniedException.class))).isTrue();
@@ -224,12 +281,12 @@ public class S3AccessGrantsIdentityProviderTests {
                 .build();
         CompletableFuture<AwsCredentialsIdentity> cacheResponse  = CompletableFuture.supplyAsync(() -> credentials);
 
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, testCache, TEST_FALLBACK_ENABLED, testMetricPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, testCache, TEST_FALLBACK_ENABLED, testMetricPublisher, clientsCache);
 
-        when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> null));
+        when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> credentials));
         when(testCache.getAccessGrantsMetrics()).thenReturn(testMetricCollector);
         when(testMetricCollector.collect()).thenReturn(mock(MetricCollection.class));
-        when(testCache.getDataAccess(any(), any(), any(), any())).thenReturn(cacheResponse);
+        when(testCache.getDataAccess(any(), any(), any(), any(), any())).thenReturn(cacheResponse);
 
         Assertions.assertThatNoException().isThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest));
         verify(credentialsProvider, times(1)).resolveIdentity(resolveIdentityRequest);
@@ -239,7 +296,7 @@ public class S3AccessGrantsIdentityProviderTests {
     @Test
     public void call_resolve_identity_with_invalid_request_params_s3Prefix() {
 
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
         ResolveIdentityRequest localResolveIdentityRequest = mock(ResolveIdentityRequest.class);
 
         when(localResolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn(null);
@@ -254,72 +311,31 @@ public class S3AccessGrantsIdentityProviderTests {
     @Test
     public void call_resolve_identity_with_invalid_request_params_operation() {
 
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
         ResolveIdentityRequest localResolveIdentityRequest = mock(ResolveIdentityRequest.class);
 
         when(localResolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://");
-        when(localResolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn(null);
 
         Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(localResolveIdentityRequest)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void call_resolve_identity_with_invalid_request_params_bucket_in_prefix() {
-
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher);
-        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.verifyIfValidBucket("s3://null/*"))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    public void call_get_data_access_with_invalid_response_without_cache() {
-        IdentityProvider credentialsProvider = mock(IdentityProvider.class);
-        S3ControlAsyncClient localS3ControlClient = mock(S3ControlAsyncClient.class);
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_DISABLED, localS3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher);
-        ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
-        CompletableFuture<GetDataAccessResponse> getDataAccessResponse = CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().build());
-
-        when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
-        when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn(TEST_OPERATION);
-        when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
-        when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build()));
-
-        Assertions.assertThatThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join())
-                .isInstanceOf(CompletionException.class).getCause()
-                .isInstanceOf(NullPointerException.class);
-
-    }
-
-    @Test
-    public void call_get_data_access_with_access_denied_response_without_cache() {
-        IdentityProvider credentialsProvider = mock(IdentityProvider.class);
-        S3ControlAsyncClient localS3ControlClient = mock(S3ControlAsyncClient.class);
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_DISABLED, localS3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher);
-        ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
-
-        when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
-        when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn(TEST_OPERATION);
-        when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().build()).whenComplete((r,e) -> { throw S3ControlException.builder().statusCode(403).build(); }));
-        when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build()));
-
-        Throwable exc = Assertions.catchThrowableOfType(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join(), CompletionException.class);
-        Assertions.assertThat(exc.getCause()).isInstanceOf(S3ControlException.class);
-        Assertions.assertThat(((S3ControlException) exc.getCause()).statusCode()).isEqualTo(403);
-    }
-
-    @Test
     public void call_get_data_access_with_access_denied_response_with_cache() throws Exception {
         IdentityProvider credentialsProvider = mock(IdentityProvider.class);
+        S3ControlAsyncClientBuilder localS3ControlClientBuilder = mock(S3ControlAsyncClientBuilder.class);
         S3ControlAsyncClient localS3ControlClient = mock(S3ControlAsyncClient.class);
         S3AccessGrantsCachedCredentialsProvider testCache = mock(S3AccessGrantsCachedCredentialsProvider.class);
         MetricPublisher testMetricPublisher = mock(MetricPublisher.class);
         MetricCollector testMetricCollector = mock(MetricCollector.class);
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClient, testCache, !TEST_FALLBACK_ENABLED, testMetricPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClientBuilder, testCache, !TEST_FALLBACK_ENABLED, testMetricPublisher, clientsCache);
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
 
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
-        when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn(TEST_OPERATION);
-        when(testCache.getDataAccess(any(), any(), any(), any())).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied for the user").build());
+        when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
+        when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
+        when(localS3ControlClientBuilder.region(Region.US_EAST_2)).thenReturn(localS3ControlClientBuilder);
+        when(localS3ControlClientBuilder.region(Region.US_EAST_2).build()).thenReturn(localS3ControlClient);
+        when(testCache.getDataAccess(any(), any(), any(), any(), any())).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied for the user").build());
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build()));
         when(testCache.getAccessGrantsMetrics()).thenReturn(testMetricCollector);
         when(testMetricCollector.collect()).thenReturn(mock(MetricCollection.class));
@@ -333,16 +349,20 @@ public class S3AccessGrantsIdentityProviderTests {
     @Test
     public void call_get_data_access_with_exceptions_from_cache() throws Exception {
         IdentityProvider credentialsProvider = mock(IdentityProvider.class);
+        S3ControlAsyncClientBuilder localS3ControlClientBuilder = mock(S3ControlAsyncClientBuilder.class);
         S3ControlAsyncClient localS3ControlClient = mock(S3ControlAsyncClient.class);
         S3AccessGrantsCachedCredentialsProvider testCache = mock(S3AccessGrantsCachedCredentialsProvider.class);
         MetricPublisher testMetricPublisher = mock(MetricPublisher.class);
         MetricCollector testMetricCollector = mock(MetricCollector.class);
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClient, testCache, !TEST_FALLBACK_ENABLED, testMetricPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClientBuilder, testCache, !TEST_FALLBACK_ENABLED, testMetricPublisher, clientsCache);
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
 
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
-        when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn(TEST_OPERATION);
-        when(testCache.getDataAccess(any(), any(), any(), any())).thenThrow(NullPointerException.class);
+        when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
+        when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
+        when(localS3ControlClientBuilder.region(Region.US_EAST_2)).thenReturn(localS3ControlClientBuilder);
+        when(localS3ControlClientBuilder.region(Region.US_EAST_2).build()).thenReturn(localS3ControlClient);
+        when(testCache.getDataAccess(any(), any(), any(), any(), any())).thenThrow(NullPointerException.class);
         when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().build()).whenComplete((r,e) -> { throw S3ControlException.builder().statusCode(403).build(); }));
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build()));
         when(testCache.getAccessGrantsMetrics()).thenReturn(testMetricCollector);
@@ -355,43 +375,27 @@ public class S3AccessGrantsIdentityProviderTests {
         verify(testMetricPublisher, times(1)).publish(any());
     }
 
-    @Test
-    public void call_get_data_access_with_success_response_without_cache() throws Exception {
-        IdentityProvider credentialsProvider = mock(IdentityProvider.class);
-        S3ControlAsyncClient localS3ControlClient = mock(S3ControlAsyncClient.class);
-        S3AccessGrantsCachedCredentialsProvider testCache = mock(S3AccessGrantsCachedCredentialsProvider.class);
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_DISABLED, localS3ControlClient, testCache, TEST_FALLBACK_ENABLED, metricsPublisher);
-        ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
-        CompletableFuture<GetDataAccessResponse> getDataAccessResponse = CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder()
-                .credentials(Credentials.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).sessionToken(TEST_SESSION_TOKEN).build()).build());
-
-        when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
-        when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn(TEST_OPERATION);
-        when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
-        when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build()));
-        when(testCache.getDataAccess(any(), any(), any(), any())).thenReturn(null);
-
-        Assertions.assertThatNoException().isThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join());
-
-        verify(testCache, never()).getDataAccess(any(), any(), any(), any());
-    }
 
     @Test
     public void call_access_grants_identity_provider_with_cache_enabled_request_success() throws Exception {
 
         IdentityProvider credentialsProvider = mock(IdentityProvider.class);
+        S3ControlAsyncClientBuilder localS3ControlClientBuilder = mock(S3ControlAsyncClientBuilder.class);
         S3ControlAsyncClient localS3ControlClient = mock(S3ControlAsyncClient.class);
         S3AccessGrantsCachedCredentialsProvider testCache = mock(S3AccessGrantsCachedCredentialsProvider.class);
         MetricPublisher testMetricPublisher = mock(MetricPublisher.class);
         MetricCollector testMetricCollector = mock(MetricCollector.class);
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClient, testCache, TEST_FALLBACK_ENABLED, testMetricPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClientBuilder, testCache, TEST_FALLBACK_ENABLED, testMetricPublisher, clientsCache);
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
         AwsCredentialsIdentity credentials = AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build();
         CompletableFuture<AwsCredentialsIdentity> cacheResponse = CompletableFuture.supplyAsync(() -> credentials);
 
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
-        when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn(TEST_OPERATION);
-        when(testCache.getDataAccess(any(), any(), any(), any())).thenReturn(cacheResponse);
+        when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
+        when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
+        when(localS3ControlClientBuilder.region(Region.US_EAST_2)).thenReturn(localS3ControlClientBuilder);
+        when(localS3ControlClientBuilder.region(Region.US_EAST_2).build()).thenReturn(localS3ControlClient);
+        when(testCache.getDataAccess(any(), any(), any(), any(), any())).thenReturn(cacheResponse);
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> {
             return credentials;
         }));
@@ -399,7 +403,7 @@ public class S3AccessGrantsIdentityProviderTests {
         when(testMetricCollector.collect()).thenReturn(mock(MetricCollection.class));
 
         Assertions.assertThatNoException().isThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join());
-        verify(testCache, times(1)).getDataAccess(any(), any(), any(), any());
+        verify(testCache, times(1)).getDataAccess(any(), any(), any(), any(), any());
         verify(testMetricPublisher, times(1)).publish(any());
     }
 
@@ -407,13 +411,13 @@ public class S3AccessGrantsIdentityProviderTests {
     public void call_access_grants_identity_provider_with_cache_enabled_request_failure_returns_user_credentials() {
 
         IdentityProvider credentialsProvider = mock(IdentityProvider.class);
+        S3ControlAsyncClientBuilder localS3ControlClientBuilder = mock(S3ControlAsyncClientBuilder.class);
         S3ControlAsyncClient localS3ControlClient = mock(S3ControlAsyncClient.class);
         S3AccessGrantsCachedCredentialsProvider testCache = S3AccessGrantsCachedCredentialsProviderImpl
                 .builder()
-                .S3ControlAsyncClient(localS3ControlClient)
                 .build();
         MetricPublisher testMetricPublisher = mock(MetricPublisher.class);
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClient, testCache, !TEST_FALLBACK_ENABLED, testMetricPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClientBuilder, testCache, !TEST_FALLBACK_ENABLED, testMetricPublisher, clientsCache);
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
         AwsCredentialsIdentity credentials = AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build();
         CompletableFuture<GetAccessGrantsInstanceForPrefixResponse>  getAccessGrantsInstanceForPrefixResponse = CompletableFuture.supplyAsync(() -> GetAccessGrantsInstanceForPrefixResponse.builder()
@@ -421,7 +425,10 @@ public class S3AccessGrantsIdentityProviderTests {
                 .accessGrantsInstanceId("default").build());
 
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
-        when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn(TEST_OPERATION);
+        when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
+        when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
+        when(localS3ControlClientBuilder.region(Region.US_EAST_2)).thenReturn(localS3ControlClientBuilder);
+        when(localS3ControlClientBuilder.region(Region.US_EAST_2).build()).thenReturn(localS3ControlClient);
         when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenThrow(InvalidRequestException.class);
         when(localS3ControlClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class))).thenReturn(getAccessGrantsInstanceForPrefixResponse);
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> credentials));
@@ -436,13 +443,13 @@ public class S3AccessGrantsIdentityProviderTests {
     public void call_access_grants_identity_provider_with_cache_enabled_request_failure_does_not_returns_user_credentials() {
 
         IdentityProvider credentialsProvider = mock(IdentityProvider.class);
+        S3ControlAsyncClientBuilder localS3ControlClientBuilder = mock(S3ControlAsyncClientBuilder.class);
         S3ControlAsyncClient localS3ControlClient = mock(S3ControlAsyncClient.class);
         S3AccessGrantsCachedCredentialsProvider testCache = S3AccessGrantsCachedCredentialsProviderImpl
                 .builder()
-                .S3ControlAsyncClient(localS3ControlClient)
                 .build();
         MetricPublisher testMetricPublisher = mock(MetricPublisher.class);
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClient, testCache, TEST_FALLBACK_ENABLED, testMetricPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClientBuilder, testCache, TEST_FALLBACK_ENABLED, testMetricPublisher, clientsCache);
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
         AwsCredentialsIdentity credentials = AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build();
         CompletableFuture<GetAccessGrantsInstanceForPrefixResponse>  getAccessGrantsInstanceForPrefixResponse = CompletableFuture.supplyAsync(() -> GetAccessGrantsInstanceForPrefixResponse.builder()
@@ -450,7 +457,10 @@ public class S3AccessGrantsIdentityProviderTests {
                 .accessGrantsInstanceId("default").build());
 
         when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
-        when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn(TEST_OPERATION);
+        when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
+        when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
+        when(localS3ControlClientBuilder.region(Region.US_EAST_2)).thenReturn(localS3ControlClientBuilder);
+        when(localS3ControlClientBuilder.region(Region.US_EAST_2).build()).thenReturn(localS3ControlClient);
         when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().build()).whenComplete((r,e) -> { throw InvalidRequestException.builder().statusCode(400).build(); }));
         when(localS3ControlClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class))).thenReturn(getAccessGrantsInstanceForPrefixResponse);
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> credentials));
@@ -462,12 +472,11 @@ public class S3AccessGrantsIdentityProviderTests {
     @Test
     public void call_access_grants_identity_provider_with_unsupported_operation() {
         IdentityProvider credentialsProvider = mock(IdentityProvider.class);
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache, !TEST_FALLBACK_ENABLED, metricsPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, !TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
         AwsCredentialsIdentity credentials = AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build();
 
-        when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
-        when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn("CreateBucket");
+        when(resolveIdentityRequest.property(AUTH_EXCEPTIONS_PROPERTY)).thenReturn(SdkServiceException.builder().statusCode(404).cause(new UnsupportedOperationException()).build());
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> credentials));
 
         AwsCredentialsIdentity awsCredentialsIdentity = accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join();
@@ -478,12 +487,11 @@ public class S3AccessGrantsIdentityProviderTests {
     @Test
     public void call_access_grants_identity_provider_with_unsupported_operation_on_disabled_fallback() {
         IdentityProvider credentialsProvider = mock(IdentityProvider.class);
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, TEST_REGION, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlClient, cache, TEST_FALLBACK_ENABLED, metricsPublisher);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache);
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
         AwsCredentialsIdentity credentials = AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build();
 
-        when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
-        when(resolveIdentityRequest.property(OPERATION_PROPERTY)).thenReturn("CreateBucket");
+        when(resolveIdentityRequest.property(AUTH_EXCEPTIONS_PROPERTY)).thenReturn(SdkServiceException.builder().statusCode(404).cause(new UnsupportedOperationException()).build());
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> credentials));
 
         AwsCredentialsIdentity awsCredentialsIdentity = accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join();
@@ -491,4 +499,42 @@ public class S3AccessGrantsIdentityProviderTests {
         Assertions.assertThat(awsCredentialsIdentity.accessKeyId()).isEqualTo(TEST_ACCESS_KEY);
     }
 
+    @Test
+    public void call_access_grants_identity_provider_clients_cache_test() throws Exception {
+
+        IdentityProvider credentialsProvider = mock(IdentityProvider.class);
+        S3ControlAsyncClientBuilder localS3ControlClientBuilder = mock(S3ControlAsyncClientBuilder.class);
+        S3ControlAsyncClient localS3ControlClient = mock(S3ControlAsyncClient.class);
+        S3AccessGrantsCachedCredentialsProvider testCache = mock(S3AccessGrantsCachedCredentialsProvider.class);
+        MetricPublisher testMetricPublisher = mock(MetricPublisher.class);
+        MetricCollector testMetricCollector = mock(MetricCollector.class);
+        ConcurrentHashMap<Region, S3ControlAsyncClient> mockClientsCache = spy(new ConcurrentHashMap<>());
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClientBuilder, testCache, TEST_FALLBACK_ENABLED, testMetricPublisher, mockClientsCache);
+        ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
+        AwsCredentialsIdentity credentials = AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build();
+        CompletableFuture<AwsCredentialsIdentity> cacheResponse = CompletableFuture.supplyAsync(() -> credentials);
+
+        when(resolveIdentityRequest.property(PREFIX_PROPERTY)).thenReturn("s3://test-bucket");
+        when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
+        when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
+        when(localS3ControlClientBuilder.region(Region.US_EAST_2)).thenReturn(localS3ControlClientBuilder);
+        when(localS3ControlClientBuilder.region(Region.US_EAST_2).build()).thenReturn(localS3ControlClient);
+        when(testCache.getDataAccess(any(), any(), any(), any(), any())).thenReturn(cacheResponse);
+        when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> {
+            return credentials;
+        }));
+        when(testCache.getAccessGrantsMetrics()).thenReturn(testMetricCollector);
+        when(testMetricCollector.collect()).thenReturn(mock(MetricCollection.class));
+
+        Assertions.assertThatNoException().isThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join());
+
+        verify(mockClientsCache, times(1)).containsKey(any());
+        verify(mockClientsCache, times(1)).get(any()); // Should not invoke get but containsKey invokes get internally
+        verify(mockClientsCache, times(1)).put(any(), any()); // Should have called containsKey but no client in the hashMap for the region, so PUT should be invoked
+
+        Assertions.assertThatNoException().isThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join());
+        verify(mockClientsCache, times(2)).containsKey(any());
+        verify(mockClientsCache, times(3)).get(any()); // verifying if the
+        verify(mockClientsCache, times(1)).put(any(), any()); // Client already in the cache, so no PUT calls are expected for the second request.
+    }
 }
