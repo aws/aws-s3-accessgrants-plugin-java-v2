@@ -32,6 +32,10 @@ import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstant
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.MAX_BUCKET_REGION_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.MAX_BUCKET_REGION_CACHE_SIZE;
 
+/*
+* A layer for caching bucket regions.
+* This cache is specifically to avoid head bucket throttling.
+* */
 public class S3AccessGrantsCachedBucketRegionResolver implements S3AccessGrantsBucketRegionResolver {
 
 
@@ -151,6 +155,10 @@ public class S3AccessGrantsCachedBucketRegionResolver implements S3AccessGrantsB
             return s3Client;
         }
 
+        public int expireCacheAfterWriteSeconds() {
+            return expireCacheAfterWriteSeconds;
+        }
+
         @Override
         public S3AccessGrantsCachedBucketRegionResolver.Builder maxCacheSize(int maxCacheSize) {
             if (maxCacheSize <= 0 || maxCacheSize > MAX_BUCKET_REGION_CACHE_SIZE) {
@@ -162,16 +170,12 @@ public class S3AccessGrantsCachedBucketRegionResolver implements S3AccessGrantsB
         }
 
         @Override
-        public Builder s3Client(S3Client s3Client) {
-            if(s3Client == null) throw new IllegalArgumentException("S3 Client is required while configuring the S3 Bucket Region resolver!");
+        public S3AccessGrantsCachedBucketRegionResolver.Builder s3Client(S3Client s3Client) {
+            if (s3Client == null)
+                throw new IllegalArgumentException("S3 Client is required while configuring the S3 Bucket Region resolver!");
             this.s3Client = s3Client;
             return this;
         }
-
-        public int expireCacheAfterWriteSeconds() {
-            return expireCacheAfterWriteSeconds;
-        }
-
         @Override
         public S3AccessGrantsCachedBucketRegionResolver.Builder expireCacheAfterWriteSeconds(int expireCacheAfterWriteSeconds) {
             if (expireCacheAfterWriteSeconds <= 0 || expireCacheAfterWriteSeconds > MAX_BUCKET_REGION_EXPIRE_CACHE_AFTER_WRITE_SECONDS) {

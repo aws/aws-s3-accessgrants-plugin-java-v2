@@ -6,14 +6,16 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import software.amazon.awssdk.services.s3.S3Client;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.Mockito.mock;
-import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.*;
+import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.BUCKET_REGION_CACHE_SIZE;
+import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.BUCKET_REGION_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
+import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.MAX_BUCKET_REGION_CACHE_SIZE;
+import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.MAX_BUCKET_REGION_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
 
 public class S3AccessGrantsBucketRegionResolverCreationTest {
 
-    private static int TEST_BUCKET_REGION_CACHE_SIZE = 5_000;
-    private static int TEST_CACHE_EXPIRATION_DURATION = 6_0;
+    private static final int TEST_BUCKET_REGION_CACHE_SIZE = 5_000;
+    private static final int TEST_CACHE_EXPIRATION_DURATION = 6_0;
 
     private static S3Client s3Client;
 
