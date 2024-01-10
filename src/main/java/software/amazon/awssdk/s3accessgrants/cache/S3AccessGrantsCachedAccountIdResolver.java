@@ -41,16 +41,11 @@ import software.amazon.awssdk.utils.Logger;
  */
 public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAccountIdResolver {
 
-    private final S3ControlAsyncClient S3ControlAsyncClient;
     private int maxCacheSize;
     private int expireCacheAfterWriteSeconds;
     private static final Logger logger = Logger.loggerFor(S3AccessGrantsCachedAccountIdResolver.class);
 
     private Cache<String, String> cache;
-
-    public S3ControlAsyncClient S3ControlAsyncClient() {
-        return S3ControlAsyncClient;
-    }
 
     public int maxCacheSize() {
         return maxCacheSize;
@@ -63,11 +58,7 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
     protected CacheStats getCacheStats() { return cache.stats(); }
 
     @VisibleForTesting
-    S3AccessGrantsCachedAccountIdResolver(@NotNull S3ControlAsyncClient S3ControlAsyncClient) {
-        if (S3ControlAsyncClient == null) {
-            throw new IllegalArgumentException("S3ControlAsyncClient is required");
-        }
-        this.S3ControlAsyncClient = S3ControlAsyncClient;
+    S3AccessGrantsCachedAccountIdResolver() {
         this.maxCacheSize = DEFAULT_ACCOUNT_ID_MAX_CACHE_SIZE;
         this.expireCacheAfterWriteSeconds = DEFAULT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
     }
@@ -82,12 +73,15 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
     }
 
     @Override
-    public String resolve(String accountId, String s3Prefix) {
+    public String resolve(String accountId, String s3Prefix, S3ControlAsyncClient s3ControlAsyncClient) {
         String bucketName = getBucketName(s3Prefix);
         String s3PrefixAccountId = cache.getIfPresent(bucketName);
         if (s3PrefixAccountId == null) {
             logger.debug(()->"Account Id not available in the cache. Fetching account from server.");
-            s3PrefixAccountId = resolveFromService(accountId, s3Prefix);
+            if (s3ControlAsyncClient == null) {
+                throw new IllegalArgumentException("S3ControlAsyncClient is required for the access grants instance account resolver!");
+            }
+            s3PrefixAccountId = resolveFromService(accountId, s3Prefix, s3ControlAsyncClient);
             cache.put(bucketName, s3PrefixAccountId);
         }
         return s3PrefixAccountId;
@@ -98,9 +92,9 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
      * @param s3Prefix e.g., s3://bucket-name/path/to/helloworld.txt
      * @return accountId from the service response
      */
-    private String resolveFromService(String accountId, String s3Prefix) {
+    private String resolveFromService(String accountId, String s3Prefix, S3ControlAsyncClient s3ControlAsyncClient) {
         CompletableFuture<GetAccessGrantsInstanceForPrefixResponse> accessGrantsInstanceForPrefix =
-            S3ControlAsyncClient.getAccessGrantsInstanceForPrefix(GetAccessGrantsInstanceForPrefixRequest
+                s3ControlAsyncClient.getAccessGrantsInstanceForPrefix(GetAccessGrantsInstanceForPrefixRequest
                                                                  .builder()
                                                                  .accountId(accountId)
                                                                  .s3Prefix(s3Prefix)
@@ -117,8 +111,6 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
     public interface Builder {
         S3AccessGrantsCachedAccountIdResolver build();
 
-        Builder S3ControlAsyncClient(S3ControlAsyncClient S3ControlAsyncClient);
-
         Builder maxCacheSize(int maxCacheSize);
 
         Builder expireCacheAfterWriteSeconds(int expireCacheAfterWriteSeconds);
@@ -133,15 +125,8 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
         }
 
         public BuilderImpl(S3AccessGrantsCachedAccountIdResolver s3AccessGrantsCachedAccountIdResolver) {
-            S3ControlAsyncClient(s3AccessGrantsCachedAccountIdResolver.S3ControlAsyncClient);
             maxCacheSize(s3AccessGrantsCachedAccountIdResolver.maxCacheSize);
             expireCacheAfterWriteSeconds(s3AccessGrantsCachedAccountIdResolver.expireCacheAfterWriteSeconds);
-        }
-
-        @Override
-        public Builder S3ControlAsyncClient(S3ControlAsyncClient S3ControlAsyncClient) {
-            this.S3ControlAsyncClient = S3ControlAsyncClient;
-            return this;
         }
 
         public int maxCacheSize() {
@@ -174,7 +159,7 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
 
         @Override
         public S3AccessGrantsCachedAccountIdResolver build() {
-            S3AccessGrantsCachedAccountIdResolver resolver = new S3AccessGrantsCachedAccountIdResolver(S3ControlAsyncClient);
+            S3AccessGrantsCachedAccountIdResolver resolver = new S3AccessGrantsCachedAccountIdResolver();
             resolver.maxCacheSize = maxCacheSize();
             resolver.expireCacheAfterWriteSeconds = expireCAcheAfterWriteSeconds();
             resolver.cache = Caffeine.newBuilder()

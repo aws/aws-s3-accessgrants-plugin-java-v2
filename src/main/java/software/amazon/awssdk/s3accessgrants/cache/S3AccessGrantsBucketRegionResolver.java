@@ -12,20 +12,22 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-
 package software.amazon.awssdk.s3accessgrants.cache;
 
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
 
-public interface S3AccessGrantsAccountIdResolver {
+public interface S3AccessGrantsBucketRegionResolver {
+
     /**
      *
-     * @param accountId AWS AccountId from the request context parameter
-     * @param s3Prefix e.g., s3://bucket-name/path/to/helloworld.txt
-     * @param s3ControlAsyncClient S3ControlAsynClient that will be used for making the requests
-     * @return AWS AccountId of the S3 Access Grants Instance that owns the location scope of the s3Prefix
-     * @throws S3ControlException propagate S3ControlException from service call
+     * @param bucket name of the bucket being accessed
+     * @throws S3Exception propagate S3Exception from service call
      */
-    String resolve(String accountId, String s3Prefix, S3ControlAsyncClient s3ControlAsyncClient) throws S3ControlException;
+
+    Region resolve(String bucket) throws S3Exception;
+
 }
