@@ -158,6 +158,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
         } catch(SdkServiceException e) {
 
+            unwrapAndBuildException(e);
             if(shouldFallbackToDefaultCredentialsForThisCase(e.statusCode(), e.getCause())) {
                 return credentialsProvider.resolveIdentity(resolveIdentityRequest);
             }

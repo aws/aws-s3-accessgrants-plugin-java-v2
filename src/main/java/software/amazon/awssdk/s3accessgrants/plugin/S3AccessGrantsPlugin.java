@@ -76,6 +76,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
     public void configureClient(SdkServiceClientConfiguration.Builder config) {
         logger.info(() -> "Configuring S3 Clients to use S3 Access Grants as a permission layer!");
         logger.info(() -> "Running the S3 Access grants plugin with fallback setting enabled : "+enableFallback());
+        logger.info(() -> "Running the S3 Access grants plugin with cross-region setting enabled : "+enableCrossRegionAccess());
         if(!enableFallback()) {
             logger.warn(() -> "Fallback not opted in! S3 Client will not fall back to evaluate policies if permissions are not provided through S3 Access Grants!");
         }
