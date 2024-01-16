@@ -134,7 +134,7 @@ public class S3AccessGrantsIntegrationTests {
         credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
         s3ControlAsyncClientBuilder = S3AccessGrantsIntegrationTestsUtils.s3ControlAsyncClientBuilder(credentialsProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
         s3Client = S3AccessGrantsIntegrationTestsUtils.s3ClientBuilder(credentialsProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
-        authSchemeProvider = new S3AccessGrantsAuthSchemeProvider(S3AuthSchemeProvider.defaultProvider(), s3Client, true);
+        authSchemeProvider = new S3AccessGrantsAuthSchemeProvider(S3AuthSchemeProvider.defaultProvider(), s3Client, false);
         stsAsyncClient = StsAsyncClient.builder()
                 .credentialsProvider(credentialsProvider)
                 .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
@@ -377,8 +377,7 @@ public class S3AccessGrantsIntegrationTests {
     @Test
     public void call_s3_without_an_access_grant_request_failure_fallback_to_policy_evaluation() throws Exception {
 
-        S3AccessGrantsCachedCredentialsProviderImpl cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
-                .build());
+        S3AccessGrantsCachedCredentialsProviderImpl cache = mock(S3AccessGrantsCachedCredentialsProviderImpl.class);
 
         S3AccessGrantsIdentityProvider identityProvider =
                 spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
@@ -390,6 +389,8 @@ public class S3AccessGrantsIntegrationTests {
                         !S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
                         metricPublisher,
                         clientsCache));
+
+        when(cache.getDataAccess(any(), any(), any(), any(), any())).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied").build());
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
@@ -482,8 +483,7 @@ public class S3AccessGrantsIntegrationTests {
     @Test
     public void call_s3_with_non_existent_location_request_failure_fallback_to_policy_evaluation() throws Exception {
 
-        S3AccessGrantsCachedCredentialsProvider cache = spy(S3AccessGrantsCachedCredentialsProviderImpl.builder()
-                .build());
+        S3AccessGrantsCachedCredentialsProvider cache = mock(S3AccessGrantsCachedCredentialsProviderImpl.class);
 
         S3AccessGrantsIdentityProvider identityProvider =
                 spy(new S3AccessGrantsIdentityProvider(credentialsProvider,
@@ -495,6 +495,8 @@ public class S3AccessGrantsIntegrationTests {
                         !S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
                         metricPublisher,
                         clientsCache));
+
+        when(cache.getDataAccess(any(), any(), any(), any(), any())).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied").build());
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 

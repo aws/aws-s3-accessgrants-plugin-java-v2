@@ -103,17 +103,21 @@ public class S3AccessGrantsCachedBucketRegionResolver implements S3AccessGrantsB
     private Region resolveFromService(String bucket) {
         String resolvedRegion = null;
         try {
-                logger.info(() -> "making a call to S3 for determining the bucket region!");
+                logger.info(() -> "making a call to S3 for determining the bucket region! "+bucket);
                 HeadBucketRequest bucketLocationRequest = HeadBucketRequest.builder().bucket(bucket).build();
                 HeadBucketResponse headBucketResponse = s3Client.headBucket(bucketLocationRequest);
                 resolvedRegion = headBucketResponse.bucketRegion();
         } catch (S3Exception e) {
-            if (e.statusCode() == 301) {
-                // A fallback in case S3 Clients are not able to re-direct the head bucket requests to the correct region.
+            logger.debug(() -> "an exception occurred while make head bucket request to fetch bucket region. Attempting to extract the region from headers!");
+            if (e.awsErrorDetails() != null && e.awsErrorDetails().sdkHttpResponse() != null && e.awsErrorDetails().sdkHttpResponse().headers().get("x-amz-bucket-region") != null ) {
+                // A fallback in case the head bucket requests fails.
                 String bucketRegion = e.awsErrorDetails().sdkHttpResponse().headers().get("x-amz-bucket-region").get(0);
                 resolvedRegion = bucketRegion;
             } else {
-                throw e;
+                throw SdkServiceException.builder()
+                        .message(e.getMessage())
+                        .cause(e)
+                        .build();
             }
         }
         if(resolvedRegion == null) throw SdkServiceException.builder().message("S3 error! region cannot be determined for the specified bucket!").build();
