@@ -81,6 +81,7 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
         List<AuthSchemeOption> availableAuthSchemes = authSchemeProvider.resolveAuthScheme(authSchemeParams);
 
         try {
+            logger.debug(() -> "operation : " + authSchemeParams.operation());
             final Permission permission = permissionMapper.getPermission(authSchemeParams.operation());
 
             S3AccessGrantsUtils.argumentNotNull(authSchemeParams.bucket(), "Please specify a valid bucket name for the operation!");
@@ -88,7 +89,6 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
             final Region destinationRegion = getBucketLocation(authSchemeParams.bucket());
 
             logger.debug(() -> "Access Grants requests will be sent to the region "+destinationRegion);
-            logger.debug(() -> "operation : " + authSchemeParams.operation());
 
             String S3Prefix = "s3://"+authSchemeParams.bucket()+"/"+getKeyIfExists(authSchemeParams);
 
