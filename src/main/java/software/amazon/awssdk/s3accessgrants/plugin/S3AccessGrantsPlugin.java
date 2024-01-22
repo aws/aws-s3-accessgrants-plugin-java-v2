@@ -134,8 +134,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
     /**
      * Extracts the cross region setting available on the S3 client!
-     * Returns Default setting if configuration is not captured by SDK. This is to ensure
-     * that non-cross-region calls work even with issues with SDK
+     * Returns Default setting if configuration is not specified on S3 Clients.
      * @param serviceClientConfiguration
      * @return
      */

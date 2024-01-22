@@ -88,7 +88,6 @@ public class S3AccessGrantsPluginTests {
         SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
                .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
                .credentialsProvider(DefaultCredentialsProvider.create())
-                .crossRegionAccessEnabled(true)
                .region(Region.US_EAST_2);
 
        Assertions.assertThatNoException().isThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration));
@@ -102,7 +101,6 @@ public class S3AccessGrantsPluginTests {
         SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
                 .authSchemeProvider(null)
                 .credentialsProvider(DefaultCredentialsProvider.create())
-                .crossRegionAccessEnabled(true)
                 .region(Region.US_EAST_2);
 
 
@@ -119,7 +117,6 @@ public class S3AccessGrantsPluginTests {
         SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
                 .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
                 .credentialsProvider(null)
-                .crossRegionAccessEnabled(true)
                 .region(Region.US_EAST_2);
 
 
@@ -136,7 +133,6 @@ public class S3AccessGrantsPluginTests {
         SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
                 .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
                 .credentialsProvider(DefaultCredentialsProvider.create())
-                .crossRegionAccessEnabled(true)
                 .region(null);
 
 
