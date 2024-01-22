@@ -837,7 +837,7 @@ public class S3AccessGrantsIntegrationTests {
         ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.builder().profileName(S3AccessGrantsIntegrationTestsUtils.TEST_CREDENTIALS_PROFILE_NAME).build();
 
         S3AccessGrantsPlugin accessGrantsPlugin =
-                spy(S3AccessGrantsPlugin.builder().enableCrossRegionAccess(Boolean.TRUE).build());
+                spy(S3AccessGrantsPlugin.builder().build());
 
         S3Client s3Client =
                 S3Client.builder()
