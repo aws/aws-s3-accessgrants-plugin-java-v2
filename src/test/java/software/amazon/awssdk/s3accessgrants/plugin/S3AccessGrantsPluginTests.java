@@ -44,7 +44,6 @@ public class S3AccessGrantsPluginTests {
         S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
         Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder(accessGrantsPlugin));
         Assertions.assertThat(accessGrantsPlugin.enableFallback()).isFalse();
-        Assertions.assertThat(accessGrantsPlugin.enableCrossRegionAccess()).isFalse();
     }
 
     @Test
@@ -52,15 +51,6 @@ public class S3AccessGrantsPluginTests {
         S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().enableFallback(true).build();
         Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder(accessGrantsPlugin));
         Assertions.assertThat(accessGrantsPlugin.enableFallback()).isTrue();
-        Assertions.assertThat(accessGrantsPlugin.enableCrossRegionAccess()).isFalse();
-    }
-
-    @Test
-    public void create_access_grants_plugin_with_cross_region_access_specified() {
-        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().enableCrossRegionAccess(true).build();
-        Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder(accessGrantsPlugin));
-        Assertions.assertThat(accessGrantsPlugin.enableFallback()).isFalse();
-        Assertions.assertThat(accessGrantsPlugin.enableCrossRegionAccess()).isTrue();
     }
 
     @Test
@@ -78,6 +68,17 @@ public class S3AccessGrantsPluginTests {
     public void call_configure_client_with_no_config() {
         S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
         Assertions.assertThatThrownBy(() -> accessGrantsPlugin.configureClient(null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    public void call_configure_client_with_valid_config_null_cross_region_setting() {
+        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
+        SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
+                .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
+                .credentialsProvider(DefaultCredentialsProvider.create())
+                .crossRegionAccessEnabled(null)
+                .region(Region.US_EAST_2);
+        Assertions.assertThatNoException().isThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration));
     }
 
     @Test

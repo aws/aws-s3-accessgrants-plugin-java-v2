@@ -45,11 +45,9 @@ import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGran
 public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Builder, S3AccessGrantsPlugin> {
 
     private boolean enableFallback;
-    private boolean enableCrossRegionAccess;
 
     S3AccessGrantsPlugin(BuilderImpl builder) {
         this.enableFallback = builder.enableFallback;
-        this.enableCrossRegionAccess = builder.enableCrossRegionAccess;
     }
 
     public static Builder builder() {
@@ -64,10 +62,6 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
        return this.enableFallback;
     }
 
-    boolean enableCrossRegionAccess() {
-        return this.enableCrossRegionAccess;
-    }
-
     /**
      * Change the configuration on the S3Clients to use S3 Access Grants specific AuthScheme and identityProviders.
      * @param config the existing configuration on the clients. Passed by the SDK on request path.
@@ -76,20 +70,23 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
     public void configureClient(SdkServiceClientConfiguration.Builder config) {
         logger.info(() -> "Configuring S3 Clients to use S3 Access Grants as a permission layer!");
         logger.info(() -> "Running the S3 Access grants plugin with fallback setting enabled : "+enableFallback());
-        logger.info(() -> "Running the S3 Access grants plugin with cross-region setting enabled : "+enableCrossRegionAccess());
         if(!enableFallback()) {
             logger.warn(() -> "Fallback not opted in! S3 Client will not fall back to evaluate policies if permissions are not provided through S3 Access Grants!");
         }
-        if(!enableCrossRegionAccess()) {
-            logger.warn(() -> "cross-region access not opted in! S3 Client will not be able to communicate with buckets outside the configured region!");
-            logger.warn(() -> "Please turn-on cross region access on the plugin if you have turned on cross-region access settings on your S3 Client!");
-        }
-
         S3ServiceClientConfiguration.Builder serviceClientConfiguration =
                 Validate.isInstanceOf(S3ServiceClientConfiguration.Builder.class,
                         config,
                         "Expecting the plugin to be only "
                                 + "configured on s3 clients");
+
+        Boolean enableCrossRegionAccess = fetchFallbackConfiguration(serviceClientConfiguration);
+
+        logger.info(() -> "Running the S3 Access grants plugin with cross-region setting enabled : "+enableCrossRegionAccess);
+
+        if(!enableCrossRegionAccess) {
+            logger.warn(() -> "cross-region access not opted in! S3 Client will not be able to communicate with buckets outside the configured region!");
+            logger.warn(() -> "Please turn-on cross region access on the plugin if you have turned on cross-region access settings on your S3 Client!");
+        }
 
         S3ControlAsyncClientBuilder s3ControlAsyncClientBuilder = S3ControlAsyncClient.builder()
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider());
@@ -135,22 +132,31 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
     }
 
+    /**
+     * Extracts the cross region setting available on the S3 client!
+     * Returns Default setting if configuration is not specified on S3 Clients.
+     * @param serviceClientConfiguration
+     * @return
+     */
+    private Boolean fetchFallbackConfiguration(S3ServiceClientConfiguration.Builder serviceClientConfiguration) {
+        return serviceClientConfiguration.crossRegionAccessEnabled() != null ?
+                serviceClientConfiguration.crossRegionAccessEnabled() : DEFAULT_CROSS_REGION_ACCESS_SETTING;
+    }
+
     @Override
     public Builder toBuilder() {
         return new BuilderImpl(this);
     }
 
-    public static final class BuilderImpl implements Builder{
+    public static final class BuilderImpl implements Builder {
+
         private boolean enableFallback;
-        private boolean enableCrossRegionAccess;
         BuilderImpl() {
             this.enableFallback = DEFAULT_FALLBACK_SETTING;
-            this.enableCrossRegionAccess = DEFAULT_CROSS_REGION_ACCESS_SETTING;
         }
 
         BuilderImpl(S3AccessGrantsPlugin plugin) {
             this.enableFallback = plugin.enableFallback;
-            this.enableCrossRegionAccess = plugin.enableCrossRegionAccess;
         }
 
         @Override
@@ -162,12 +168,6 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
         public Builder enableFallback(@NotNull Boolean choice) {
            this.enableFallback = choice == null ? DEFAULT_FALLBACK_SETTING: choice;
            return this;
-        }
-
-        @Override
-        public Builder enableCrossRegionAccess(@NotNull Boolean choice) {
-            this.enableCrossRegionAccess = choice == null ? DEFAULT_CROSS_REGION_ACCESS_SETTING: choice;
-            return this;
         }
     }
 }
