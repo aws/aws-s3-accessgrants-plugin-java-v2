@@ -85,7 +85,6 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         if(!enableCrossRegionAccess) {
             logger.warn(() -> "cross-region access not opted in! S3 Client will not be able to communicate with buckets outside the configured region!");
-            logger.warn(() -> "Please turn-on cross region access on the plugin if you have turned on cross-region access settings on your S3 Client!");
         }
 
         S3ControlAsyncClientBuilder s3ControlAsyncClientBuilder = S3ControlAsyncClient.builder()
