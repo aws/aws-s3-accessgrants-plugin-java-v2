@@ -24,7 +24,6 @@ import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import org.assertj.core.util.VisibleForTesting;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
@@ -179,7 +178,6 @@ public class S3AccessGrantsCache {
      * @param expirationTime of the credentials received from Access Grants
      * @return TTL of a cache entry
      */
-    @VisibleForTesting
     long getTTL(Instant expirationTime) {
         Instant now = Instant.now();
         return (long) ((expirationTime.getEpochSecond() - now.getEpochSecond()) * (cacheExpirationTimePercentage / 100.0f));
@@ -253,7 +251,6 @@ public class S3AccessGrantsCache {
      * @param credentials The cache value credentials returned by Access Grants.
      * @param duration TTL for the cache entry.
      */
-    @VisibleForTesting
     void putValueInCache(CacheKey cacheKey, CompletableFuture<AwsCredentialsIdentity> credentials, long duration) {
         logger.debug(()->"Caching the credentials for s3Prefix:" + cacheKey.s3Prefix
                          + " and permission: " + cacheKey.permission);
@@ -280,7 +277,6 @@ public class S3AccessGrantsCache {
      * @param matchedGrantTarget from Access Grants response
      * @return a clean version of matchedGrantTarget
      */
-    @VisibleForTesting
     String processMatchedGrantTarget(String matchedGrantTarget){
         if (matchedGrantTarget.substring(matchedGrantTarget.length() - 2).equals("/*")) {
             return matchedGrantTarget.substring(0, matchedGrantTarget.length() - 2);
@@ -296,7 +292,6 @@ public class S3AccessGrantsCache {
     /**
      * Invalidates the cache.
      */
-    @VisibleForTesting
     void invalidateCache() {
         cache.synchronous().invalidateAll();
     }

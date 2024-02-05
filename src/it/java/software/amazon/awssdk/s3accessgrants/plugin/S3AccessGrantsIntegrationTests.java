@@ -147,7 +147,7 @@ public class S3AccessGrantsIntegrationTests {
     @AfterClass
     public static void tearDown() {
         if (!S3AccessGrantsIntegrationTestsUtils.DISABLE_TEAR_DOWN) {
-//            S3AccessGrantsInstanceSetUpUtils.tearDown();
+            S3AccessGrantsInstanceSetUpUtils.tearDown();
         }
     }
 
@@ -740,6 +740,9 @@ public class S3AccessGrantsIntegrationTests {
 
     @Test
     public void call_s3_with_plugin_invalid_default_credentials_provider_request_failure() {
+
+        // before running this test ensure that there are a set of credentials in env that has READ permission to the below resource.
+
         S3AccessGrantsPlugin accessGrantsPlugin =
                 spy(S3AccessGrantsPlugin.builder().build());
         try {
@@ -753,10 +756,9 @@ public class S3AccessGrantsIntegrationTests {
                     S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME,
                     S3AccessGrantsIntegrationTestsUtils.TEST_OBJECT1);
 
-            Assert.fail("Expected an exception to occur as as a valid credentials is not provided to talk to access grants!");
+
         } catch (CompletionException e) {
-            Assertions.assertThat(e.getCause()).isInstanceOf(StsException.class);
-            verify(accessGrantsPlugin, times(1)).configureClient(any());
+            Assert.fail("Expected no exception to occur as as SDK should pick the credentials from default providers!");
         }
     }
 
