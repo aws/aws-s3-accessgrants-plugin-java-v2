@@ -27,7 +27,6 @@ import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import org.assertj.core.util.VisibleForTesting;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.endpoints.internal.Arn;
@@ -57,7 +56,6 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
 
     protected CacheStats getCacheStats() { return cache.stats(); }
 
-    @VisibleForTesting
     S3AccessGrantsCachedAccountIdResolver() {
         this.maxCacheSize = DEFAULT_ACCOUNT_ID_MAX_CACHE_SIZE;
         this.expireCacheAfterWriteSeconds = DEFAULT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS;

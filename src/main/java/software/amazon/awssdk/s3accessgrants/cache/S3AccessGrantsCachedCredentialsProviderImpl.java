@@ -18,7 +18,6 @@ package software.amazon.awssdk.s3accessgrants.cache;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
-import org.assertj.core.util.VisibleForTesting;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.core.metrics.CoreMetric;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
@@ -51,7 +50,6 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
                                                 .maxCacheSize(DEFAULT_ACCESS_GRANTS_MAX_CACHE_SIZE).build();
     }
 
-    @VisibleForTesting
     S3AccessGrantsCachedCredentialsProviderImpl(S3AccessGrantsCachedAccountIdResolver resolver,
                                                 int maxCacheSize, int cacheExpirationTimePercentage) {
 

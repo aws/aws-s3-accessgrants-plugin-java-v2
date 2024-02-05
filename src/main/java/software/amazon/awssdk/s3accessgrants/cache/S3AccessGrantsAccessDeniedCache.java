@@ -22,7 +22,6 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import java.util.concurrent.TimeUnit;
-import org.assertj.core.util.VisibleForTesting;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
 
 public class S3AccessGrantsAccessDeniedCache {
@@ -98,7 +97,6 @@ public class S3AccessGrantsAccessDeniedCache {
     /**
      * Invalidates the cache.
      */
-    @VisibleForTesting
     void invalidateCache() {
         cache.invalidateAll();
     }
