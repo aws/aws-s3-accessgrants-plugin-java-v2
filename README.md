@@ -68,12 +68,13 @@ Using this S3Client to make API calls, you should be able to use Access Grants t
 ### Turn on cross-region access
 
 The plugin by default does not support cross-region access of S3 Buckets/data. 
-In order to turn on the cross-region support, please configure S3Client and Access Grants Plugin to support cross-region access.
+In order to turn on the cross-region support, please configure the S3Client to support cross-region access. The plugin will default to the cross-region setting on the S3Client.
 
 ```
- S3AccessGrantsPlugin accessGrantsPlugin =
-                S3AccessGrantsPlugin.builder().enableCrossRegionAccess(Boolean.TRUE).build();
-
+example - 
+        S3AccessGrantsPlugin accessGrantsPlugin =
+                S3AccessGrantsPlugin.builder().build();
+                
         S3Client s3Client =
                 S3Client.builder()
                         .crossRegionAccessEnabled(true)
@@ -82,9 +83,6 @@ In order to turn on the cross-region support, please configure S3Client and Acce
                         .region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION)
                         .build();
 ```
-
-#### NOTE - 
-If cross-region access setting is turned on for either the S3 Client or the plugin (but not both), you might experience bucket region mismatch errors.
 
 ### Cross-account support
 
