@@ -1,6 +1,6 @@
-## AWS S3 ACCESS GRANTS PLUGIN FOR AWS JAVA SDK 2.0
+## Amazon S3 ACCESS GRANTS PLUGIN FOR AWS JAVA SDK 2.0
 
-AWS S3 ACCESS GRANTS PLUGIN provides the functionality to enable S3 customers to configure S3 ACCESS GRANTS as a permission layer on top of the S3 Clients.
+AMAZON S3 ACCESS GRANTS PLUGIN provides the functionality to enable S3 customers to configure S3 ACCESS GRANTS as a permission layer on top of the S3 Clients.
 
 S3 ACCESS GRANTS is a feature from S3 that allows its customers to configure fine-grained access permissions for the data in their buckets.
 
