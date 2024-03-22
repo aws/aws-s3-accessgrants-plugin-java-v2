@@ -71,7 +71,7 @@ The plugin by default does not support cross-region access of S3 Buckets/data.
 In order to turn on the cross-region support, please configure the S3Client to support cross-region access. The plugin will default to the cross-region setting on the S3Client.
 
 ```
-
+example - 
         S3AccessGrantsPlugin accessGrantsPlugin =
                 S3AccessGrantsPlugin.builder().build();
                 
