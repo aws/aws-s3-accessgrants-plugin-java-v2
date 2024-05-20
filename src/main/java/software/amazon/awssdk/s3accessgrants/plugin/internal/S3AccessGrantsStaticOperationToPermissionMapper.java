@@ -38,17 +38,11 @@ public class S3AccessGrantsStaticOperationToPermissionMapper implements S3Access
         supportedAccessGrantsOperations.put("PUTOBJECT", Permission.WRITE);
         supportedAccessGrantsOperations.put("PUTOBJECTACL", Permission.WRITE);
         supportedAccessGrantsOperations.put("DELETEOBJECT", Permission.WRITE);
-
-        // below operation for DELETEOBJECTS is not supported yet because of usage of multiple prefixes. Leaving it here for future reference.
-        // supportedAccessGrantsOperations.put("DELETEOBJECTS", Permission.WRITE);
+        supportedAccessGrantsOperations.put("DELETEOBJECTS", Permission.WRITE);
         supportedAccessGrantsOperations.put("ABORTMULTIPARTUPLOAD", Permission.WRITE);
         supportedAccessGrantsOperations.put("CREATEMULTIPARTUPLOAD", Permission.WRITE);
         supportedAccessGrantsOperations.put("UPLOADPART", Permission.WRITE);
         supportedAccessGrantsOperations.put("COMPLETEMULTIPARTUPLOAD", Permission.WRITE);
-
-        supportedAccessGrantsOperations.put("DECRYPT", Permission.READ);
-        supportedAccessGrantsOperations.put("GENERATEDATAKEY", Permission.WRITE);
-
     }
     @Override
     public Permission getPermission(@NotNull String operation) throws SdkServiceException {

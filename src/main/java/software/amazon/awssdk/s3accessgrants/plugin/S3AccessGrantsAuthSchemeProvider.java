@@ -38,6 +38,7 @@ import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGran
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.CONTACT_TEAM_MESSAGE_TEMPLATE;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.DEFAULT_CROSS_REGION_ACCESS_SETTING;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.AUTH_EXCEPTIONS_PROPERTY;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.getCommonPrefixFromMultiplePrefixes;
 
 
 /**
@@ -81,8 +82,9 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
         List<AuthSchemeOption> availableAuthSchemes = authSchemeProvider.resolveAuthScheme(authSchemeParams);
 
         try {
-            logger.debug(() -> "operation : " + authSchemeParams.operation());
-            final Permission permission = permissionMapper.getPermission(authSchemeParams.operation());
+            String operation = authSchemeParams.operation();
+            logger.debug(() -> "operation : " + operation);
+            final Permission permission = permissionMapper.getPermission(operation);
 
             S3AccessGrantsUtils.argumentNotNull(authSchemeParams.bucket(), "Please specify a valid bucket name for the operation!");
 
@@ -90,8 +92,13 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
 
             logger.debug(() -> "Access Grants requests will be sent to the region "+destinationRegion);
 
-            String S3Prefix = "s3://"+authSchemeParams.bucket()+"/"+getKeyIfExists(authSchemeParams);
-
+            String S3Prefix;
+            if (operation.equalsIgnoreCase("DELETEOBJECTS")){
+                S3Prefix = "s3://" + authSchemeParams.bucket() + getCommonPrefixFromMultiplePrefixes(authSchemeParams.deleteObjectKeys());
+            }
+            else{
+                S3Prefix = "s3://" + authSchemeParams.bucket() + "/" + getKeyIfExists(authSchemeParams);
+            }
             return availableAuthSchemes.stream()
                     .map(authScheme -> authScheme.toBuilder()
                             .putIdentityProperty(PREFIX_PROPERTY,
