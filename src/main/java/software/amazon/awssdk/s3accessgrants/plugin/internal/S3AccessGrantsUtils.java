@@ -57,7 +57,11 @@ public class S3AccessGrantsUtils {
     }
 
     public static String getCommonPrefixFromMultiplePrefixes(List<String> keys) {
-        String commonAncestor = keys.get(0);
+        if (keys.isEmpty()) {
+            return "/";
+        }
+        String firstKey = keys.get(0);
+        String commonAncestor = firstKey;
         String lastPrefix = "";
         for (String i : keys) {
             while(!commonAncestor.equals("")) {
@@ -73,11 +77,10 @@ public class S3AccessGrantsUtils {
                 }
             }
         }
-
         String newCommonAncestor = commonAncestor + "/" + lastPrefix;
         for (String i : keys) {
-            while(!lastPrefix.equals("")){
-                if (!i.startsWith(newCommonAncestor)){
+            while(!lastPrefix.equals("")) {
+                if (!i.startsWith(newCommonAncestor)) {
                     lastPrefix = lastPrefix.substring(0, lastPrefix.length()-1);
                     newCommonAncestor = commonAncestor + "/" + lastPrefix;
                 }
@@ -85,6 +88,9 @@ public class S3AccessGrantsUtils {
                     break;
                 }
             }
+        }
+        if (newCommonAncestor.equals(firstKey+"/")) {
+            return "/" + firstKey ;
         }
         return "/" + newCommonAncestor;
     }

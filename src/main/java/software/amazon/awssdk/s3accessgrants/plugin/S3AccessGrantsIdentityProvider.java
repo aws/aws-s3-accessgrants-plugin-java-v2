@@ -132,7 +132,6 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
             userCredentials = credentialsProvider.resolveIdentity(resolveIdentityRequest);
             validateRequestParameters(resolveIdentityRequest, privilege, isCacheEnabled);
             String accountId = getCallerAccountID(userCredentials);
-
             String S3Prefix = resolveIdentityRequest.property(PREFIX_PROPERTY).toString();
             Permission permission = Permission.fromValue(resolveIdentityRequest.property(PERMISSION_PROPERTY).toString());
             Region destinationRegion = Region.of(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY).toString());
@@ -153,7 +152,6 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
                 clientsCache.put(destinationRegion, s3ControlAsyncClient);
                 getDataAccessResponse = getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId,  s3ControlAsyncClient);
             }
-
             return getDataAccessResponse;
 
         } catch(SdkServiceException e) {

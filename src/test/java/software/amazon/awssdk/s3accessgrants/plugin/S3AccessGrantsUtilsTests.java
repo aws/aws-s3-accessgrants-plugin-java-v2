@@ -35,5 +35,15 @@ public class S3AccessGrantsUtilsTests {
         keys4.add("folder/path234/A/logs");
         keys4.add("folder/path234/A/artifacts");
         Assert.assertEquals(S3AccessGrantsUtils.getCommonPrefixFromMultiplePrefixes(keys4), "/folder/path");
+        List<String> keys5 = new ArrayList<>();
+        Assert.assertEquals(S3AccessGrantsUtils.getCommonPrefixFromMultiplePrefixes(keys5), "/");
+        List<String> keys6 = new ArrayList<>();
+        keys6.add("ABC/A/B/C/log.txt");
+        Assert.assertEquals(S3AccessGrantsUtils.getCommonPrefixFromMultiplePrefixes(keys6), "/ABC/A/B/C/log.txt");
+        List<String> keys7 = new ArrayList<>();
+        keys7.add("ABC/A/B/C/log.txt");
+        keys7.add("ABC/A/B/C/log.txt");
+        Assert.assertEquals(S3AccessGrantsUtils.getCommonPrefixFromMultiplePrefixes(keys7), "/ABC/A/B/C/log.txt");
+
     }
 }
