@@ -21,6 +21,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3control.model.Privilege;
 import software.amazon.awssdk.utils.Logger;
 import software.amazon.awssdk.utils.Validate;
+import java.util.List;
 
 /**
  * The class is for defining all the utilities and constants to be used across the package
@@ -53,6 +54,45 @@ public class S3AccessGrantsUtils {
             logger.error(() -> message);
             throw new IllegalArgumentException(message);
         }
+    }
+
+    public static String getCommonPrefixFromMultiplePrefixes(List<String> keys) {
+        if (keys.isEmpty()) {
+            return "/";
+        }
+        String firstKey = keys.get(0);
+        String commonAncestor = firstKey;
+        String lastPrefix = "";
+        for (String i : keys) {
+            while(!commonAncestor.equals("")) {
+                if (!i.startsWith(commonAncestor)){
+                    int lastIndex = commonAncestor.lastIndexOf("/");
+                    if (lastIndex == -1){
+                        return "/";
+                    }
+                    lastPrefix = commonAncestor.substring(lastIndex+1);
+                    commonAncestor = commonAncestor.substring(0, lastIndex);
+                } else {
+                    break;
+                }
+            }
+        }
+        String newCommonAncestor = commonAncestor + "/" + lastPrefix;
+        for (String i : keys) {
+            while(!lastPrefix.equals("")) {
+                if (!i.startsWith(newCommonAncestor)) {
+                    lastPrefix = lastPrefix.substring(0, lastPrefix.length()-1);
+                    newCommonAncestor = commonAncestor + "/" + lastPrefix;
+                }
+                else{
+                    break;
+                }
+            }
+        }
+        if (newCommonAncestor.equals(firstKey+"/")) {
+            return "/" + firstKey ;
+        }
+        return "/" + newCommonAncestor;
     }
 
 }
