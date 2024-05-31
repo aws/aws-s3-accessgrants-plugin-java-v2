@@ -64,7 +64,7 @@ public class S3AccessGrantsUtils {
         String commonAncestor = firstKey;
         String lastPrefix = "";
         for (String i : keys) {
-            while(!commonAncestor.equals("")) {
+            while(!commonAncestor.isEmpty()) {
                 if (!i.startsWith(commonAncestor)){
                     int lastIndex = commonAncestor.lastIndexOf("/");
                     if (lastIndex == -1){
@@ -79,7 +79,7 @@ public class S3AccessGrantsUtils {
         }
         String newCommonAncestor = commonAncestor + "/" + lastPrefix;
         for (String i : keys) {
-            while(!lastPrefix.equals("")) {
+            while(!lastPrefix.isEmpty()) {
                 if (!i.startsWith(newCommonAncestor)) {
                     lastPrefix = lastPrefix.substring(0, lastPrefix.length()-1);
                     newCommonAncestor = commonAncestor + "/" + lastPrefix;

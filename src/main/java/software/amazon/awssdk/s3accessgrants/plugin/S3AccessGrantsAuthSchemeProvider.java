@@ -15,6 +15,7 @@
 
 package software.amazon.awssdk.s3accessgrants.plugin;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -93,10 +94,20 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
             logger.debug(() -> "Access Grants requests will be sent to the region "+destinationRegion);
 
             String S3Prefix;
-            if (operation.equalsIgnoreCase("DELETEOBJECTS")){
+            if (operation.equalsIgnoreCase("DELETEOBJECTS")) {
                 S3Prefix = "s3://" + authSchemeParams.bucket() + getCommonPrefixFromMultiplePrefixes(authSchemeParams.deleteObjectKeys());
             }
-            else{
+            else if (operation.equalsIgnoreCase("COPYOBJECT")) {
+                String[] copySourceArray = authSchemeParams.copySource().split("/", 2);
+                if (!copySourceArray[0].equals(authSchemeParams.bucket())) {
+                    throw SdkServiceException.builder().message("The requested operation cannot be completed!").statusCode(404).cause(new RuntimeException("Source bucket and destination bucket must be same")).build();
+                }
+                List<String> copyObjectKeys = new ArrayList<>();
+                copyObjectKeys.add(authSchemeParams.key());
+                copyObjectKeys.add(copySourceArray[1]);
+                S3Prefix = "s3://" + authSchemeParams.bucket() + getCommonPrefixFromMultiplePrefixes(copyObjectKeys);
+            }
+            else {
                 S3Prefix = "s3://" + authSchemeParams.bucket() + "/" + getKeyIfExists(authSchemeParams);
             }
             return availableAuthSchemes.stream()
