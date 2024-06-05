@@ -103,7 +103,9 @@ public class S3AccessGrantsAuthSchemeProvider implements S3AuthSchemeProvider {
                     throw SdkServiceException.builder().message("The requested operation cannot be completed!").statusCode(404).cause(new RuntimeException("Source bucket and destination bucket must be same")).build();
                 }
                 List<String> copyObjectKeys = new ArrayList<>();
-                copyObjectKeys.add(authSchemeParams.key());
+                if (authSchemeParams.key() != null && !(authSchemeParams.key().isEmpty())){
+                    copyObjectKeys.add(authSchemeParams.key());
+                }
                 copyObjectKeys.add(copySourceArray[1]);
                 S3Prefix = "s3://" + authSchemeParams.bucket() + getCommonPrefixFromMultiplePrefixes(copyObjectKeys);
             }
