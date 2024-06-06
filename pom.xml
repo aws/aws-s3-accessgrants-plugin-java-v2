@@ -7,7 +7,7 @@
     <groupId>software.amazon.s3.accessgrants</groupId>
     <artifactId>aws-s3-accessgrants-java-plugin</artifactId>
     <!-- This plugin is also shipped as part of AWS SDK Bundle. Please update the plugin version shipped within AWS SDK bundle-->
-    <version>2.0.1</version>
+    <version>2.0.2</version>
 
     <name>${project.groupId}:${project.artifactId}</name>
     <description>The Amazon Web Services Plugin for S3 Access Grants. The plugin allows customers to integrate S3 Access grants as an additional permission layer on top of S3 calls.</description>
@@ -42,7 +42,7 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <sdk.version>2.25.63</sdk.version>
+        <sdk.version>2.25.67</sdk.version>
     </properties>
 
     <scm>
