@@ -43,6 +43,9 @@ public class S3AccessGrantsStaticOperationToPermissionMapper implements S3Access
         supportedAccessGrantsOperations.put("CREATEMULTIPARTUPLOAD", Permission.WRITE);
         supportedAccessGrantsOperations.put("UPLOADPART", Permission.WRITE);
         supportedAccessGrantsOperations.put("COMPLETEMULTIPARTUPLOAD", Permission.WRITE);
+
+        supportedAccessGrantsOperations.put("COPYOBJECT", Permission.READWRITE);
+
     }
     @Override
     public Permission getPermission(@NotNull String operation) throws SdkServiceException {
