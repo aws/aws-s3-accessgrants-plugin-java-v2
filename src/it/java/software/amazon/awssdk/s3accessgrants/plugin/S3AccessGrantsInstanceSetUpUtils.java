@@ -59,6 +59,8 @@ public class S3AccessGrantsInstanceSetUpUtils {
 
     private static List<String> registeredAccessGrantsForCrossRegion = new ArrayList<>();
 
+    private static String iamPolicyArn;
+
     public static void setUpAccessGrantsInstanceForTests() throws IOException {
         String defaultPropertiesFilePath = System.getProperty("user.dir")+"/default.properties";
         Properties testProps = new Properties();
@@ -97,10 +99,14 @@ public class S3AccessGrantsInstanceSetUpUtils {
             S3AccessGrantsIntegrationTestsUtils.iamClientBuilder(profileCredentialsProvider,
                              S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
+        iamPolicyArn = S3AccessGrantsInstanceSetUpUtils.createS3AccessGrantsIAMPolicy();
         iamRoleArn = S3AccessGrantsIntegrationTestsUtils.createS3AccessGrantsIAMRole(iamClient,
                                                                                      S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_IAM_ROLE_NAME,
                                                                                      createS3AccessGrantsIAMTrustRelationship(),
                                                                                      S3AccessGrantsIntegrationTestsUtils.TEST_ACCOUNT);
+        S3AccessGrantsIntegrationTestsUtils.attachPolicyToRole(iamClient, S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_IAM_ROLE_NAME, iamPolicyArn);
+
+
 
         CreateAccessGrantsBucket(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_NAME);
 
@@ -296,6 +302,10 @@ public class S3AccessGrantsInstanceSetUpUtils {
         S3AccessGrantsIntegrationTestsUtils.deleteBucket(s3Client, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE);
 
         S3AccessGrantsIntegrationTestsUtils.deleteBucket(s3ClientForCrossRegion, S3AccessGrantsIntegrationTestsUtils.TEST_BUCKET_READWRITE_CROSS_REGION);
+
+        S3AccessGrantsIntegrationTestsUtils.detachPolicy(iamClient, S3AccessGrantsInstanceSetUpUtils.iamPolicyArn, S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_IAM_ROLE_NAME);
+
+        S3AccessGrantsIntegrationTestsUtils.deletePolicy(iamClient, S3AccessGrantsInstanceSetUpUtils.iamPolicyArn);
 
     }
 }

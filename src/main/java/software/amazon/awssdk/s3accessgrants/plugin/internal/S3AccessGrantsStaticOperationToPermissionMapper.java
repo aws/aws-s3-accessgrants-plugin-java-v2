@@ -34,7 +34,8 @@ public class S3AccessGrantsStaticOperationToPermissionMapper implements S3Access
         supportedAccessGrantsOperations.put("LISTOBJECTSV2", Permission.READ);
         supportedAccessGrantsOperations.put("LISTOBJECTVERSIONS", Permission.READ);
         supportedAccessGrantsOperations.put("LISTPARTS", Permission.READ);
-
+        supportedAccessGrantsOperations.put("HEADBUCKET", Permission.READ);
+        supportedAccessGrantsOperations.put("GETOBJECTATTRIBUTES", Permission.READ);
         supportedAccessGrantsOperations.put("PUTOBJECT", Permission.WRITE);
         supportedAccessGrantsOperations.put("PUTOBJECTACL", Permission.WRITE);
         supportedAccessGrantsOperations.put("DELETEOBJECT", Permission.WRITE);
@@ -43,7 +44,6 @@ public class S3AccessGrantsStaticOperationToPermissionMapper implements S3Access
         supportedAccessGrantsOperations.put("CREATEMULTIPARTUPLOAD", Permission.WRITE);
         supportedAccessGrantsOperations.put("UPLOADPART", Permission.WRITE);
         supportedAccessGrantsOperations.put("COMPLETEMULTIPARTUPLOAD", Permission.WRITE);
-
         supportedAccessGrantsOperations.put("COPYOBJECT", Permission.READWRITE);
 
     }

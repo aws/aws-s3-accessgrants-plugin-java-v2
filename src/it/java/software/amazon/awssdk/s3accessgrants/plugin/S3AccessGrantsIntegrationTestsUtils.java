@@ -27,6 +27,7 @@ import software.amazon.awssdk.services.s3control.S3ControlAsyncClientBuilder;
 import software.amazon.awssdk.utils.Logger;
 
 import java.io.IOException;
+import java.util.Random;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.ResponseInputStream;
@@ -86,13 +87,13 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
     public static String TEST_ACCOUNT;
 
-    public static final String TEST_BUCKET_NAME = "access-grants-sdk-test-bucket";
+    public static final String TEST_BUCKET_NAME = "access-grants-sdk-test-bucket-" + randomSuffixGenerator(7);
 
-    public static final String TEST_BUCKET_NAME_NOT_REGISTERED = "access-grants-sdk-test-bucket-not-registered";
+    public static final String TEST_BUCKET_NAME_NOT_REGISTERED = "access-grants-sdk-test-bucket-not-registered-" + randomSuffixGenerator(7);
 
-    public static final String TEST_BUCKET_READWRITE = "access-grants-sdk-test-bucket-readwrite";
+    public static final String TEST_BUCKET_READWRITE = "access-grants-sdk-test-bucket-readwrite-" + randomSuffixGenerator(7);
 
-    public static final String TEST_BUCKET_READWRITE_CROSS_REGION = "access-grants-sdk-test-bucket-readwrite-cross-region";
+    public static final String TEST_BUCKET_READWRITE_CROSS_REGION = "access-grants-sdk-test-bucket-readwrite-cross-region-" + randomSuffixGenerator(7);
 
     public static final String TEST_LOCATION_1 = "PrefixA/prefixB/";
 
@@ -102,7 +103,7 @@ public class S3AccessGrantsIntegrationTestsUtils {
 
     public static final String TEST_OBJECT2 = TEST_LOCATION_2+"file2.txt";
 
-    public static final String ACCESS_GRANTS_POLICY_NAME = "access-grants-policy-sdk-test";
+    public static final String ACCESS_GRANTS_POLICY_NAME = "access-grants-policy-sdk-v2-test";
 
     public static String ACCESS_GRANTS_IAM_ROLE_NAME;
 
@@ -481,7 +482,7 @@ public class S3AccessGrantsIntegrationTestsUtils {
         }
     }
 
-    private static void deletePolicy(IamClient iamClient, String policyArn) {
+    public static void deletePolicy(IamClient iamClient, String policyArn) {
         try {
             DeletePolicyRequest deletePolicyRequest = DeletePolicyRequest.builder().policyArn(policyArn).build();
 
@@ -503,7 +504,7 @@ public class S3AccessGrantsIntegrationTestsUtils {
         }
     }
 
-    private static void detachPolicy(IamClient iamClient, String policyArn, String roleName) {
+    public static void detachPolicy(IamClient iamClient, String policyArn, String roleName) {
         try {
             DetachRolePolicyRequest detachRolePolicyRequest =
                     DetachRolePolicyRequest.builder().roleName(roleName)
@@ -515,6 +516,16 @@ public class S3AccessGrantsIntegrationTestsUtils {
         } catch (Exception e) {
             logger.info(() -> "policy cannot be detached form the role during test teardown! "+e.getMessage());
         }
+    }
+
+    public static String randomSuffixGenerator(int length) {
+        String suffix = "";
+        Random r = new Random();
+        String alphabet = "abcdefghijklmnopqrstuvwxyz";
+        for (int i = 0; i < length; i++) {
+            suffix = suffix + alphabet.charAt(r.nextInt(alphabet.length()));
+        }
+        return suffix;
     }
 
 }
