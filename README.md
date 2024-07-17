@@ -1,4 +1,4 @@
-## AMAZON S3 ACCESS GRANTS PLUGIN FOR AWS JAVA SDK 2.0
+## AWS S3 ACCESS GRANTS PLUGIN FOR AWS JAVA SDK 2.0
 
 AMAZON S3 ACCESS GRANTS PLUGIN provides the functionality to enable S3 customers to configure S3 ACCESS GRANTS as a permission layer on top of the S3 Clients.
 
@@ -9,7 +9,7 @@ S3 ACCESS GRANTS is a feature from S3 that allows its customers to configure fin
 ---
 
 * AWS SDK Java 2.0 is built on Java 8
-* [maven] is used as the build and dependency management system
+* Maven is used as the build and dependency management system
 
 ### Contributions
 
@@ -53,7 +53,7 @@ S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().enableF
 ```
 
 While building S3 client you have to provide a credentialsProvider object which contains credentials that have access to get credentials from Access Grants.
-Note - We only support IAM credentials with this release.
+We only support IAM credentials with this release.
 
 ````
 S3Client s3Client = S3Client.builder()
@@ -88,6 +88,9 @@ example -
 
 The plugin makes S3 head bucket requests to determine bucket location. 
 In case of cross-account access S3 expects s3:ListBucket permission for the requesting account on the requested bucket. Please add the necessary permission if the plugin will be used for cross-account access.
+
+### Note
+The plugin supports deleteObjects API and copyObject API which S3 Access Grants does not implicitly support. For these APIs we get the common prefix of all the object keys and find their common ancestor. If you have a grant present on the common ancestor, you will get Access Grants credentials based on that grant. For copyObject API the source and destination buckets should be same, since a grant cannot give access to multiple buckets.
 
 ### Turn on metrics
 

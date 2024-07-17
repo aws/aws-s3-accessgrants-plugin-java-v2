@@ -62,7 +62,6 @@ import software.amazon.awssdk.services.s3control.model.Credentials;
 import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixRequest;
 import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.sts.StsAsyncClient;
-import software.amazon.awssdk.services.sts.model.StsException;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
