@@ -25,6 +25,8 @@ import software.amazon.awssdk.services.s3.auth.scheme.S3AuthSchemeProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 
+import java.net.URI;
+
 public class S3AccessGrantsPluginTests {
 
     private final String TEST_ACCOUNT = "123450013912";
@@ -72,6 +74,17 @@ public class S3AccessGrantsPluginTests {
 
     @Test
     public void call_configure_client_with_valid_config_null_cross_region_setting() {
+        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
+        SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
+                .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
+                .credentialsProvider(DefaultCredentialsProvider.create())
+                .crossRegionAccessEnabled(null)
+                .endpointOverride(URI.create("localhost:4040"))
+                .region(Region.US_EAST_2);
+        Assertions.assertThatNoException().isThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration));
+    }
+    @Test
+    public void call_configure_client_with_valid_config_null_endpoint_settings() {
         S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
         SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
                 .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
