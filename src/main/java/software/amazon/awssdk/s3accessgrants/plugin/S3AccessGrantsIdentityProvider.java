@@ -19,6 +19,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import software.amazon.awssdk.annotations.NotNull;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.identity.spi.IdentityProvider;
@@ -72,6 +74,9 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     private String CONTACT_TEAM_MESSAGE_TEMPLATE = "An internal exception has occurred. Valid %s was not passed to the %s. Please contact S3 access grants plugin team!";
 
+    ClientOverrideConfiguration.Builder overrideConfig = ClientOverrideConfiguration.builder()
+                    .putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX, "aws-s3-accessgrants-java-sdk-v2-plugin");
+
     public S3AccessGrantsIdentityProvider(@NotNull IdentityProvider<? extends AwsCredentialsIdentity> credentialsProvider,
                                           @NotNull StsAsyncClient stsAsyncClient,
                                           @NotNull Privilege privilege,
@@ -121,7 +126,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
     @Override
     public CompletableFuture<? extends AwsCredentialsIdentity> resolveIdentity(ResolveIdentityRequest resolveIdentityRequest) {
 
-        CompletableFuture<? extends AwsCredentialsIdentity> userCredentials = null;
+        CompletableFuture<? extends AwsCredentialsIdentity> userCredentials;
 
         try {
 
@@ -136,8 +141,8 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
             Permission permission = Permission.fromValue(resolveIdentityRequest.property(PERMISSION_PROPERTY).toString());
             Region destinationRegion = Region.of(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY).toString());
 
-            S3ControlAsyncClient s3ControlAsyncClient = null;
-            CompletableFuture<? extends AwsCredentialsIdentity> getDataAccessResponse = null;
+            S3ControlAsyncClient s3ControlAsyncClient;
+            CompletableFuture<? extends AwsCredentialsIdentity> getDataAccessResponse;
 
             logger.debug(() -> " Call access grants with the following request params! ");
             logger.debug(() -> " S3Prefix : " + S3Prefix);
@@ -148,7 +153,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
             if(clientsCache.containsKey(destinationRegion)) {
                 getDataAccessResponse = getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId,  clientsCache.get(destinationRegion));
             } else {
-                s3ControlAsyncClient = s3ControlBuilder.region(destinationRegion).build();
+                s3ControlAsyncClient = s3ControlBuilder.region(destinationRegion).overrideConfiguration(this.overrideConfig.build()).build();
                 clientsCache.put(destinationRegion, s3ControlAsyncClient);
                 getDataAccessResponse = getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId,  s3ControlAsyncClient);
             }

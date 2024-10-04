@@ -18,6 +18,8 @@ package software.amazon.awssdk.s3accessgrants.plugin;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.core.SdkPlugin;
 import software.amazon.awssdk.core.SdkServiceClientConfiguration;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
 import software.amazon.awssdk.metrics.MetricPublisher;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
@@ -62,6 +64,9 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
        return this.enableFallback;
     }
 
+    ClientOverrideConfiguration.Builder overrideConfig = ClientOverrideConfiguration.builder()
+                    .putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX, "aws-s3-accessgrants-java-sdk-v2-plugin");
+
     /**
      * Change the configuration on the S3Clients to use S3 Access Grants specific AuthScheme and identityProviders.
      * @param config the existing configuration on the clients. Passed by the SDK on request path.
@@ -93,6 +98,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
         S3Client s3Client = S3Client
                 .builder()
                 .crossRegionAccessEnabled(true)
+                .overrideConfiguration(overrideConfig.build())
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider())
                 .region(serviceClientConfiguration.region())
                 .build();
@@ -105,6 +111,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         StsAsyncClient stsClient = StsAsyncClient.builder()
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider())
+                .overrideConfiguration(overrideConfig.build())
                 .region(serviceClientConfiguration.region())
                 .build();
 
