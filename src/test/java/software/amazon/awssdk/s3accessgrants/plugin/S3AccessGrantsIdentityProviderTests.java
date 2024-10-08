@@ -26,6 +26,7 @@ import org.junit.Test;
 import org.assertj.core.api.Assertions;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.identity.spi.IdentityProvider;
@@ -271,6 +272,8 @@ public class S3AccessGrantsIdentityProviderTests {
     @Test
     public void call_resolve_identity_tries_to_fetch_user_credentials() throws Exception {
         IdentityProvider credentialsProvider = mock(IdentityProvider.class);
+        S3ControlAsyncClientBuilder localS3ControlClientBuilder = mock(S3ControlAsyncClientBuilder.class);
+        S3ControlAsyncClient localS3ControlClient = mock(S3ControlAsyncClient.class);
         S3AccessGrantsCachedCredentialsProvider testCache = mock(S3AccessGrantsCachedCredentialsProvider.class);
         MetricPublisher testMetricPublisher = mock(MetricPublisher.class);
         MetricCollector testMetricCollector = mock(MetricCollector.class);
@@ -280,9 +283,10 @@ public class S3AccessGrantsIdentityProviderTests {
                 .sessionToken(TEST_SESSION_TOKEN)
                 .build();
         CompletableFuture<AwsCredentialsIdentity> cacheResponse  = CompletableFuture.supplyAsync(() -> credentials);
-
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, s3ControlAsyncClientBuilder, testCache, TEST_FALLBACK_ENABLED, testMetricPublisher, clientsCache);
-
+        when(localS3ControlClientBuilder.region(Region.US_EAST_2)).thenReturn(localS3ControlClientBuilder);
+        when(localS3ControlClientBuilder.overrideConfiguration(any(ClientOverrideConfiguration.class))).thenReturn(localS3ControlClientBuilder);
+        when(localS3ControlClientBuilder.region(Region.US_EAST_2).build()).thenReturn(localS3ControlClient);
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClientBuilder, testCache, TEST_FALLBACK_ENABLED, testMetricPublisher, clientsCache);
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> credentials));
         when(testCache.getAccessGrantsMetrics()).thenReturn(testMetricCollector);
         when(testMetricCollector.collect()).thenReturn(mock(MetricCollection.class));
@@ -334,6 +338,7 @@ public class S3AccessGrantsIdentityProviderTests {
         when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
         when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
         when(localS3ControlClientBuilder.region(Region.US_EAST_2)).thenReturn(localS3ControlClientBuilder);
+        when(localS3ControlClientBuilder.overrideConfiguration(any(ClientOverrideConfiguration.class))).thenReturn(localS3ControlClientBuilder);
         when(localS3ControlClientBuilder.region(Region.US_EAST_2).build()).thenReturn(localS3ControlClient);
         when(testCache.getDataAccess(any(), any(), any(), any(), any())).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied for the user").build());
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build()));
@@ -361,6 +366,7 @@ public class S3AccessGrantsIdentityProviderTests {
         when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
         when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
         when(localS3ControlClientBuilder.region(Region.US_EAST_2)).thenReturn(localS3ControlClientBuilder);
+        when(localS3ControlClientBuilder.overrideConfiguration(any(ClientOverrideConfiguration.class))).thenReturn(localS3ControlClientBuilder);
         when(localS3ControlClientBuilder.region(Region.US_EAST_2).build()).thenReturn(localS3ControlClient);
         when(testCache.getDataAccess(any(), any(), any(), any(), any())).thenThrow(NullPointerException.class);
         when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().build()).whenComplete((r,e) -> { throw S3ControlException.builder().statusCode(403).build(); }));
@@ -394,6 +400,7 @@ public class S3AccessGrantsIdentityProviderTests {
         when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
         when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
         when(localS3ControlClientBuilder.region(Region.US_EAST_2)).thenReturn(localS3ControlClientBuilder);
+        when(localS3ControlClientBuilder.overrideConfiguration(any(ClientOverrideConfiguration.class))).thenReturn(localS3ControlClientBuilder);
         when(localS3ControlClientBuilder.region(Region.US_EAST_2).build()).thenReturn(localS3ControlClient);
         when(testCache.getDataAccess(any(), any(), any(), any(), any())).thenReturn(cacheResponse);
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> {
@@ -428,6 +435,7 @@ public class S3AccessGrantsIdentityProviderTests {
         when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
         when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
         when(localS3ControlClientBuilder.region(Region.US_EAST_2)).thenReturn(localS3ControlClientBuilder);
+        when(localS3ControlClientBuilder.overrideConfiguration(any(ClientOverrideConfiguration.class))).thenReturn(localS3ControlClientBuilder);
         when(localS3ControlClientBuilder.region(Region.US_EAST_2).build()).thenReturn(localS3ControlClient);
         when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenThrow(InvalidRequestException.class);
         when(localS3ControlClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class))).thenReturn(getAccessGrantsInstanceForPrefixResponse);
@@ -460,6 +468,7 @@ public class S3AccessGrantsIdentityProviderTests {
         when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
         when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
         when(localS3ControlClientBuilder.region(Region.US_EAST_2)).thenReturn(localS3ControlClientBuilder);
+        when(localS3ControlClientBuilder.overrideConfiguration(any(ClientOverrideConfiguration.class))).thenReturn(localS3ControlClientBuilder);
         when(localS3ControlClientBuilder.region(Region.US_EAST_2).build()).thenReturn(localS3ControlClient);
         when(localS3ControlClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().build()).whenComplete((r,e) -> { throw InvalidRequestException.builder().statusCode(400).build(); }));
         when(localS3ControlClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class))).thenReturn(getAccessGrantsInstanceForPrefixResponse);
@@ -518,6 +527,7 @@ public class S3AccessGrantsIdentityProviderTests {
         when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
         when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
         when(localS3ControlClientBuilder.region(Region.US_EAST_2)).thenReturn(localS3ControlClientBuilder);
+        when(localS3ControlClientBuilder.overrideConfiguration(any(ClientOverrideConfiguration.class))).thenReturn(localS3ControlClientBuilder);
         when(localS3ControlClientBuilder.region(Region.US_EAST_2).build()).thenReturn(localS3ControlClient);
         when(testCache.getDataAccess(any(), any(), any(), any(), any())).thenReturn(cacheResponse);
         when(credentialsProvider.resolveIdentity(any(ResolveIdentityRequest.class))).thenReturn(CompletableFuture.supplyAsync(() -> {

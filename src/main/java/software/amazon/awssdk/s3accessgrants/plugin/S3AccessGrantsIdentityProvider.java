@@ -74,8 +74,8 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     private String CONTACT_TEAM_MESSAGE_TEMPLATE = "An internal exception has occurred. Valid %s was not passed to the %s. Please contact S3 access grants plugin team!";
 
-    ClientOverrideConfiguration.Builder overrideConfig = ClientOverrideConfiguration.builder()
-                    .putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX, "aws-s3-accessgrants-java-sdk-v2-plugin");
+    ClientOverrideConfiguration overrideConfig = ClientOverrideConfiguration.builder()
+                    .putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX, "aws-s3-accessgrants-java-sdk-v2-plugin").build();
 
     public S3AccessGrantsIdentityProvider(@NotNull IdentityProvider<? extends AwsCredentialsIdentity> credentialsProvider,
                                           @NotNull StsAsyncClient stsAsyncClient,
@@ -153,7 +153,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
             if(clientsCache.containsKey(destinationRegion)) {
                 getDataAccessResponse = getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId,  clientsCache.get(destinationRegion));
             } else {
-                s3ControlAsyncClient = s3ControlBuilder.region(destinationRegion).overrideConfiguration(this.overrideConfig.build()).build();
+                s3ControlAsyncClient = s3ControlBuilder.region(destinationRegion).overrideConfiguration(overrideConfig).build();
                 clientsCache.put(destinationRegion, s3ControlAsyncClient);
                 getDataAccessResponse = getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId,  s3ControlAsyncClient);
             }
