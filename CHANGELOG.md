@@ -1,6 +1,7 @@
-## 2.2.1 2024-10-07
+## 2.3.0 2024-10-14
 ### Features
-* Added user agent for internal clients.
+* Customers can now set their own user agents on the internal clients for audit purposes.
+* Added default user agent for internal clients.
 * Increased accountIdResolverCache and BucketRegionResolverCache ttl to 1 hour.
 
 ---

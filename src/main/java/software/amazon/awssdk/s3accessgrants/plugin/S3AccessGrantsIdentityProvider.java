@@ -74,8 +74,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     private String CONTACT_TEAM_MESSAGE_TEMPLATE = "An internal exception has occurred. Valid %s was not passed to the %s. Please contact S3 access grants plugin team!";
 
-    ClientOverrideConfiguration overrideConfig = ClientOverrideConfiguration.builder()
-                    .putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX, "aws-s3-accessgrants-java-sdk-v2-plugin").build();
+    ClientOverrideConfiguration overrideConfig;
 
     public S3AccessGrantsIdentityProvider(@NotNull IdentityProvider<? extends AwsCredentialsIdentity> credentialsProvider,
                                           @NotNull StsAsyncClient stsAsyncClient,
@@ -85,7 +84,8 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
                                           @NotNull S3AccessGrantsCachedCredentialsProvider cache,
                                           @NotNull boolean enableFallback,
                                           @NotNull MetricPublisher metricsPublisher,
-                                          @NotNull ConcurrentHashMap<Region, S3ControlAsyncClient> clientsCache) {
+                                          @NotNull ConcurrentHashMap<Region, S3ControlAsyncClient> clientsCache,
+                                          @NotNull ClientOverrideConfiguration overrideConfig) {
         S3AccessGrantsUtils.argumentNotNull(credentialsProvider, "Expecting an Identity Provider to be specified while configuring S3Clients!");
         S3AccessGrantsUtils.argumentNotNull(stsAsyncClient, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "sts client", "identity provider"));
         S3AccessGrantsUtils.argumentNotNull(clientsCache, String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "client cache", "identity provider"));
@@ -98,6 +98,7 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
         this.enableFallback = enableFallback;
         this.metricsPublisher = metricsPublisher;
         this.clientsCache = clientsCache;
+        this.overrideConfig = overrideConfig;
     }
 
     /**

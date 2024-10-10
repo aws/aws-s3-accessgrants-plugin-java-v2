@@ -75,10 +75,6 @@ import software.amazon.awssdk.services.s3control.model.S3ControlException;
 
 public class S3AccessGrantsIntegrationTestsUtils {
 
-    public static software.amazon.awssdk.services.s3.S3Client s3Client = null;
-
-    public static software.amazon.awssdk.services.s3control.S3ControlClient s3ControlClient = null;
-
     public static Region TEST_REGION;
 
     public static Region TEST_REGION_2;

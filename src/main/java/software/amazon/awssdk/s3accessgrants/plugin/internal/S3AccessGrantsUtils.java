@@ -47,6 +47,8 @@ public class S3AccessGrantsUtils {
 
     public static final Boolean DEFAULT_CROSS_REGION_ACCESS_SETTING = false;
 
+    public static String USER_AGENT = "aws-s3-accessgrants-java-sdk-v2-plugin";
+
     public static void argumentNotNull(Object param, String message) {
         try{
             Validate.notNull(param, message);

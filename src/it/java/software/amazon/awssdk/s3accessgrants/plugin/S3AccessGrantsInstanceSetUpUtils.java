@@ -16,7 +16,6 @@
 package software.amazon.awssdk.s3accessgrants.plugin;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 import java.util.ArrayList;
@@ -253,7 +252,7 @@ public class S3AccessGrantsInstanceSetUpUtils {
         try {
             S3AccessGrantsIntegrationTestsUtils.CreateBucket(s3Client, bucketName);
         } catch (software.amazon.awssdk.services.s3.model.BucketAlreadyOwnedByYouException e) {
-
+            
         }
     }
 

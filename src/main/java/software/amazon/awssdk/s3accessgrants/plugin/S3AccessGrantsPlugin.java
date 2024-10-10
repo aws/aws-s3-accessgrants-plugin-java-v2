@@ -39,6 +39,7 @@ import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGran
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.DEFAULT_FALLBACK_SETTING;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.logger;
 import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.DEFAULT_CROSS_REGION_ACCESS_SETTING;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.USER_AGENT;
 
 /**
  * Access Grants Plugin that can be configured on S3 Clients
@@ -47,9 +48,11 @@ import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGran
 public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Builder, S3AccessGrantsPlugin> {
 
     private boolean enableFallback;
+    private String userAgent;
 
     S3AccessGrantsPlugin(BuilderImpl builder) {
         this.enableFallback = builder.enableFallback;
+        this.userAgent = builder.userAgent;
     }
 
     public static Builder builder() {
@@ -64,8 +67,12 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
        return this.enableFallback;
     }
 
-    ClientOverrideConfiguration.Builder overrideConfig = ClientOverrideConfiguration.builder()
-                    .putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX, "aws-s3-accessgrants-java-sdk-v2-plugin");
+    String userAgent() {
+        return this.userAgent;
+    }
+
+    ClientOverrideConfiguration overrideConfig = ClientOverrideConfiguration.builder()
+                    .putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX, userAgent()).build();
 
     /**
      * Change the configuration on the S3Clients to use S3 Access Grants specific AuthScheme and identityProviders.
@@ -98,7 +105,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
         S3Client s3Client = S3Client
                 .builder()
                 .crossRegionAccessEnabled(true)
-                .overrideConfiguration(overrideConfig.build())
+                .overrideConfiguration(overrideConfig)
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider())
                 .region(serviceClientConfiguration.region())
                 .build();
@@ -111,7 +118,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         StsAsyncClient stsClient = StsAsyncClient.builder()
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider())
-                .overrideConfiguration(overrideConfig.build())
+                .overrideConfiguration(overrideConfig)
                 .region(serviceClientConfiguration.region())
                 .build();
 
@@ -125,7 +132,8 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
                 cache,
                 enableFallback,
                 metricPublisher,
-                clientsCache
+                clientsCache,
+                overrideConfig
                 ));
 
         logger.debug(() -> "Completed configuring S3 Clients to use S3 Access Grants as a permission layer!");
@@ -157,8 +165,10 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
     public static final class BuilderImpl implements Builder {
 
         private boolean enableFallback;
+        private String userAgent;
         BuilderImpl() {
             this.enableFallback = DEFAULT_FALLBACK_SETTING;
+            this.userAgent = USER_AGENT;
         }
 
         BuilderImpl(S3AccessGrantsPlugin plugin) {
@@ -174,6 +184,12 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
         public Builder enableFallback(@NotNull Boolean choice) {
            this.enableFallback = choice == null ? DEFAULT_FALLBACK_SETTING: choice;
            return this;
+        }
+
+        @Override
+        public Builder userAgent(@NotNull String userAgent) {
+            this.userAgent = userAgent == null ? USER_AGENT : USER_AGENT + "-" + userAgent;
+            return this;
         }
     }
 }
