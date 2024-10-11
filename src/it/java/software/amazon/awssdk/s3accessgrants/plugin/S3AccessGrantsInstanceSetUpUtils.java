@@ -252,7 +252,7 @@ public class S3AccessGrantsInstanceSetUpUtils {
         try {
             S3AccessGrantsIntegrationTestsUtils.CreateBucket(s3Client, bucketName);
         } catch (software.amazon.awssdk.services.s3.model.BucketAlreadyOwnedByYouException e) {
-            
+
         }
     }
 

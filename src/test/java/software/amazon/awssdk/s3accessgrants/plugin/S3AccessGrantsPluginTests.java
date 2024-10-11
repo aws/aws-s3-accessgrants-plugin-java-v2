@@ -133,9 +133,9 @@ public class S3AccessGrantsPluginTests {
 
     @Test
     public void create_access_grants_plugin_with_userAgent_specified() {
-        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().userAgent("testUserAgent").build();
+        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().userAgent("testUserAgent-1").build();
         Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder(accessGrantsPlugin));
-        Assertions.assertThat(accessGrantsPlugin.userAgent()).isEqualTo("aws-s3-accessgrants-java-sdk-v2-plugin-testUserAgent");
+        Assertions.assertThat(accessGrantsPlugin.userAgent()).isEqualTo("aws-s3-accessgrants-java-sdk-v2-plugin-testUserAgent-1");
     }
 
     @Test
@@ -150,5 +150,10 @@ public class S3AccessGrantsPluginTests {
         S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
         Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder(accessGrantsPlugin));
         Assertions.assertThat(accessGrantsPlugin.userAgent()).isEqualTo("aws-s3-accessgrants-java-sdk-v2-plugin");
+    }
+
+    @Test
+    public void create_access_grants_plugin_with_not_permitted_userAgent_name() {
+        Assertions.assertThatThrownBy(() -> S3AccessGrantsPlugin.builder().userAgent("testUserAgent/").build()).isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -22,6 +22,7 @@ import software.amazon.awssdk.services.s3control.model.Privilege;
 import software.amazon.awssdk.utils.Logger;
 import software.amazon.awssdk.utils.Validate;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * The class is for defining all the utilities and constants to be used across the package
@@ -95,6 +96,12 @@ public class S3AccessGrantsUtils {
             return "/" + firstKey ;
         }
         return "/" + newCommonAncestor;
+    }
+
+    public static void validateUserInput(String userAgent) {
+        if(!Pattern.compile("[a-zA-Z0-9-]*").matcher(userAgent).matches()){
+            throw new IllegalArgumentException("This user agent name is not permitted. The name can only contain characters 'a-z', 'A-Z', '0-9', and '-'.");
+        }
     }
 
 }

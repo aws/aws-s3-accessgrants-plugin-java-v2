@@ -24,6 +24,7 @@ import software.amazon.awssdk.metrics.MetricPublisher;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProvider;
 import software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsCachedCredentialsProviderImpl;
+import software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ServiceClientConfiguration;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClientBuilder;
@@ -188,6 +189,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         @Override
         public Builder userAgent(@NotNull String userAgent) {
+            S3AccessGrantsUtils.validateUserInput(userAgent);
             this.userAgent = userAgent == null ? USER_AGENT : USER_AGENT + "-" + userAgent;
             return this;
         }
