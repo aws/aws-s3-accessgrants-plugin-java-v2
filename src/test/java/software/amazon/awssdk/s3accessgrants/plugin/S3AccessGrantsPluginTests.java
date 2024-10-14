@@ -133,9 +133,9 @@ public class S3AccessGrantsPluginTests {
 
     @Test
     public void create_access_grants_plugin_with_userAgent_specified() {
-        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().userAgent("testUserAgent-1").build();
+        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().userAgent("testUserAgent-1.0").build();
         Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder(accessGrantsPlugin));
-        Assertions.assertThat(accessGrantsPlugin.userAgent()).isEqualTo("aws-s3-accessgrants-java-sdk-v2-plugin-testUserAgent-1");
+        Assertions.assertThat(accessGrantsPlugin.userAgent()).isEqualTo("aws-s3-accessgrants-java-sdk-v2-plugin-testUserAgent-1.0");
     }
 
     @Test

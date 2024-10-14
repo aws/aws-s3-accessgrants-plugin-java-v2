@@ -99,8 +99,8 @@ public class S3AccessGrantsUtils {
     }
 
     public static void validateUserInput(String userAgent) {
-        if(!Pattern.compile("[a-zA-Z0-9-]*").matcher(userAgent).matches()){
-            throw new IllegalArgumentException("This user agent name is not permitted. The name can only contain characters 'a-z', 'A-Z', '0-9', and '-'.");
+        if(!Pattern.compile("[a-zA-Z0-9.-]*").matcher(userAgent).matches()){
+            throw new IllegalArgumentException("This user agent name is not permitted. The name can only contain characters 'a-z', 'A-Z', '0-9', '.', and '-'.");
         }
     }
 
