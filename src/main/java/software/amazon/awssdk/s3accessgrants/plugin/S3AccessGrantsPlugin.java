@@ -189,8 +189,12 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         @Override
         public Builder userAgent(@NotNull String userAgent) {
-            S3AccessGrantsUtils.validateUserInput(userAgent);
-            this.userAgent = userAgent == null ? USER_AGENT : USER_AGENT + "-" + userAgent;
+            if (userAgent == null) {
+                this.userAgent = USER_AGENT;
+            } else {
+                S3AccessGrantsUtils.validateUserInput(userAgent);
+                this.userAgent = USER_AGENT + "-" + userAgent;
+            }
             return this;
         }
     }
