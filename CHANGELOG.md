@@ -1,4 +1,4 @@
-## 2.3.0 2024-10-14
+## 2.3.0 2024-10-16
 ### Features
 * Customers can now set their own user agents on the internal clients for audit purposes.
 * Added default user agent for internal clients.
