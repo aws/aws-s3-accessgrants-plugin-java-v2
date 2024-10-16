@@ -1,4 +1,4 @@
-## AWS S3 ACCESS GRANTS PLUGIN FOR AWS JAVA SDK 2.0
+## AMAZON S3 ACCESS GRANTS PLUGIN FOR AWS JAVA SDK 2.0
 
 AMAZON S3 ACCESS GRANTS PLUGIN provides the functionality to enable S3 customers to configure S3 ACCESS GRANTS as a permission layer on top of the S3 Clients.
 
@@ -45,12 +45,17 @@ The recommended way to use the S3 ACCESS GRANTS PLUGIN for Java in your project 
 ```
 
 Create a S3AccessGrantsPlugin object and choose if you want to enable fallback.
-1.  If enableFallback option is set to false we will fallback only in case the operation/API is not supported by Access Grants.
-2.  If enableFallback is set to true then we will fall back every time we are not able to get the credentials from Access Grants, no matter the reason.
+1. If enableFallback option is set to false we will fallback only in case the operation/API is not supported by Access Grants.
+2. If enableFallback is set to true then we will fall back every time we are not able to get the credentials from Access Grants, no matter the reason.
 
 ```
 S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().enableFallback(true).build();
 ```
+
+You can also choose to add custom user agent for internal clients as `S3AccessGrantsPlugin.builder().userAgent("userAgent").build()`. A user agent is a request header that identifies the application, version number, operating system, vendor, and programming language of the user making the request. User agent names can consist only of lower case letters, upper case letters, numbers, dots (.), and hyphens (-). This is an optional field.
+1. If userAgent is set to null or not set, the user agent will be set to 'aws-s3-accessgrants-java-sdk-v2-plugin'.
+2. If you pass a String object to user agent that string will be added as a suffix to 'aws-s3-accessgrants-java-sdk-v2-plugin-'.
+
 
 While building S3 client you have to provide a credentialsProvider object which contains credentials that have access to get credentials from Access Grants.
 We only support IAM credentials with this release.

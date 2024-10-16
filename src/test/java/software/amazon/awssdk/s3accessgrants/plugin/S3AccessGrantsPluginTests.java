@@ -27,8 +27,6 @@ import software.amazon.awssdk.regions.Region;
 
 public class S3AccessGrantsPluginTests {
 
-    private final String TEST_ACCOUNT = "123450013912";
-
     @BeforeClass
     public static void setUp() {
         System.setProperty("aws.region", "us-east-2");
@@ -89,7 +87,6 @@ public class S3AccessGrantsPluginTests {
                .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
                .credentialsProvider(DefaultCredentialsProvider.create())
                .region(Region.US_EAST_2);
-
        Assertions.assertThatNoException().isThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration));
 
     }
@@ -102,8 +99,6 @@ public class S3AccessGrantsPluginTests {
                 .authSchemeProvider(null)
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .region(Region.US_EAST_2);
-
-
         Assertions.assertThatThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Expecting an Auth Scheme Provider to be specified while configuring S3Clients!");
@@ -118,8 +113,6 @@ public class S3AccessGrantsPluginTests {
                 .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
                 .credentialsProvider(null)
                 .region(Region.US_EAST_2);
-
-
         Assertions.assertThatThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Expecting an Identity Provider to be specified while configuring S3Clients!");
@@ -134,10 +127,33 @@ public class S3AccessGrantsPluginTests {
                 .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .region(null);
-
-
         Assertions.assertThatNoException().isThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration));
 
     }
 
+    @Test
+    public void create_access_grants_plugin_with_userAgent_specified() {
+        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().userAgent("testUserAgent-1.0").build();
+        Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder(accessGrantsPlugin));
+        Assertions.assertThat(accessGrantsPlugin.userAgent()).isEqualTo("aws-s3-accessgrants-java-sdk-v2-plugin-testUserAgent-1.0");
+    }
+
+    @Test
+    public void create_access_grants_plugin_with_null_userAgent_specified() {
+        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().userAgent(null).build();
+        Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder(accessGrantsPlugin));
+        Assertions.assertThat(accessGrantsPlugin.userAgent()).isEqualTo("aws-s3-accessgrants-java-sdk-v2-plugin");
+    }
+
+    @Test
+    public void create_access_grants_plugin_without_userAgent_specified() {
+        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
+        Assertions.assertThatNoException().isThrownBy(() -> S3AccessGrantsPlugin.builder(accessGrantsPlugin));
+        Assertions.assertThat(accessGrantsPlugin.userAgent()).isEqualTo("aws-s3-accessgrants-java-sdk-v2-plugin");
+    }
+
+    @Test
+    public void create_access_grants_plugin_with_not_permitted_userAgent_name() {
+        Assertions.assertThatThrownBy(() -> S3AccessGrantsPlugin.builder().userAgent("testUserAgent/").build()).isInstanceOf(IllegalArgumentException.class);
+    }
 }

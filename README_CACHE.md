@@ -1,6 +1,6 @@
-## AWS S3 AccessGrants Caching for AWS SDK Java 2.0
+## AMAZON S3 AccessGrants Caching for AWS SDK Java 2.0
 
-The **AWS S3 AccessGrants Caching Java 2.0** is a library that provides client side caching capability on temporary data access credentials.
+The **Amazon S3 AccessGrants Caching Java 2.0** is a library that provides client side caching capability on temporary data access credentials.
 
 We implemented three caches to enhance S3 Access Grants Plugin performance. These caches act as loading caches which means if the entry is not available in cache, we get the value from the service and load it in the cache.
 1. **Access Grants Cache** : To cache all the credentials returned by Access Grants except for object level credentials. The cache size is 30,000. The TTL of this cache is 90% of the duration returned by getDataAccess.

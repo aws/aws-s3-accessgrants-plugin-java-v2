@@ -16,7 +16,6 @@
 package software.amazon.awssdk.s3accessgrants.plugin;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 import java.util.ArrayList;

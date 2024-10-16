@@ -29,6 +29,8 @@ import java.util.stream.Collectors;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.metrics.MetricPublisher;
@@ -126,6 +128,8 @@ public class S3AccessGrantsIntegrationTests {
 
     private static ConcurrentHashMap<Region, S3ControlAsyncClient> clientsCache;
 
+    private static ClientOverrideConfiguration overrideConfig;
+
     @BeforeClass
     public static void testsSetUp() throws IOException {
 
@@ -140,6 +144,8 @@ public class S3AccessGrantsIntegrationTests {
                 .build();
         metricPublisher = CloudWatchMetricPublisher.builder().namespace("S3AccessGrantsPlugin").cloudWatchClient(CloudWatchAsyncClient.builder().region(S3AccessGrantsIntegrationTestsUtils.TEST_REGION).credentialsProvider(credentialsProvider).build()).build();
         clientsCache = new ConcurrentHashMap<>();
+        overrideConfig = ClientOverrideConfiguration.builder()
+                .putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX, "testAgent").build();
 
     }
 
@@ -165,7 +171,7 @@ public class S3AccessGrantsIntegrationTests {
                         cache,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
                         metricPublisher,
-                        clientsCache));
+                        clientsCache, overrideConfig));
 
         String bucketName = "access-grants-sdk-create-test-unsupported-operation";
 
@@ -204,7 +210,7 @@ public class S3AccessGrantsIntegrationTests {
                         cache,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
                         metricPublisher,
-                        clientsCache));
+                        clientsCache, overrideConfig));
 
         S3Client s3client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
@@ -241,7 +247,7 @@ public class S3AccessGrantsIntegrationTests {
                         cache,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
                         metricPublisher,
-                        mockClientsCache));
+                        mockClientsCache, overrideConfig));
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
         CompletableFuture<GetDataAccessResponse> getDataAccessResponse = CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder().credentials(Credentials.builder()
                 .accessKeyId(TEST_ACCESS_KEY)
@@ -259,6 +265,7 @@ public class S3AccessGrantsIntegrationTests {
         when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
         when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
         when(s3ControlAsyncClientBuilder.region(Region.US_EAST_2)).thenReturn(s3ControlAsyncClientBuilder);
+        when(s3ControlAsyncClientBuilder.overrideConfiguration(any(ClientOverrideConfiguration.class))).thenReturn(s3ControlAsyncClientBuilder);
         when(s3ControlAsyncClientBuilder.region(Region.US_EAST_2).build()).thenReturn(s3ControlAsyncClient);
         when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
         when(s3ControlAsyncClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class))).thenReturn(getAccessGrantsInstanceForPrefixResponse);
@@ -297,7 +304,7 @@ public class S3AccessGrantsIntegrationTests {
                         cache,
                         !S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
                         metricPublisher,
-                        mockClientsCache));
+                        mockClientsCache, overrideConfig));
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
         CompletableFuture<GetAccessGrantsInstanceForPrefixResponse>  getAccessGrantsInstanceForPrefixResponse = CompletableFuture.supplyAsync(() -> GetAccessGrantsInstanceForPrefixResponse.builder()
                 .accessGrantsInstanceArn(S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_INSTANCE_ARN)
@@ -307,6 +314,7 @@ public class S3AccessGrantsIntegrationTests {
         when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
         when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
         when(s3ControlAsyncClientBuilder.region(Region.US_EAST_2)).thenReturn(s3ControlAsyncClientBuilder);
+        when(s3ControlAsyncClientBuilder.overrideConfiguration(any(ClientOverrideConfiguration.class))).thenReturn(s3ControlAsyncClientBuilder);
         when(s3ControlAsyncClientBuilder.region(Region.US_EAST_2).build()).thenReturn(s3ControlAsyncClient);
         when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied").build());
         when(s3ControlAsyncClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class))).thenReturn(getAccessGrantsInstanceForPrefixResponse);
@@ -346,7 +354,7 @@ public class S3AccessGrantsIntegrationTests {
                         cache,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
                         metricPublisher,
-                        mockClientCache));
+                        mockClientCache, overrideConfig));
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
         CompletableFuture<GetAccessGrantsInstanceForPrefixResponse>  getAccessGrantsInstanceForPrefixResponse = CompletableFuture.supplyAsync(() -> GetAccessGrantsInstanceForPrefixResponse.builder()
                 .accessGrantsInstanceArn(S3AccessGrantsIntegrationTestsUtils.ACCESS_GRANTS_INSTANCE_ARN)
@@ -356,6 +364,7 @@ public class S3AccessGrantsIntegrationTests {
         when(resolveIdentityRequest.property(BUCKET_LOCATION_PROPERTY)).thenReturn(Region.US_EAST_2);
         when(resolveIdentityRequest.property(PERMISSION_PROPERTY)).thenReturn(Permission.READ);
         when(s3ControlAsyncClientBuilder.region(Region.US_EAST_2)).thenReturn(s3ControlAsyncClientBuilder);
+        when(s3ControlAsyncClientBuilder.overrideConfiguration(any(ClientOverrideConfiguration.class))).thenReturn(s3ControlAsyncClientBuilder);
         when(s3ControlAsyncClientBuilder.region(Region.US_EAST_2).build()).thenReturn(s3ControlAsyncClient);
         when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied").build());
         when(s3ControlAsyncClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class))).thenReturn(getAccessGrantsInstanceForPrefixResponse);
@@ -387,7 +396,7 @@ public class S3AccessGrantsIntegrationTests {
                         cache,
                         !S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
                         metricPublisher,
-                        clientsCache));
+                        clientsCache, overrideConfig));
 
         when(cache.getDataAccess(any(), any(), any(), any(), any())).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied").build());
 
@@ -425,7 +434,7 @@ public class S3AccessGrantsIntegrationTests {
                         cache,
                         !S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
                         metricPublisher,
-                        clientsCache));
+                        clientsCache, overrideConfig));
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
@@ -459,7 +468,7 @@ public class S3AccessGrantsIntegrationTests {
                         cache,
                         !S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
                         metricPublisher,
-                        clientsCache));
+                        clientsCache, overrideConfig));
 
         S3Client s3Client = S3AccessGrantsIntegrationTestsUtils.s3clientBuilder(authSchemeProvider, identityProvider, S3AccessGrantsIntegrationTestsUtils.TEST_REGION);
 
@@ -493,7 +502,7 @@ public class S3AccessGrantsIntegrationTests {
                         cache,
                         !S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
                         metricPublisher,
-                        clientsCache));
+                        clientsCache, overrideConfig));
 
         when(cache.getDataAccess(any(), any(), any(), any(), any())).thenThrow(S3ControlException.builder().statusCode(403).message("Access denied").build());
 
@@ -548,7 +557,7 @@ public class S3AccessGrantsIntegrationTests {
                         cache,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
                         metricPublisher,
-                        clientsCache));
+                        clientsCache, overrideConfig));
 
         InvalidAuthSchemeProvider invalidAuthSchemeProvider = spy(new InvalidAuthSchemeProvider());
 
@@ -596,7 +605,7 @@ public class S3AccessGrantsIntegrationTests {
                         cache,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
                         metricPublisher,
-                        clientsCache));
+                        clientsCache, overrideConfig));
 
         InvalidAuthSchemeProvider invalidAuthSchemeProvider = spy(new InvalidAuthSchemeProvider());
 
@@ -640,7 +649,7 @@ public class S3AccessGrantsIntegrationTests {
                         cache,
                         S3AccessGrantsIntegrationTestsUtils.DEFAULT_FALLBACK_ENABLED,
                         metricPublisher,
-                        clientsCache));
+                        clientsCache, overrideConfig));
 
         try {
             S3Client invalidS3Client =
