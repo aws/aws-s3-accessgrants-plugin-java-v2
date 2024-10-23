@@ -101,6 +101,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
         }
 
         S3ControlAsyncClientBuilder s3ControlAsyncClientBuilder = S3ControlAsyncClient.builder()
+                .endpointOverride(serviceClientConfiguration.endpointOverride())
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider());
 
         S3Client s3Client = S3Client
@@ -109,6 +110,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
                 .overrideConfiguration(overrideConfig)
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider())
                 .region(serviceClientConfiguration.region())
+                .endpointOverride(serviceClientConfiguration.endpointOverride())
                 .build();
 
         serviceClientConfiguration.authSchemeProvider(new S3AccessGrantsAuthSchemeProvider(serviceClientConfiguration.authSchemeProvider(), s3Client, enableCrossRegionAccess));
@@ -118,6 +120,7 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
         ConcurrentHashMap<Region, S3ControlAsyncClient> clientsCache = new ConcurrentHashMap<>();
 
         StsAsyncClient stsClient = StsAsyncClient.builder()
+                .endpointOverride(serviceClientConfiguration.endpointOverride())
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider())
                 .overrideConfiguration(overrideConfig)
                 .region(serviceClientConfiguration.region())
