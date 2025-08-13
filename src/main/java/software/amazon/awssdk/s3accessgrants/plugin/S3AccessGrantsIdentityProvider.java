@@ -68,9 +68,9 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
 
     private final ConcurrentHashMap<Region, S3ControlAsyncClient> clientsCache;
 
-    private AwsCredentialsIdentity cachedCredentials;
+    private volatile AwsCredentialsIdentity cachedCredentials;
 
-    private String cachedAccountId;
+    private volatile String cachedAccountId;
 
     private String CONTACT_TEAM_MESSAGE_TEMPLATE = "An internal exception has occurred. Valid %s was not passed to the %s. Please contact S3 access grants plugin team!";
 
@@ -269,13 +269,25 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
      * */
     String getCallerAccountID(CompletableFuture<? extends AwsCredentialsIdentity> userCredentials) {
         AwsCredentialsIdentity credentials = userCredentials.join();
+        
+        // First check without synchronization (fast path)
         if(credentials.equals(cachedCredentials)) {
             logger.debug(() -> "caller account cached, avoiding sending requests to STS");
             return cachedAccountId;
         }
-        logger.debug(() -> "caller account not cached, requesting STS to fetch caller accountID!");
-        cachedAccountId = stsAsyncClient.getCallerIdentity().join().account();
-        cachedCredentials = credentials;
-        return cachedAccountId;
+        
+        // Double-checked locking to prevent multiple STS calls
+        synchronized(this) {
+            // Check again inside synchronized block
+            if(credentials.equals(cachedCredentials)) {
+                logger.debug(() -> "caller account cached, avoiding sending requests to STS");
+                return cachedAccountId;
+            }
+            
+            logger.debug(() -> "caller account not cached, requesting STS to fetch caller accountID!");
+            cachedAccountId = stsAsyncClient.getCallerIdentity().join().account();
+            cachedCredentials = credentials;
+            return cachedAccountId;
+        }
     }
 }

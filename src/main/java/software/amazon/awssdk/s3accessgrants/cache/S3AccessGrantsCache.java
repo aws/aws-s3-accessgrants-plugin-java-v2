@@ -127,6 +127,8 @@ public class S3AccessGrantsCache {
                                                   S3AccessGrantsAccessDeniedCache s3AccessGrantsAccessDeniedCache, S3ControlAsyncClient s3ControlAsyncClient) throws S3ControlException {
 
         logger.debug(()->"Fetching credentials from Access Grants for s3Prefix: " + cacheKey.s3Prefix);
+        
+        // First check without synchronization (fast path)
         CompletableFuture<AwsCredentialsIdentity> credentials = searchKeyInCacheAtPrefixLevel(cacheKey);
         if (credentials == null &&
             (cacheKey.permission == Permission.READ ||
@@ -141,7 +143,34 @@ public class S3AccessGrantsCache {
              cacheKey.permission == Permission.WRITE)) {
             credentials = searchKeyInCacheAtCharacterLevel(cacheKey.toBuilder().permission(Permission.READWRITE).build());
         }
-        if (credentials == null) {
+        
+        if (credentials != null) {
+            return credentials;
+        }
+        
+        // Double-checked locking to prevent multiple service calls
+        synchronized(this) {
+            // Check again inside synchronized block
+            credentials = searchKeyInCacheAtPrefixLevel(cacheKey);
+            if (credentials == null &&
+                (cacheKey.permission == Permission.READ ||
+                 cacheKey.permission == Permission.WRITE)) {
+                credentials = searchKeyInCacheAtPrefixLevel(cacheKey.toBuilder().permission(Permission.READWRITE).build());
+            }
+            if (credentials == null) {
+                credentials = searchKeyInCacheAtCharacterLevel(cacheKey);
+            }
+            if (credentials == null &&
+                (cacheKey.permission == Permission.READ ||
+                 cacheKey.permission == Permission.WRITE)) {
+                credentials = searchKeyInCacheAtCharacterLevel(cacheKey.toBuilder().permission(Permission.READWRITE).build());
+            }
+            
+            if (credentials != null) {
+                return credentials;
+            }
+            
+            // Only one thread will execute the service call
             try {
                 logger.debug(()->"Credentials not available in the cache. Fetching credentials from Access Grants service.");
                 if (s3ControlAsyncClient == null) {
