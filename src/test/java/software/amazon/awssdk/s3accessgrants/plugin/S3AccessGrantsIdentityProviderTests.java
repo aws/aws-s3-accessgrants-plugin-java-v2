@@ -60,6 +60,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.spy;
@@ -549,5 +554,43 @@ public class S3AccessGrantsIdentityProviderTests {
         verify(mockClientsCache, times(2)).containsKey(any());
         verify(mockClientsCache, times(3)).get(any()); // verifying if the
         verify(mockClientsCache, times(1)).put(any(), any()); // Client already in the cache, so no PUT calls are expected for the second request.
+    }
+
+    @Test
+    public void getCallerAccountID_concurrentAccess_shouldMakeOnlyOneSTSCall() throws InterruptedException {
+        // Given
+        AwsCredentialsIdentity testCredentials = AwsBasicCredentials.create("accessKey", "secretKey");
+        String expectedAccountId = "123456789012";
+        
+        StsAsyncClient localStsClient = mock(StsAsyncClient.class);
+        when(localStsClient.getCallerIdentity()).thenReturn(
+            CompletableFuture.completedFuture(GetCallerIdentityResponse.builder().account(expectedAccountId).build())
+        );
+        
+        S3AccessGrantsIdentityProvider testProvider = new S3AccessGrantsIdentityProvider(
+            credentialsProvider, localStsClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, 
+            s3ControlAsyncClientBuilder, cache, TEST_FALLBACK_ENABLED, metricsPublisher, clientsCache, overrideConfig
+        );
+        
+        // When - simulate 5 concurrent threads with same credentials
+        int threadCount = 5;
+        CompletableFuture<String>[] futures = new CompletableFuture[threadCount];
+        
+        for (int i = 0; i < threadCount; i++) {
+            futures[i] = CompletableFuture.supplyAsync(() -> 
+                testProvider.getCallerAccountID(CompletableFuture.completedFuture(testCredentials))
+            );
+        }
+        
+        // Wait for all to complete
+        CompletableFuture.allOf(futures).join();
+        
+        // Then - verify only one STS call was made
+        verify(localStsClient, times(1)).getCallerIdentity();
+        
+        // Verify all threads got the same account ID
+        for (int i = 0; i < threadCount; i++) {
+            assertThat(futures[i].join()).isEqualTo(expectedAccountId);
+        }
     }
 }

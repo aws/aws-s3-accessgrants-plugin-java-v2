@@ -73,16 +73,13 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
     @Override
     public String resolve(String accountId, String s3Prefix, S3ControlAsyncClient s3ControlAsyncClient) {
         String bucketName = getBucketName(s3Prefix);
-        String s3PrefixAccountId = cache.getIfPresent(bucketName);
-        if (s3PrefixAccountId == null) {
+        return cache.get(bucketName, key -> {
             logger.debug(()->"Account Id not available in the cache. Fetching account from server.");
             if (s3ControlAsyncClient == null) {
                 throw new IllegalArgumentException("S3ControlAsyncClient is required for the access grants instance account resolver!");
             }
-            s3PrefixAccountId = resolveFromService(accountId, s3Prefix, s3ControlAsyncClient);
-            cache.put(bucketName, s3PrefixAccountId);
-        }
-        return s3PrefixAccountId;
+            return resolveFromService(accountId, s3Prefix, s3ControlAsyncClient);
+        });
     }
 
     /**

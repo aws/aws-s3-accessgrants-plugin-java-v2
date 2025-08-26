@@ -135,4 +135,41 @@ public class S3AccessGrantsCachedAccountIdResolverTest {
         assertThatThrownBy(() -> resolver.resolve(TEST_S3_ACCESSGRANTS_ACCOUNT, TEST_S3_PREFIX, S3ControlAsyncClient)).isInstanceOf(S3ControlException.class);
     }
 
+    @Test
+    public void resolve_concurrentAccess_shouldMakeOnlyOneServiceCall() throws InterruptedException {
+        // Given
+        String bucketName = "test-bucket";
+        String s3Prefix = "s3://" + bucketName + "/path/to/object";
+        String expectedAccountId = "123456789012";
+        
+        GetAccessGrantsInstanceForPrefixResponse response = GetAccessGrantsInstanceForPrefixResponse.builder()
+                .accessGrantsInstanceId("instance-id")
+                .accessGrantsInstanceArn("arn:aws:s3:us-east-1:" + expectedAccountId + ":access-grants/instance-id")
+                .build();
+        
+        when(S3ControlAsyncClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class)))
+                .thenReturn(CompletableFuture.completedFuture(response));
+        
+        // When - simulate 5 concurrent threads
+        int threadCount = 5;
+        CompletableFuture<String>[] futures = new CompletableFuture[threadCount];
+        
+        for (int i = 0; i < threadCount; i++) {
+            futures[i] = CompletableFuture.supplyAsync(() -> 
+                resolver.resolve(TEST_S3_ACCESSGRANTS_ACCOUNT, s3Prefix, S3ControlAsyncClient)
+            );
+        }
+        
+        // Wait for all to complete
+        CompletableFuture.allOf(futures).join();
+        
+        // Then - verify only one service call was made
+        verify(S3ControlAsyncClient, times(1)).getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class));
+        
+        // Verify all threads got the same account ID
+        for (int i = 0; i < threadCount; i++) {
+            assertThat(futures[i].join()).isEqualTo(expectedAccountId);
+        }
+    }
+
 }

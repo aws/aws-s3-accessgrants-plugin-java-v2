@@ -352,4 +352,52 @@ public class S3AccessGrantsCacheTest {
 
     }
 
+    @Test
+    public void accessGrantsCache_concurrentAccess_shouldMakeOnlyOneServiceCall() throws InterruptedException {
+        // Given
+        CacheKey key = CacheKey.builder()
+                              .credentials(AWS_BASIC_CREDENTIALS)
+                              .permission(Permission.READ)
+                              .s3Prefix("s3://bucket/concurrent/test.txt").build();
+        
+        Instant ttl = Instant.now().plus(Duration.ofMinutes(1));
+        Credentials creds = Credentials.builder()
+                                      .accessKeyId(ACCESS_KEY_ID)
+                                      .secretAccessKey(SECRET_ACCESS_KEY)
+                                      .sessionToken(SESSION_TOKEN)
+                                      .expiration(ttl).build();
+        
+        CompletableFuture<GetDataAccessResponse> response = 
+            CompletableFuture.supplyAsync(() -> GetDataAccessResponse.builder()
+                                                                    .credentials(creds)
+                                                                    .matchedGrantTarget("s3://bucket/concurrent/*").build());
+        
+        when(mockResolver.resolve(any(String.class), any(String.class), any(S3ControlAsyncClient.class)))
+            .thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
+        when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class)))
+            .thenReturn(response);
+        
+        // When - simulate 5 concurrent threads
+        int threadCount = 5;
+        CompletableFuture<AwsCredentialsIdentity>[] futures = new CompletableFuture[threadCount];
+        
+        for (int i = 0; i < threadCount; i++) {
+            futures[i] = CompletableFuture.supplyAsync(() -> 
+                cacheWithMockedAccountIdResolver.getCredentials(key, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache, s3ControlAsyncClient)
+            ).thenCompose(f -> f);
+        }
+        
+        // Wait for all to complete
+        CompletableFuture.allOf(futures).join();
+        
+        // Then - verify only one service call was made
+        verify(s3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
+        
+        // Verify all threads got the same credentials
+        AwsCredentialsIdentity expectedCreds = futures[0].join();
+        for (int i = 1; i < threadCount; i++) {
+            assertThat(futures[i].join()).isEqualTo(expectedCreds);
+        }
+    }
+
 }
