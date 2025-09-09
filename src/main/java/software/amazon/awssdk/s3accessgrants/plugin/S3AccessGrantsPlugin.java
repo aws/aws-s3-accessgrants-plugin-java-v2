@@ -72,9 +72,6 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
         return this.userAgent;
     }
 
-    ClientOverrideConfiguration overrideConfig = ClientOverrideConfiguration.builder()
-                    .putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX, userAgent()).build();
-
     /**
      * Change the configuration on the S3Clients to use S3 Access Grants specific AuthScheme and identityProviders.
      * @param config the existing configuration on the clients. Passed by the SDK on request path.
@@ -102,6 +99,9 @@ public class S3AccessGrantsPlugin  implements SdkPlugin, ToCopyableBuilder<Build
 
         S3ControlAsyncClientBuilder s3ControlAsyncClientBuilder = S3ControlAsyncClient.builder()
                 .credentialsProvider(serviceClientConfiguration.credentialsProvider());
+
+        ClientOverrideConfiguration overrideConfig = ClientOverrideConfiguration.builder()
+            .putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX, userAgent()).build();
 
         S3Client s3Client = S3Client
                 .builder()
