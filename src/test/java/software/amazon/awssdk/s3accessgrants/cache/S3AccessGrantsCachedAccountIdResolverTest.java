@@ -18,6 +18,7 @@ package software.amazon.awssdk.s3accessgrants.cache;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -172,4 +173,64 @@ public class S3AccessGrantsCachedAccountIdResolverTest {
         }
     }
 
+    @Test
+    public void resolver_CachesAccessDeniedResponse() {
+        // Given
+        String s3Prefix = "s3://test-bucket/path/to/object";
+        S3ControlException accessDeniedException = (S3ControlException) S3ControlException.builder()
+                .message("Access Denied")
+                .statusCode(403)
+                .build();
+        
+        CompletableFuture<GetAccessGrantsInstanceForPrefixResponse> failedFuture = new CompletableFuture<>();
+        failedFuture.completeExceptionally(accessDeniedException);
+        
+        when(S3ControlAsyncClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class)))
+                .thenReturn(failedFuture);
+        
+        // When - first call should throw and cache the exception
+        assertThatThrownBy(() -> resolver.resolve(TEST_S3_ACCESSGRANTS_ACCOUNT, s3Prefix, S3ControlAsyncClient))
+                .isInstanceOf(S3ControlException.class)
+                .matches(e -> ((S3ControlException) e).statusCode() == 403);
+        
+        // When - second call should throw cached exception without calling service
+        assertThatThrownBy(() -> resolver.resolve(TEST_S3_ACCESSGRANTS_ACCOUNT, s3Prefix, S3ControlAsyncClient))
+                .isInstanceOf(S3ControlException.class)
+                .matches(e -> ((S3ControlException) e).statusCode() == 403);
+        
+        // Then - verify service was only called once
+        verify(S3ControlAsyncClient, times(1)).getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class));
+    }
+
+    @Test
+    public void resolver_AccessDeniedCache_DifferentPrefix_NotCached() {
+        // Given
+        String s3Prefix1 = "s3://test-bucket/path/to/object1";
+        String s3Prefix2 = "s3://test-bucket/path/to/object2";
+        S3ControlException accessDeniedException = (S3ControlException) S3ControlException.builder()
+                .message("Access Denied")
+                .statusCode(403)
+                .build();
+        
+        CompletableFuture<GetAccessGrantsInstanceForPrefixResponse> failedFuture1 = new CompletableFuture<>();
+        failedFuture1.completeExceptionally(accessDeniedException);
+        CompletableFuture<GetAccessGrantsInstanceForPrefixResponse> failedFuture2 = new CompletableFuture<>();
+        failedFuture2.completeExceptionally(accessDeniedException);
+        
+        doReturn(failedFuture1, failedFuture2)
+                .when(S3ControlAsyncClient).getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class));
+        
+        // When - first call should throw and cache the exception
+        assertThatThrownBy(() -> resolver.resolve(TEST_S3_ACCESSGRANTS_ACCOUNT, s3Prefix1, S3ControlAsyncClient))
+                .isInstanceOf(S3ControlException.class)
+                .matches(e -> ((S3ControlException) e).statusCode() == 403);
+        
+        // When - second call with different prefix should call service not cache
+        assertThatThrownBy(() -> resolver.resolve(TEST_S3_ACCESSGRANTS_ACCOUNT, s3Prefix2, S3ControlAsyncClient))
+                .isInstanceOf(S3ControlException.class)
+                .matches(e -> ((S3ControlException) e).statusCode() == 403);
+        
+        // Then - verify service was called twice
+        verify(S3ControlAsyncClient, times(2)).getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class));
+    }
 }
