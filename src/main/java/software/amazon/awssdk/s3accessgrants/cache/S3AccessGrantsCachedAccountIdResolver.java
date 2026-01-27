@@ -15,6 +15,8 @@
 
 package software.amazon.awssdk.s3accessgrants.cache;
 
+import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.ACCESS_DENIED_CACHE_SIZE;
+import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.ACCESS_DENIED_CACHE_TTL_SECONDS;
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.DEFAULT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.DEFAULT_ACCOUNT_ID_MAX_CACHE_SIZE;
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.MAX_LIMIT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
@@ -27,7 +29,7 @@ import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import software.amazon.awssdk.annotations.NotNull;
+import java.util.concurrent.CompletionException;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.endpoints.internal.Arn;
 import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixRequest;
@@ -45,6 +47,7 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
     private static final Logger logger = Logger.loggerFor(S3AccessGrantsCachedAccountIdResolver.class);
 
     private Cache<String, String> cache;
+    private Cache<String, S3ControlException> accessDeniedCache;
 
     public int maxCacheSize() {
         return maxCacheSize;
@@ -55,6 +58,8 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
     }
 
     protected CacheStats getCacheStats() { return cache.stats(); }
+
+    protected CacheStats getAccessDeniedCacheStats() { return accessDeniedCache.stats(); }
 
     S3AccessGrantsCachedAccountIdResolver() {
         this.maxCacheSize = DEFAULT_ACCOUNT_ID_MAX_CACHE_SIZE;
@@ -73,6 +78,14 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
     @Override
     public String resolve(String accountId, String s3Prefix, S3ControlAsyncClient s3ControlAsyncClient) {
         String bucketName = getBucketName(s3Prefix);
+        String accessDeniedCacheKey = accountId + ":" + s3Prefix;
+        
+        S3ControlException cachedAccessDenied = accessDeniedCache.getIfPresent(accessDeniedCacheKey);
+        if (cachedAccessDenied != null) {
+            logger.debug(() -> "Found cached AccessDenied response for accountId: " + accountId + ", prefix: " + s3Prefix);
+            throw cachedAccessDenied;
+        }
+        
         return cache.get(bucketName, key -> {
             logger.debug(()->"Account Id not available in the cache. Fetching account from server.");
             if (s3ControlAsyncClient == null) {
@@ -94,7 +107,25 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
                                                                  .accountId(accountId)
                                                                  .s3Prefix(s3Prefix)
                                                                  .build());
-        String accessGrantsInstanceArn = accessGrantsInstanceForPrefix.join().accessGrantsInstanceArn();
+        GetAccessGrantsInstanceForPrefixResponse response;
+        try {
+            response = accessGrantsInstanceForPrefix.join();
+        } catch (CompletionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof S3ControlException) {
+                S3ControlException s3ControlException = (S3ControlException) cause;
+                logger.error(()->"Exception occurred while resolving account id: " + s3ControlException);
+                if (s3ControlException.statusCode() == 403) {
+                    logger.debug(()->"Caching the Access Denied request.");
+                    String accessDeniedCacheKey = accountId + ":" + s3Prefix;
+                    accessDeniedCache.put(accessDeniedCacheKey, s3ControlException);
+                }
+                throw s3ControlException;
+            }
+            throw e;
+        }
+        
+        String accessGrantsInstanceArn = response.accessGrantsInstanceArn();
         Optional<Arn> optionalArn = Arn.parse(accessGrantsInstanceArn);
         if (!optionalArn.isPresent()) {
             logger.error(()->"accessGrantsInstanceArn is empty");
@@ -160,7 +191,13 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
             resolver.cache = Caffeine.newBuilder()
                                      .maximumSize(maxCacheSize)
                                      .expireAfterWrite(Duration.ofSeconds(expireCacheAfterWriteSeconds))
+                                     .recordStats()
                                      .build();
+            resolver.accessDeniedCache = Caffeine.newBuilder()
+                                                 .maximumSize(ACCESS_DENIED_CACHE_SIZE)
+                                                 .expireAfterWrite(Duration.ofSeconds(ACCESS_DENIED_CACHE_TTL_SECONDS))
+                                                 .recordStats()
+                                                 .build();
             return resolver;
         }
     }

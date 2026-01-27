@@ -26,6 +26,7 @@ public class S3AccessGrantsConstants {
     public static final int CACHE_EXPIRATION_TIME_PERCENTAGE = 90;
 
     public static final int ACCESS_DENIED_CACHE_SIZE = 3_000;
+    public static final int ACCESS_DENIED_CACHE_TTL_SECONDS = 300; // 5 minutes
 
     public static final int BUCKET_REGION_CACHE_SIZE = 1_000;
     public static final int MAX_BUCKET_REGION_CACHE_SIZE = 1_000_000;
