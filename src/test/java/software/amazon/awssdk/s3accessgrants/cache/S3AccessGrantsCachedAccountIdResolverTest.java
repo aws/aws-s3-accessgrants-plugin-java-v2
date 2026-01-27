@@ -233,4 +233,37 @@ public class S3AccessGrantsCachedAccountIdResolverTest {
         // Then - verify service was called twice
         verify(S3ControlAsyncClient, times(2)).getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class));
     }
+
+    @Test
+    public void resolver_AccessDeniedCache_DifferentAccountId_NotCached() {
+        // Given
+        String s3Prefix = "s3://test-bucket/path/to/object";
+        String accountId1 = "111111111111";
+        String accountId2 = "222222222222";
+        S3ControlException accessDeniedException = (S3ControlException) S3ControlException.builder()
+                .message("Access Denied")
+                .statusCode(403)
+                .build();
+        
+        CompletableFuture<GetAccessGrantsInstanceForPrefixResponse> failedFuture1 = new CompletableFuture<>();
+        failedFuture1.completeExceptionally(accessDeniedException);
+        CompletableFuture<GetAccessGrantsInstanceForPrefixResponse> failedFuture2 = new CompletableFuture<>();
+        failedFuture2.completeExceptionally(accessDeniedException);
+        
+        doReturn(failedFuture1, failedFuture2)
+                .when(S3ControlAsyncClient).getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class));
+        
+        // When - first call with accountId1 should throw and cache the exception
+        assertThatThrownBy(() -> resolver.resolve(accountId1, s3Prefix, S3ControlAsyncClient))
+                .isInstanceOf(S3ControlException.class)
+                .matches(e -> ((S3ControlException) e).statusCode() == 403);
+        
+        // When - second call with different accountId should still call service
+        assertThatThrownBy(() -> resolver.resolve(accountId2, s3Prefix, S3ControlAsyncClient))
+                .isInstanceOf(S3ControlException.class)
+                .matches(e -> ((S3ControlException) e).statusCode() == 403);
+        
+        // Then - verify service was called twice (once per accountId)
+        verify(S3ControlAsyncClient, times(2)).getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class));
+    }
 }
