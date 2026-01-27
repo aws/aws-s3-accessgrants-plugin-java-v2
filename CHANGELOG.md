@@ -1,3 +1,9 @@
+## 2.4.0 2026-01-27
+### Features
+* Added caching for AccessDenied responses when resolving account IDs to improve performance
+* Fixed thread safety and null pointer issues during concurrent operations.
+
+---
 ## 2.3.0 2024-10-23
 ### Features
 * Customers can now set their own user agents on the internal clients for audit purposes.
