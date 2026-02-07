@@ -546,13 +546,13 @@ public class S3AccessGrantsIdentityProviderTests {
 
         Assertions.assertThatNoException().isThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join());
 
-        verify(mockClientsCache, times(1)).containsKey(any());
-        verify(mockClientsCache, times(1)).get(any()); // Should not invoke get but containsKey invokes get internally
+        verify(mockClientsCache, times(2)).containsKey(any());
+        verify(mockClientsCache, times(2)).get(any()); // Should not invoke get but containsKey invokes get internally
         verify(mockClientsCache, times(1)).put(any(), any()); // Should have called containsKey but no client in the hashMap for the region, so PUT should be invoked
 
         Assertions.assertThatNoException().isThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join());
-        verify(mockClientsCache, times(2)).containsKey(any());
-        verify(mockClientsCache, times(3)).get(any()); // verifying if the
+        verify(mockClientsCache, times(3)).containsKey(any());
+        verify(mockClientsCache, times(4)).get(any()); // verifying if the
         verify(mockClientsCache, times(1)).put(any(), any()); // Client already in the cache, so no PUT calls are expected for the second request.
     }
 
