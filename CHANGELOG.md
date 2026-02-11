@@ -1,3 +1,7 @@
+## 2.4.1 2026-02-11
+### Features
+* Additional fixes for null pointer issues during concurrent operations
+
 ## 2.4.0 2026-01-27
 ### Features
 * Added caching for AccessDenied responses when resolving account IDs to improve performance
