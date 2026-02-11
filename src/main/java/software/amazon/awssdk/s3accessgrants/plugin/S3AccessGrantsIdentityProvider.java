@@ -151,13 +151,12 @@ public class S3AccessGrantsIdentityProvider implements IdentityProvider<AwsCrede
             logger.debug(() -> " permission : " + permission);
             logger.debug(() -> " bucket region : " + destinationRegion);
 
-            if(clientsCache.containsKey(destinationRegion)) {
-                getDataAccessResponse = getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId,  clientsCache.get(destinationRegion));
-            } else {
-                s3ControlAsyncClient = s3ControlBuilder.region(destinationRegion).overrideConfiguration(overrideConfig).build();
-                clientsCache.put(destinationRegion, s3ControlAsyncClient);
-                getDataAccessResponse = getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId,  s3ControlAsyncClient);
-            }
+            s3ControlAsyncClient = clientsCache.computeIfAbsent(destinationRegion, region -> {
+                synchronized(s3ControlBuilder) {
+                    return s3ControlBuilder.region(region).overrideConfiguration(overrideConfig).build();
+                }
+            });
+            getDataAccessResponse = getCredentialsFromCache(userCredentials.join(), permission, S3Prefix, accountId, s3ControlAsyncClient);
             return getDataAccessResponse;
 
         } catch(SdkServiceException e) {

@@ -465,7 +465,8 @@ public class S3AccessGrantsIdentityProviderTests {
                 .builder()
                 .build();
         MetricPublisher testMetricPublisher = mock(MetricPublisher.class);
-        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClientBuilder, testCache, TEST_FALLBACK_ENABLED, testMetricPublisher, clientsCache, overrideConfig);
+        ConcurrentHashMap<Region, S3ControlAsyncClient> localClientsCache = new ConcurrentHashMap<>();
+        S3AccessGrantsIdentityProvider accessGrantsIdentityProvider = new S3AccessGrantsIdentityProvider(credentialsProvider, stsAsyncClient, TEST_PRIVILEGE, TEST_CACHE_ENABLED, localS3ControlClientBuilder, testCache, TEST_FALLBACK_ENABLED, testMetricPublisher, localClientsCache, overrideConfig);
         ResolveIdentityRequest resolveIdentityRequest = mock(ResolveIdentityRequest.class);
         AwsCredentialsIdentity credentials = AwsCredentialsIdentity.builder().accessKeyId(TEST_ACCESS_KEY).secretAccessKey(TEST_SECRET_KEY).build();
         CompletableFuture<GetAccessGrantsInstanceForPrefixResponse>  getAccessGrantsInstanceForPrefixResponse = CompletableFuture.supplyAsync(() -> GetAccessGrantsInstanceForPrefixResponse.builder()
@@ -546,14 +547,10 @@ public class S3AccessGrantsIdentityProviderTests {
 
         Assertions.assertThatNoException().isThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join());
 
-        verify(mockClientsCache, times(1)).containsKey(any());
-        verify(mockClientsCache, times(1)).get(any()); // Should not invoke get but containsKey invokes get internally
-        verify(mockClientsCache, times(1)).put(any(), any()); // Should have called containsKey but no client in the hashMap for the region, so PUT should be invoked
+        verify(mockClientsCache, times(1)).computeIfAbsent(any(), any());
 
         Assertions.assertThatNoException().isThrownBy(() -> accessGrantsIdentityProvider.resolveIdentity(resolveIdentityRequest).join());
-        verify(mockClientsCache, times(2)).containsKey(any());
-        verify(mockClientsCache, times(3)).get(any()); // verifying if the
-        verify(mockClientsCache, times(1)).put(any(), any()); // Client already in the cache, so no PUT calls are expected for the second request.
+        verify(mockClientsCache, times(2)).computeIfAbsent(any(), any()); // computeIfAbsent called again but returns cached client
     }
 
     @Test
