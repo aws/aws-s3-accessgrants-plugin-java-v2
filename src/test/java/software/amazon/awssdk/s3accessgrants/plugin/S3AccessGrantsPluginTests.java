@@ -32,6 +32,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import java.net.URI;
+
 public class S3AccessGrantsPluginTests {
 
     private static final Logger logger = LoggerFactory.getLogger(S3AccessGrantsPluginTests.class);
@@ -79,6 +81,17 @@ public class S3AccessGrantsPluginTests {
 
     @Test
     public void call_configure_client_with_valid_config_null_cross_region_setting() {
+        S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
+        SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
+                .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
+                .credentialsProvider(DefaultCredentialsProvider.create())
+                .crossRegionAccessEnabled(null)
+                .endpointOverride(URI.create("localhost:4040"))
+                .region(Region.US_EAST_2);
+        Assertions.assertThatNoException().isThrownBy(() -> accessGrantsPlugin.configureClient(sdkServiceClientConfiguration));
+    }
+    @Test
+    public void call_configure_client_with_valid_config_null_endpoint_settings() {
         S3AccessGrantsPlugin accessGrantsPlugin = S3AccessGrantsPlugin.builder().build();
         SdkServiceClientConfiguration.Builder sdkServiceClientConfiguration = S3ServiceClientConfiguration.builder()
                 .authSchemeProvider(S3AuthSchemeProvider.defaultProvider())
