@@ -16,6 +16,7 @@
 package software.amazon.awssdk.s3accessgrants.cache;
 
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import java.time.Duration;
@@ -23,6 +24,10 @@ import java.time.Instant;
 
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -262,6 +267,96 @@ public class S3AccessGrantsCacheTest {
         }catch (S3ControlException e){}
         // Then
         assertThat(accessDeniedCache.getValueFromCache(key1)).isInstanceOf(S3ControlException.class);
+    }
+
+    @Test
+    public void accessGrantsCache_asyncGetDataAccessFailure_surfacesThroughFutureNotThrown() {
+        // Given
+        CacheKey key = CacheKey.builder()
+                               .credentials(S3_ACCESS_GRANTS_CREDENTIALS)
+                               .permission(Permission.READ)
+                               .s3Prefix("s3://bucket2/foo/bar").build();
+        S3ControlException s3ControlException = Mockito.mock(S3ControlException.class);
+        when(s3ControlException.statusCode()).thenReturn(403);
+        CompletableFuture<GetDataAccessResponse> failed = new CompletableFuture<>();
+        failed.completeExceptionally(s3ControlException);
+        when(mockResolver.resolve(any(String.class), any(String.class), any(S3ControlAsyncClient.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
+        when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(failed);
+        // When
+        CompletableFuture<AwsCredentialsIdentity> result =
+            cacheWithMockedAccountIdResolver.getCredentials(key, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache, s3ControlAsyncClient);
+        // Then
+        assertThatThrownBy(result::join).isInstanceOf(CompletionException.class)
+            .getCause().isInstanceOf(S3ControlException.class);
+        assertThat(accessDeniedCache.getValueFromCache(key)).isInstanceOf(S3ControlException.class);
+    }
+
+    @Test
+    public void accessGrantsCache_concurrentColdMissesForSameKey_coalesceIntoSingleServiceCall() throws Exception {
+        // Given:
+        CacheKey key = CacheKey.builder()
+                               .credentials(S3_ACCESS_GRANTS_CREDENTIALS)
+                               .permission(Permission.READ)
+                               .s3Prefix("s3://bucket2/foo/bar").build();
+        when(mockResolver.resolve(any(String.class), any(String.class), any(S3ControlAsyncClient.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
+        when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenAnswer(invocation ->
+            CompletableFuture.supplyAsync(() -> {
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                Credentials creds = Credentials.builder()
+                                               .accessKeyId(ACCESS_KEY_ID)
+                                               .secretAccessKey(SECRET_ACCESS_KEY)
+                                               .sessionToken(SESSION_TOKEN)
+                                               .expiration(Instant.now().plus(Duration.ofMinutes(1))).build();
+                return GetDataAccessResponse.builder()
+                                            .credentials(creds)
+                                            .matchedGrantTarget("s3://bucket2/foo/bar/*").build();
+            }));
+        // When
+        int threads = 8;
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch ready = new CountDownLatch(threads);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threads);
+        for (int i = 0; i < threads; i++) {
+            pool.submit(() -> {
+                ready.countDown();
+                try {
+                    start.await();
+                    cacheWithMockedAccountIdResolver.getCredentials(key, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache, s3ControlAsyncClient).join();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    done.countDown();
+                }
+            });
+        }
+        ready.await();
+        start.countDown();
+        done.await();
+        pool.shutdown();
+        // Then
+        verify(s3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
+    }
+
+    @Test
+    public void accessGrantsCache_accountIdResolverThrows403_isThrownSynchronouslyAndDeniedCached() {
+        // Given
+        CacheKey key = CacheKey.builder()
+                               .credentials(S3_ACCESS_GRANTS_CREDENTIALS)
+                               .permission(Permission.READ)
+                               .s3Prefix("s3://bucket2/foo/bar").build();
+        S3ControlException s3ControlException = Mockito.mock(S3ControlException.class);
+        when(s3ControlException.statusCode()).thenReturn(403);
+        when(mockResolver.resolve(any(String.class), any(String.class), any(S3ControlAsyncClient.class))).thenThrow(s3ControlException);
+        // When / Then
+        assertThatThrownBy(() -> cacheWithMockedAccountIdResolver.getCredentials(key, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache, s3ControlAsyncClient))
+            .isInstanceOf(S3ControlException.class);
+        assertThat(accessDeniedCache.getValueFromCache(key)).isInstanceOf(S3ControlException.class);
+        verify(s3ControlAsyncClient, times(0)).getDataAccess(any(GetDataAccessRequest.class));
     }
 
     @Test

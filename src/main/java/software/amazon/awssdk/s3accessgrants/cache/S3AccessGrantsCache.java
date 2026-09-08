@@ -23,6 +23,7 @@ import com.github.benmanes.caffeine.cache.Expiry;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
@@ -190,6 +191,19 @@ public class S3AccessGrantsCache {
                     logger.debug(()->"Successfully retrieved the credentials from Access Grants service");
                     return sessionCredentials;
                 });
+                // Wait for the service call and the cache put above to finish while still holding the lock
+                credentials.join();
+            } catch (CompletionException completionException) {
+                // Async GetDataAccess failure: cache 403 denials here, then surface the failed future
+                Throwable cause = completionException.getCause();
+                if (cause instanceof S3ControlException) {
+                    S3ControlException s3ControlException = (S3ControlException) cause;
+                    logger.error(()->"Exception occurred while fetching the credentials: " + s3ControlException);
+                    if (s3ControlException.statusCode() == 403) {
+                        logger.debug(()->"Caching the Access Denied request.");
+                        s3AccessGrantsAccessDeniedCache.putValueInCache(cacheKey, s3ControlException);
+                    }
+                }
             } catch (S3ControlException s3ControlException) {
                 logger.error(()->"Exception occurred while fetching the credentials: " + s3ControlException);
                 if (s3ControlException.statusCode() == 403) {
