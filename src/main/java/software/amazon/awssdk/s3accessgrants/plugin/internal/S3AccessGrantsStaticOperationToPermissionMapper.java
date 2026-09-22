@@ -43,9 +43,9 @@ public class S3AccessGrantsStaticOperationToPermissionMapper implements S3Access
         supportedAccessGrantsOperations.put("ABORTMULTIPARTUPLOAD", Permission.WRITE);
         supportedAccessGrantsOperations.put("CREATEMULTIPARTUPLOAD", Permission.WRITE);
         supportedAccessGrantsOperations.put("UPLOADPART", Permission.WRITE);
+        supportedAccessGrantsOperations.put("UPLOADPARTCOPY", Permission.READWRITE);
         supportedAccessGrantsOperations.put("COMPLETEMULTIPARTUPLOAD", Permission.WRITE);
         supportedAccessGrantsOperations.put("COPYOBJECT", Permission.READWRITE);
-        supportedAccessGrantsOperations.put("UPLOADPARTCOPY", Permission.READWRITE);
 
     }
     @Override
