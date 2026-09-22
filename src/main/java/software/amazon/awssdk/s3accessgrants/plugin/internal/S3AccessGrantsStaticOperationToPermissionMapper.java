@@ -16,10 +16,10 @@
 package software.amazon.awssdk.s3accessgrants.plugin.internal;
 
 import java.util.HashMap;
+
 import software.amazon.awssdk.annotations.NotNull;
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.services.s3control.model.Permission;
-import software.amazon.awssdk.services.s3control.model.S3ControlException;
 
 public class S3AccessGrantsStaticOperationToPermissionMapper implements S3AccessGrantsOperationToPermissionMapper {
 
@@ -43,6 +43,7 @@ public class S3AccessGrantsStaticOperationToPermissionMapper implements S3Access
         supportedAccessGrantsOperations.put("ABORTMULTIPARTUPLOAD", Permission.WRITE);
         supportedAccessGrantsOperations.put("CREATEMULTIPARTUPLOAD", Permission.WRITE);
         supportedAccessGrantsOperations.put("UPLOADPART", Permission.WRITE);
+        supportedAccessGrantsOperations.put("UPLOADPARTCOPY", Permission.READWRITE);
         supportedAccessGrantsOperations.put("COMPLETEMULTIPARTUPLOAD", Permission.WRITE);
         supportedAccessGrantsOperations.put("COPYOBJECT", Permission.READWRITE);
 

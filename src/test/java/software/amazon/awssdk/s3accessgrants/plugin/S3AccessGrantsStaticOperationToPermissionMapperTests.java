@@ -31,6 +31,7 @@ public class S3AccessGrantsStaticOperationToPermissionMapperTests {
     private final String CREATE_OPERATION_NAME = "CreateBucket";
 
     private final String DELETE_OPERATION_NAME = "DeleteObject";
+    private final String UPLOAD_PART_COPY_OPERATION_NAME = "UploadPartCopy";
     private static S3AccessGrantsOperationToPermissionMapper mapper;
 
     @BeforeClass
@@ -59,6 +60,7 @@ public class S3AccessGrantsStaticOperationToPermissionMapperTests {
         Assertions.assertThat(mapper.getPermission(GET_OPERATION_NAME)).isEqualTo(Permission.READ);
         Assertions.assertThat(mapper.getPermission(PUT_OPERATION_NAME)).isEqualTo(Permission.WRITE);
         Assertions.assertThat(mapper.getPermission(DELETE_OPERATION_NAME)).isEqualTo(Permission.WRITE);
+        Assertions.assertThat(mapper.getPermission(UPLOAD_PART_COPY_OPERATION_NAME)).isEqualTo(Permission.READWRITE);
     }
 
 
