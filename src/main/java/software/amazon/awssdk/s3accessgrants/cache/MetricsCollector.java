@@ -18,9 +18,9 @@ package software.amazon.awssdk.s3accessgrants.cache;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import java.time.Duration;
 import software.amazon.awssdk.metrics.MetricCategory;
+import software.amazon.awssdk.metrics.MetricCollector;
 import software.amazon.awssdk.metrics.MetricLevel;
 import software.amazon.awssdk.metrics.SdkMetric;
-import software.amazon.awssdk.metrics.internal.DefaultMetricCollector;
 
 public class MetricsCollector {
     private static final SdkMetric<Double>
@@ -71,7 +71,7 @@ public class MetricsCollector {
     public static final SdkMetric<Duration> searchKeyInCacheAtCharacterLevel_CacheMiss_Latency =
         SdkMetric.create("searchKeyInCacheAtCharacterLevel_CacheMiss_Latency", Duration.class, MetricLevel.INFO, MetricCategory.CUSTOM);
 
-    public static void getMetricsForAccessGrantsCache (CacheStats stats, DefaultMetricCollector collector) {
+    public static void getMetricsForAccessGrantsCache (CacheStats stats, MetricCollector collector) {
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_HIT_RATE, stats.hitRate());
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_HIT_COUNT, stats.hitCount());
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_MISS_COUNT, stats.missCount());
@@ -80,7 +80,7 @@ public class MetricsCollector {
         collector.reportMetric(ACCESS_GRANT_CACHE_METRIC_EVICTION_COUNT, stats.evictionCount());
     }
 
-    public static void getMetricsForAccessDeniedCache (CacheStats stats, DefaultMetricCollector collector) {
+    public static void getMetricsForAccessDeniedCache (CacheStats stats, MetricCollector collector) {
         collector.reportMetric(ACCESS_DENIED_CACHE_METRIC_HIT_RATE, stats.hitRate());
         collector.reportMetric(ACCESS_DENIED_CACHE_METRIC_HIT_COUNT, stats.hitCount());
         collector.reportMetric(ACCESS_DENIED_CACHE_METRIC_MISS_COUNT, stats.missCount());
@@ -89,7 +89,7 @@ public class MetricsCollector {
         collector.reportMetric(ACCESS_DENIED_CACHE_METRIC_EVICTION_COUNT, stats.evictionCount());
     }
 
-    public static void getMetricsForAccountIdResolverCache (CacheStats stats, DefaultMetricCollector collector) {
+    public static void getMetricsForAccountIdResolverCache (CacheStats stats, MetricCollector collector) {
 
         collector.reportMetric(ACCOUNT_ID_RESOLVER_CACHE_METRIC_HIT_RATE, stats.hitRate());
         collector.reportMetric(ACCOUNT_ID_RESOLVER_CACHE_METRIC_HIT_COUNT, stats.hitCount());
