@@ -133,7 +133,23 @@ public class S3AccessGrantsCachedAccountIdResolverTest {
                                                     .accessGrantsInstanceArn("").build());
         when(S3ControlAsyncClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class))).thenReturn(response);
         // Then
-        assertThatThrownBy(() -> resolver.resolve(TEST_S3_ACCESSGRANTS_ACCOUNT, TEST_S3_PREFIX, S3ControlAsyncClient)).isInstanceOf(S3ControlException.class);
+        assertThatThrownBy(() -> resolver.resolve(TEST_S3_ACCESSGRANTS_ACCOUNT, TEST_S3_PREFIX, S3ControlAsyncClient))
+                .isInstanceOf(S3ControlException.class)
+                .matches(e -> ((S3ControlException) e).statusCode() == 500);
+    }
+
+    @Test
+    public void resolver_Throw_S3ControlException_On_ResponseArn_Without_AccountId() {
+        // Given
+        CompletableFuture<GetAccessGrantsInstanceForPrefixResponse> response =
+            CompletableFuture.supplyAsync(() -> GetAccessGrantsInstanceForPrefixResponse.builder()
+                                                    .accessGrantsInstanceId(TEST_S3_ACCESSGRANTS_INSTANCE_DEFAULT)
+                                                    .accessGrantsInstanceArn("arn:aws:s3:us-east-1::access-grants/default").build());
+        when(S3ControlAsyncClient.getAccessGrantsInstanceForPrefix(any(GetAccessGrantsInstanceForPrefixRequest.class))).thenReturn(response);
+        // Then
+        assertThatThrownBy(() -> resolver.resolve(TEST_S3_ACCESSGRANTS_ACCOUNT, TEST_S3_PREFIX, S3ControlAsyncClient))
+                .isInstanceOf(S3ControlException.class)
+                .matches(e -> ((S3ControlException) e).statusCode() == 500);
     }
 
     @Test

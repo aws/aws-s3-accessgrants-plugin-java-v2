@@ -22,16 +22,16 @@ import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstant
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.MAX_LIMIT_ACCOUNT_ID_EXPIRE_CACHE_AFTER_WRITE_SECONDS;
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.MAX_LIMIT_ACCOUNT_ID_MAX_CACHE_SIZE;
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsUtil.getBucketName;
+import static software.amazon.awssdk.s3accessgrants.plugin.internal.S3AccessGrantsUtils.CONTACT_TEAM_MESSAGE_TEMPLATE;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import software.amazon.awssdk.arns.Arn;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
-import software.amazon.awssdk.services.s3control.endpoints.internal.Arn;
 import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixRequest;
 import software.amazon.awssdk.services.s3control.model.GetAccessGrantsInstanceForPrefixResponse;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
@@ -127,12 +127,17 @@ public class S3AccessGrantsCachedAccountIdResolver implements S3AccessGrantsAcco
         }
         
         String accessGrantsInstanceArn = response.accessGrantsInstanceArn();
-        Optional<Arn> optionalArn = Arn.parse(accessGrantsInstanceArn);
-        if (!optionalArn.isPresent()) {
+        Arn arn;
+        try {
+            arn = Arn.fromString(accessGrantsInstanceArn);
+        } catch (IllegalArgumentException e) {
             logger.error(()->"accessGrantsInstanceArn is empty");
-            throw S3ControlException.builder().message("accessGrantsInstanceArn is empty").build();
+            throw S3ControlException.builder().message(String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "access grants instance ARN", "account id resolver")).statusCode(500).build();
         }
-        return optionalArn.get().accountId();
+        return arn.accountId().orElseThrow(() -> {
+            logger.error(()->"accessGrantsInstanceArn has no account id");
+            return S3ControlException.builder().message(String.format(CONTACT_TEAM_MESSAGE_TEMPLATE, "access grants instance ARN", "account id resolver")).statusCode(500).build();
+        });
     }
 
     public interface Builder {

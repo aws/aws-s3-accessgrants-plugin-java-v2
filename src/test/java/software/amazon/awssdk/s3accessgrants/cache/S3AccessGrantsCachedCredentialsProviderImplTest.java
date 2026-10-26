@@ -83,7 +83,7 @@ public class S3AccessGrantsCachedCredentialsProviderImplTest {
         CompletableFuture<GetDataAccessResponse> getDataAccessResponse = getDataAccessResponseSetUp("s3://bucket2/foo/*");
         when(mockResolver.resolve(any(String.class), any(String.class), any(S3ControlAsyncClient.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
         when(S3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenReturn(getDataAccessResponse);
-        cacheWithMockedAccountIdResolver.getDataAccess(AWS_SESSION_CREDENTIALS, Permission.READ, "s3://bucket2/foo/bar", TEST_S3_ACCESSGRANTS_ACCOUNT, S3ControlAsyncClient);
+        cacheWithMockedAccountIdResolver.getDataAccess(AWS_SESSION_CREDENTIALS, Permission.READ, "s3://bucket2/foo/bar", TEST_S3_ACCESSGRANTS_ACCOUNT, S3ControlAsyncClient).join();
         AwsSessionCredentials sessionCredentials = AwsSessionCredentials.builder().accessKeyId(credentials.accessKeyId())
                                                                         .secretAccessKey(credentials.secretAccessKey())
                                                                         .sessionToken(credentials.sessionToken()).build();
