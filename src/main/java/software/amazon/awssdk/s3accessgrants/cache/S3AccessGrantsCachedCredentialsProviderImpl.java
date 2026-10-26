@@ -23,7 +23,6 @@ import software.amazon.awssdk.core.metrics.CoreMetric;
 import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.identity.spi.AwsSessionCredentialsIdentity;
 import software.amazon.awssdk.metrics.MetricCollector;
-import software.amazon.awssdk.metrics.internal.DefaultMetricCollector;
 import software.amazon.awssdk.services.s3control.S3ControlAsyncClient;
 import software.amazon.awssdk.services.s3control.model.Permission;
 import software.amazon.awssdk.services.s3control.model.S3ControlException;
@@ -37,7 +36,7 @@ public class S3AccessGrantsCachedCredentialsProviderImpl implements S3AccessGran
 
     private final S3AccessGrantsCache accessGrantsCache;
     private final S3AccessGrantsAccessDeniedCache s3AccessGrantsAccessDeniedCache;
-    DefaultMetricCollector collector = new DefaultMetricCollector("AccessGrantsMetricsCollector");
+    MetricCollector collector = MetricCollector.create("AccessGrantsMetricsCollector");
     public static final Logger logger = Logger.loggerFor(S3AccessGrantsCachedCredentialsProviderImpl.class);
 
     private S3AccessGrantsCachedCredentialsProviderImpl(int maxCacheSize, int cacheExpirationTimePercentage) {
