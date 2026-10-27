@@ -1,3 +1,12 @@
+## 2.5.0 2026-10-27
+### Features
+* Added support for the UploadPartCopy API.
+* Fixed NoClassDefFoundError when used with AWS SDK for Java 2.54.10 and later.
+* Replaced SDK-internal metrics APIs with public APIs for compatibility with future SDK versions.
+* Concurrent requests for the same caller and bucket now share a single GetDataAccess call when the cache is cold.
+* Added caching for AccessDenied responses from GetDataAccess to improve performance.
+* An invalid access grants instance ARN now returns status code 500 instead of 0.
+
 ## 2.4.1 2026-02-11
 ### Features
 * Additional fixes for null pointer issues during concurrent operations
