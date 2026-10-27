@@ -16,8 +16,10 @@
 package software.amazon.awssdk.s3accessgrants.cache;
 
 import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsConstants.DEFAULT_ACCESS_GRANTS_MAX_CACHE_SIZE;
+import static software.amazon.awssdk.s3accessgrants.cache.S3AccessGrantsUtil.getBucketName;
 
 import com.github.benmanes.caffeine.cache.AsyncCache;
+import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Expiry;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
@@ -43,6 +45,8 @@ import software.amazon.awssdk.utils.Logger;
 public class S3AccessGrantsCache {
 
     private AsyncCache<CacheKey, AwsCredentialsIdentity> cache;
+    // Weak values release a lock once no thread holds it, so the map stays bounded and a held lock is never evicted.
+    private final Cache<CacheKey, Object> locks = Caffeine.newBuilder().weakValues().build();
     private int maxCacheSize;
     private final S3AccessGrantsCachedAccountIdResolver s3AccessGrantsCachedAccountIdResolver;
     private final int cacheExpirationTimePercentage;
@@ -149,8 +153,12 @@ public class S3AccessGrantsCache {
             return credentials;
         }
         
-        // Double-checked locking to prevent multiple service calls
-        synchronized(this) {
+        // Double-checked locking to prevent multiple service calls.
+        // The lock is per caller and bucket so concurrent misses for the same caller and bucket share one service call,
+        // while other callers and buckets are not blocked.
+        Object lock = locks.get(CacheKey.builder().credentials(cacheKey.credentials).s3Prefix(getBucketName(cacheKey.s3Prefix)).build(),
+                                key -> new Object());
+        synchronized(lock) {
             // Check again inside synchronized block
             credentials = searchKeyInCacheAtPrefixLevel(cacheKey);
             if (credentials == null &&
