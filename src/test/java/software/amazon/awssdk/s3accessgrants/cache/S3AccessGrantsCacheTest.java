@@ -23,11 +23,15 @@ import java.time.Duration;
 import java.time.Instant;
 
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -35,6 +39,7 @@ import org.mockito.Mockito;
 
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.any;
@@ -493,6 +498,103 @@ public class S3AccessGrantsCacheTest {
         for (int i = 1; i < threadCount; i++) {
             assertThat(futures[i].join()).isEqualTo(expectedCreds);
         }
+    }
+
+    @Test
+    public void accessGrantsCache_concurrentColdMissesForDifferentBuckets_doNotBlockEachOther() throws Exception {
+        CacheKey key1 = CacheKey.builder()
+                                .credentials(S3_ACCESS_GRANTS_CREDENTIALS)
+                                .permission(Permission.READ)
+                                .s3Prefix("s3://bucket1/foo/bar").build();
+        CacheKey key2 = CacheKey.builder()
+                                .credentials(S3_ACCESS_GRANTS_CREDENTIALS)
+                                .permission(Permission.READ)
+                                .s3Prefix("s3://bucket2/foo/bar").build();
+        assertSecondColdMissNotBlockedByFirst(key1, key2);
+    }
+
+    @Test
+    public void accessGrantsCache_concurrentColdMissesForDifferentCallers_doNotBlockEachOther() throws Exception {
+        CacheKey key1 = CacheKey.builder()
+                                .credentials(S3_ACCESS_GRANTS_CREDENTIALS)
+                                .permission(Permission.READ)
+                                .s3Prefix("s3://bucket2/foo/bar").build();
+        CacheKey key2 = CacheKey.builder()
+                                .credentials(AwsBasicCredentials.create("otherAccessKey", "otherSecretAccessKey"))
+                                .permission(Permission.READ)
+                                .s3Prefix("s3://bucket2/foo/bar").build();
+        assertSecondColdMissNotBlockedByFirst(key1, key2);
+    }
+
+    /**
+     * Holds the first key's GetDataAccess call in flight and checks that a cold miss for the second key still completes.
+     */
+    private void assertSecondColdMissNotBlockedByFirst(CacheKey firstKey, CacheKey secondKey) throws Exception {
+        // Given
+        CompletableFuture<GetDataAccessResponse> inFlightResponse = new CompletableFuture<>();
+        when(mockResolver.resolve(any(String.class), any(String.class), any(S3ControlAsyncClient.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
+        when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class)))
+            .thenReturn(inFlightResponse, getDataAccessResponseSetUp(secondKey.s3Prefix + "/*"));
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<AwsCredentialsIdentity> first = pool.submit(() -> cacheWithMockedAccountIdResolver.getCredentials(
+                firstKey, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache, s3ControlAsyncClient).join());
+            verify(s3ControlAsyncClient, timeout(5_000).times(1)).getDataAccess(any(GetDataAccessRequest.class));
+            // When
+            Future<AwsCredentialsIdentity> second = pool.submit(() -> cacheWithMockedAccountIdResolver.getCredentials(
+                secondKey, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache, s3ControlAsyncClient).join());
+            // Then
+            assertThat(second.get(5, TimeUnit.SECONDS)).isNotNull();
+            assertThat(first.isDone()).isFalse();
+            inFlightResponse.complete(getDataAccessResponseSetUp(firstKey.s3Prefix + "/*").join());
+            assertThat(first.get(5, TimeUnit.SECONDS)).isNotNull();
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    public void accessGrantsCache_concurrentColdMissesForDifferentObjectsUnderSameGrant_coalesceIntoSingleServiceCall() throws Exception {
+        // Given
+        when(mockResolver.resolve(any(String.class), any(String.class), any(S3ControlAsyncClient.class))).thenReturn(TEST_S3_ACCESSGRANTS_ACCOUNT);
+        when(s3ControlAsyncClient.getDataAccess(any(GetDataAccessRequest.class))).thenAnswer(invocation ->
+            CompletableFuture.supplyAsync(() -> {
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                Credentials creds = Credentials.builder()
+                                               .accessKeyId(ACCESS_KEY_ID)
+                                               .secretAccessKey(SECRET_ACCESS_KEY)
+                                               .sessionToken(SESSION_TOKEN)
+                                               .expiration(Instant.now().plus(Duration.ofMinutes(1))).build();
+                return GetDataAccessResponse.builder()
+                                            .credentials(creds)
+                                            .matchedGrantTarget("s3://bucket2/foo/*").build();
+            }));
+        // When
+        int threads = 8;
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<AwsCredentialsIdentity>> results = new ArrayList<>();
+        for (int i = 0; i < threads; i++) {
+            CacheKey key = CacheKey.builder()
+                                   .credentials(S3_ACCESS_GRANTS_CREDENTIALS)
+                                   .permission(Permission.READ)
+                                   .s3Prefix("s3://bucket2/foo/object" + i).build();
+            results.add(pool.submit(() -> {
+                start.await();
+                return cacheWithMockedAccountIdResolver.getCredentials(key, TEST_S3_ACCESSGRANTS_ACCOUNT, accessDeniedCache, s3ControlAsyncClient).join();
+            }));
+        }
+        start.countDown();
+        for (Future<AwsCredentialsIdentity> result : results) {
+            assertThat(result.get(10, TimeUnit.SECONDS)).isNotNull();
+        }
+        pool.shutdown();
+        // Then
+        verify(s3ControlAsyncClient, times(1)).getDataAccess(any(GetDataAccessRequest.class));
     }
 
 }
